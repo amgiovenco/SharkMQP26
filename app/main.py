@@ -3,14 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from .auth import router as auth_router 
 from .settings import settings
-
+from contextlib import asynccontextmanager
 
 app = FastAPI()
 
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
 api_router = APIRouter()
 
 app.add_middleware(
