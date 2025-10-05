@@ -1,0 +1,38 @@
+from fastapi import FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
+from .db import Base, engine
+from .auth import router as auth_router
+from .jobs import router as jobs_router
+from .settings import settings
+from contextlib import asynccontextmanager
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
+app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
+api_router = APIRouter()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.allowed_origins] if settings.allowed_origins != "*" else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+api_router.include_router(auth_router, prefix="/auth")
+api_router.include_router(jobs_router, prefix="/jobs")
+
+app.include_router(api_router, prefix="/api")
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
