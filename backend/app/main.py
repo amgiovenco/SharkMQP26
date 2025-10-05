@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from .auth import router as auth_router
+from .cases import router as cases_router
 from .jobs import router as jobs_router
 from .settings import settings
 from contextlib import asynccontextmanager
@@ -30,6 +31,7 @@ app.add_middleware(
 
 api_router.include_router(auth_router, prefix="/auth")
 api_router.include_router(jobs_router, prefix="/jobs")
+api_router.include_router(cases_router, prefix="/cases")
 
 app.include_router(api_router, prefix="/api")
 

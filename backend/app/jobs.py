@@ -1,20 +1,21 @@
 import json
 import hashlib
+from uuid import UUID as UUID_t
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from redis.asyncio import from_url as redis_from_url
+from sqlalchemy import func
 
 from .settings import settings
 from .db import SessionLocal
-from .models import Job, User
+from .models import Job, User, Case
 from .auth import get_current_user
 from .logger import get_logger
-from sqlalchemy import func
 
 logger = get_logger(__name__)
 
@@ -37,8 +38,14 @@ async def get_redis():
     logger.debug("Connected to Redis at %s", settings.redis_url)
     return r
 
+def get_current_user_obj(username: str = Depends(get_current_user),
+                         db: Session = Depends(get_db)) -> User:
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user
+
 def _validate_csv_content_type(ct: Optional[str]) -> None:
-    # browser CSV types may vary
     allowed = {
         "text/csv",
         "application/csv",
@@ -46,52 +53,60 @@ def _validate_csv_content_type(ct: Optional[str]) -> None:
         "application/octet-stream",
     }
     if ct is None or ct.lower() not in allowed:
-        # Don't hard fail
         logger.debug("Unrecognized CSV content-type: %s", ct)
 
+def _parse_case_id(case_id: Optional[str]) -> Optional[UUID_t]:
+    if not case_id:
+        return None
+    try:
+        return UUID_t(case_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="case_id must be a UUID")
 
 @router.post("/upload")
 async def upload_and_enqueue(
     file: UploadFile = File(...),
     case_id: Optional[str] = Form(default=None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_obj),
     r=Depends(get_redis),
 ):
-    logger.info(
-        "Upload request received: filename=%s content_type=%s case_id=%s user_id=%s",
-        file.filename,
-        file.content_type,
-        case_id,
-        getattr(current_user, "id", None),
-    )
-
+    """
+    Uploads a CSV, creates a Job linked to an optional Case, saves to disk,
+    and enqueues a work item to Redis.
+    """
     _validate_csv_content_type(file.content_type)
-
     base_dir = Path(settings.storage_dir)
-    ts = datetime.now(timezone.utc)
+    base_dir.mkdir(parents=True, exist_ok=True)
 
+    ts = datetime.now(timezone.utc)
+    case_uuid: Optional[UUID_t] = _parse_case_id(case_id)
+
+    # If case supplied, verify it exists
+    if case_uuid:
+        case = db.get(Case, case_uuid)
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found")
+
+    # Create job row first to get its UUID
     new_job = Job(
-        case_id=case_id,
-        file_path="", # fill after we know where we wrote it
-        sha256="", # fill after hashing
+        case_id=case_uuid,
+        file_path="",
+        sha256="",
         status="queued",
         created_at=ts,
         user_id=current_user.id,
     )
     db.add(new_job)
     db.commit()
-    db.refresh(new_job) # to obtain UUID primary key
+    db.refresh(new_job)
 
-    logger.debug("Created job record: id=%s user_id=%s status=%s", new_job.id, new_job.user_id, new_job.status)
-
-    # save file to disk
-    case_folder = case_id if case_id else "uncategorized"
+    # Save file to disk: {storage_dir}/{case_id or uncategorized}/{job_id}/sample.csv
+    case_folder = str(case_uuid) if case_uuid else "uncategorized"
     job_folder = base_dir / case_folder / str(new_job.id)
     job_folder.mkdir(parents=True, exist_ok=True)
     csv_path = job_folder / "sample.csv"
 
-    # hash file while writing
     hasher = hashlib.sha256()
     total_bytes = 0
     try:
@@ -108,19 +123,21 @@ async def upload_and_enqueue(
         raise HTTPException(status_code=500, detail="Failed to save uploaded file") from e
 
     sha256 = hasher.hexdigest()
-    logger.info("Saved uploaded file for job %s: path=%s bytes=%d sha256=%s", new_job.id, str(csv_path), total_bytes, sha256)
+    logger.info(
+        "Saved uploaded file for job %s: path=%s bytes=%d sha256=%s",
+        new_job.id, str(csv_path), total_bytes, sha256
+    )
 
-    # update job with path + sha256
     new_job.file_path = str(csv_path)
     new_job.sha256 = sha256
     db.add(new_job)
     db.commit()
     db.refresh(new_job)
 
-    # enqueue to redis
+    # Enqueue
     payload = {
-        "job_id": str(new_job.id), # UUID as string for portability
-        "case_id": new_job.case_id, # may be None
+        "job_id": str(new_job.id),
+        "case_id": str(case_uuid) if case_uuid else None,
         "filepath": new_job.file_path,
         "sha256": new_job.sha256,
         "user_id": new_job.user_id,
@@ -133,65 +150,40 @@ async def upload_and_enqueue(
         logger.error("Failed to enqueue job %s to Redis: %s", new_job.id, e)
         raise HTTPException(status_code=500, detail="Failed to enqueue job") from e
 
-    return JSONResponse(
-        {
-            "status": "queued",
-            "queue": settings.redis_queue,
-            "job": new_job.to_dict(),
-        }
-    )
+    return JSONResponse({"status": "queued", "queue": settings.redis_queue, "job": new_job.to_dict()})
 
 
 @router.get("/{job_id}")
-def get_job(job_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    logger.debug("Fetching job %s for user_id=%s", job_id, getattr(current_user, "id", None))
+def get_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj)
+):
     job = db.get(Job, job_id)
-
-    # verify job exists
     if not job:
-        logger.warning("Job %s not found", job_id)
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    # verify ownership or admin/researcher
+
     if current_user.role.value not in ("admin", "researcher") and job.user_id != current_user.id:
-        logger.warning("Forbidden access to job %s by user %s", job_id, current_user.id)
         raise HTTPException(status_code=403, detail="Forbidden")
-    
-    logger.debug("Job %s returned to user %s", job_id, current_user.id)
     return job.to_dict()
 
-@router.get("/recent")
-def get_recent_jobs(
-    page: int = 1,
-    per_page: int = 20,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    # basic validation / limits
-    if page < 1:
-        raise HTTPException(status_code=400, detail="page must be >= 1")
-    if per_page < 1 or per_page > 100:
-        raise HTTPException(status_code=400, detail="per_page must be between 1 and 100")
 
+@router.get("")
+def list_jobs(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    case_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj),
+):
+    """List jobs globally or within a case. Non-admin users see only their jobs."""
     q = db.query(Job)
-    # non-admin/researcher users only see their own jobs
+    if case_id:
+        q = q.filter(Job.case_id == _parse_case_id(case_id))
+
     if current_user.role.value not in ("admin", "researcher"):
         q = q.filter(Job.user_id == current_user.id)
 
     total = q.with_entities(func.count()).scalar() or 0
-
-    jobs = (
-        q.order_by(Job.created_at.desc())
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-        .all()
-    )
-
-    return JSONResponse(
-        {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "jobs": [j.to_dict() for j in jobs],
-        }
-    )
+    jobs = q.order_by(Job.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in jobs]}
