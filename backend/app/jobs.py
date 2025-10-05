@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from redis.asyncio import from_url as redis_from_url
+from redis.asyncio import from_url
 from sqlalchemy import func
 
 from .settings import settings
@@ -29,7 +29,7 @@ def get_db():
         db.close()
 
 async def get_redis():
-    r = redis_from_url(settings.redis_url, decode_responses=True)
+    r = from_url(settings.redis_url, decode_responses=True)
     try:
         await r.ping()
     except Exception as e:
@@ -38,14 +38,14 @@ async def get_redis():
     logger.debug("Connected to Redis at %s", settings.redis_url)
     return r
 
-def get_current_user_obj(username: str = Depends(get_current_user),
-                         db: Session = Depends(get_db)) -> User:
+def get_current_user_obj(username: str = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
     return user
 
 def _validate_csv_content_type(ct: Optional[str]) -> None:
+    # different broswers can have different content types
     allowed = {
         "text/csv",
         "application/csv",
@@ -107,6 +107,7 @@ async def upload_and_enqueue(
     job_folder.mkdir(parents=True, exist_ok=True)
     csv_path = job_folder / "sample.csv"
 
+    # hash file while saving
     hasher = hashlib.sha256()
     total_bytes = 0
     try:
@@ -122,6 +123,7 @@ async def upload_and_enqueue(
         logger.error("Error saving uploaded file for job %s: %s", new_job.id, e)
         raise HTTPException(status_code=500, detail="Failed to save uploaded file") from e
 
+    # Update job with file path and sha256
     sha256 = hasher.hexdigest()
     logger.info(
         "Saved uploaded file for job %s: path=%s bytes=%d sha256=%s",
@@ -143,9 +145,11 @@ async def upload_and_enqueue(
         "user_id": new_job.user_id,
         "created_at": new_job.created_at.isoformat(),
     }
+
     try:
         await r.lpush(settings.redis_queue, json.dumps(payload))
         logger.info("Enqueued job %s to Redis queue %s", new_job.id, settings.redis_queue)
+
     except Exception as e:
         logger.error("Failed to enqueue job %s to Redis: %s", new_job.id, e)
         raise HTTPException(status_code=500, detail="Failed to enqueue job") from e
@@ -159,10 +163,12 @@ def get_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_obj)
 ):
+    # validate job
     job = db.get(Job, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # non admin/researcher users can see only their jobs
     if current_user.role.value not in ("admin", "researcher") and job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
     return job.to_dict()
@@ -178,12 +184,17 @@ def list_jobs(
 ):
     """List jobs globally or within a case. Non-admin users see only their jobs."""
     q = db.query(Job)
+
+    # find by case id
     if case_id:
         q = q.filter(Job.case_id == _parse_case_id(case_id))
 
+    # find by user role
     if current_user.role.value not in ("admin", "researcher"):
         q = q.filter(Job.user_id == current_user.id)
 
+    # pagination
     total = q.with_entities(func.count()).scalar() or 0
     jobs = q.order_by(Job.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
     return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in jobs]}

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import Job, JobResult
-from app.settings import settings  # fixed relative import
+from app.settings import settings
 
 def run_inference(filepath: str):
     # TODO: real ML inference
@@ -80,6 +80,7 @@ async def main():
             if not item:
                 continue
 
+            # got a job
             _qname, payload = item
             job_msg = json.loads(payload)
             job_id = job_msg.get("job_id")
