@@ -4,8 +4,14 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.inspection import inspect as sa_inspect
 import uuid
 import enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .db import Base
+
+def _iso(dt) -> Optional[str]:
+    return dt.isoformat() if getattr(dt, "isoformat", None) else None
+
+def _uuid(v) -> Optional[str]:
+    return str(v) if isinstance(v, uuid.UUID) else (str(v) if v is not None else None)
 
 
 class UserRole(enum.Enum):
@@ -38,24 +44,15 @@ class User(Base):
         return " ".join(parts) if parts else ""
 
     def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {}
-        for col in sa_inspect(self.__class__).columns:
-            val = getattr(self, col.name)
-            # SQLAlchemy Enum -> python enum
-            if isinstance(val, enum.Enum):
-                data[col.name] = val.value
-            # datetime -> string
-            elif hasattr(val, "isoformat"):
-                try:
-                    data[col.name] = val.isoformat()
-                except Exception:
-                    data[col.name] = str(val)
-            # UUID -> string
-            elif isinstance(val, uuid.UUID):
-                data[col.name] = str(val)
-            else:
-                data[col.name] = val
-        return data
+        return {
+            "id": self.id,
+            "username": self.username,
+            "role": self.role.value if isinstance(self.role, enum.Enum) else self.role,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "full_name": self.full_name,
+            "job_title": self.job_title,
+        }
 
 
 class Case(Base):
@@ -84,32 +81,26 @@ class Case(Base):
         return f"<Case id={self.id} title={self.title!r}>"
 
     def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {}
-        for col in sa_inspect(self.__class__).columns:
-            val = getattr(self, col.name)
-            if isinstance(val, enum.Enum):
-                data[col.name] = val.value
-            elif hasattr(val, "isoformat"):
-                try:
-                    data[col.name] = val.isoformat()
-                except Exception:
-                    data[col.name] = str(val)
-            elif isinstance(val, uuid.UUID):
-                data[col.name] = str(val)
-            else:
-                data[col.name] = val
-        # include job ids for convenience (don't eager-load full jobs here)
-        data["job_ids"] = [str(j.id) for j in self.jobs] if self.jobs is not None else []
-        # include brief researcher info if available
-        if self.researcher is not None:
-            data["researcher"] = {
-                "id": self.researcher.id,
-                "username": self.researcher.username,
-                "full_name": self.researcher.full_name,
-            }
-        else:
-            data["researcher"] = None
-        return data
+        return {
+            "id": _uuid(self.id),
+            "title": self.title,
+            "description": self.description,
+            "person_name": self.person_name,
+            "researcher_id": self.researcher_id,
+            "data_created": _iso(self.data_created),
+            "created_at": _iso(self.created_at),
+            "metadata": self.case_metadata,
+            "researcher": (
+                {
+                    "id": self.researcher.id,
+                    "username": self.researcher.username,
+                    "full_name": self.researcher.full_name,
+                }
+                if self.researcher is not None
+                else None
+            ),
+            "job_ids": [ _uuid(j.id) for j in (self.jobs or []) ],
+        }
 
 
 class Job(Base):
@@ -141,36 +132,28 @@ class Job(Base):
         return f"<Job id={self.id} sha256={self.sha256!r} status={self.status!r}>"
 
     def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {}
-        for col in sa_inspect(self.__class__).columns:
-            val = getattr(self, col.name)
-            # SQLAlchemy Enum -> python enum
-            if isinstance(val, enum.Enum):
-                data[col.name] = val.value
-            # datetime -> string
-            elif hasattr(val, "isoformat"):
-                try:
-                    data[col.name] = val.isoformat()
-                except Exception:
-                    data[col.name] = str(val)
-            # UUID -> string
-            elif isinstance(val, uuid.UUID):
-                data[col.name] = str(val)
-            else:
-                data[col.name] = val
-        # include brief case info if available
-        if self.case is not None:
-            data["case"] = {"id": str(self.case.id), "title": self.case.title}
-        else:
-            data["case"] = None
-        # include brief user info if available
-        if self.user is not None:
-            data["user"] = {"id": self.user.id, "username": self.user.username, "full_name": self.user.full_name}
-        else:
-            data["user"] = None
-        # include results (list of result dicts)
-        data["results"] = [r.to_dict() for r in self.results] if self.results is not None else []
-        return data
+        return {
+            "id": _uuid(self.id),
+            "case_id": _uuid(self.case_id),
+            "file_path": self.file_path,
+            "sha256": self.sha256,
+            "status": self.status,
+            "created_at": _iso(self.created_at),
+            "started_at": _iso(self.started_at),
+            "finished_at": _iso(self.finished_at),
+            "result_json": self.result_json,
+            "case": (
+                {"id": _uuid(self.case.id), "title": self.case.title}
+                if self.case is not None
+                else None
+            ),
+            "user": (
+                {"id": self.user.id, "username": self.user.username, "full_name": self.user.full_name}
+                if self.user is not None
+                else None
+            ),
+            "results": [r.to_dict() for r in (self.results or [])],
+        }
 
 
 class JobResult(Base):
@@ -191,8 +174,8 @@ class JobResult(Base):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "id": str(self.id),
-            "job_id": str(self.job_id) if self.job_id is not None else None,
+            "id": _uuid(self.id),
+            "job_id": _uuid(self.job_id),
             "result": self.result,
-            "created_at": self.created_at.isoformat() if hasattr(self.created_at, "isoformat") else self.created_at,
+            "created_at": _iso(self.created_at),
         }

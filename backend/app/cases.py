@@ -11,7 +11,7 @@ from .auth import get_current_user
 from .logger import get_logger
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/cases", tags=["cases"])
+router = APIRouter(tags=["cases"])
 
 def get_db():
     db = SessionLocal()

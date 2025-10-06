@@ -19,7 +19,7 @@ from .logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/jobs", tags=["jobs"])
+router = APIRouter(tags=["jobs"])
 
 def get_db():
     db = SessionLocal()
