@@ -1,7 +1,7 @@
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export async function apiFetch(endpoint, options = {}) {
-    const token = localStorage.getItem("jwt");
+    const token = localStorage.getItem("access_token");
 
     const headers = {
         "Content-Type": "application/json",
