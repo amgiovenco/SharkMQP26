@@ -1,0 +1,28 @@
+.pelagia-logo {
+  /*this logo is annoying sorry i designed it </3*/
+  width: var(--pelagia-logo-size, 48px);
+  height: var(--pelagia-logo-size, 48px);
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  overflow: hidden;
+}
+
+.pelagia-logo-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.navbar-container {
+  width: 400px;
+  height: 70vh;
+  background-color: #ffcc80;
+  border-radius: 20px;
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 6px 6px rgba(0, 0, 0, 0.23);
+}
