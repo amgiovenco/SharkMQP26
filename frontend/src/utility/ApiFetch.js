@@ -1,11 +1,13 @@
+import { useAuthStore } from '../stores/authStore';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export async function apiFetch(endpoint, options = {}) {
-    const token = localStorage.getItem("access_token");
+    const { jwt } = useAuthStore.getState();
 
     const headers = {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
         ...options.headers,
     };
 

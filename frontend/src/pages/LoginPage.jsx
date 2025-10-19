@@ -44,12 +44,7 @@ const LoginPage = () => {
             // Fetch cases after login
             try {
                 setCasesLoading(true);
-                const casesData = await apiFetch("/cases", {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                    },
-                });
+                const casesData = await apiFetch("/cases");
                 setCases(casesData.cases || []);
                 setCasesLoading(false);
             } catch (err) {

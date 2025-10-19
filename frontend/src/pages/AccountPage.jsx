@@ -35,9 +35,6 @@ const AccountPage = () => {
 
             await apiFetch('/auth/users/profile', {
                 method: 'PUT',
-                headers: {
-                'Authorization': `Bearer ${auth.jwt}`,
-                },
                 body: JSON.stringify(updateData),
             });
 
@@ -77,9 +74,6 @@ const AccountPage = () => {
         try {
             await apiFetch('/auth/users/password', {
                 method: 'PUT',
-                headers: {
-                'Authorization': `Bearer ${auth.jwt}`,
-                },
                 body: JSON.stringify({ new_password: form.password }),
             });
 
