@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../utility/ApiFetch';
 
 const CasePage = () => {
-  const { caseId } = useParams();
-  const navigate = useNavigate();
-  const [caseItem, setCaseItem] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+    const { caseId } = useParams();
+    const navigate = useNavigate();
+    const [caseItem, setCaseItem] = useState(null);
+    const [jobs, setJobs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  useEffect(() => {
+    useEffect(() => {
         const fetchCaseData = async () => {
             setLoading(true);
             setError(null);
@@ -32,33 +32,37 @@ const CasePage = () => {
         };
 
         fetchCaseData();
-  }, [caseId]);
+    }, [caseId]);
 
-  if (loading) {
+    
+    // Loading state
+    if (loading) {
         return (
-        <div className="p-8">
-            <div>Loading case...</div>
-        </div>
+            <div className="p-8">
+                <div>Loading case...</div>
+            </div>
         );
-  }
+    }
 
-  if (error) {
+    // Error state
+    if (error) {
         return (
-        <div className="p-8">
-            <div>Error: {error}</div>
-        </div>
+            <div className="p-8">
+                <div>Error: {error}</div>
+            </div>
         );
-  }
+    }
 
-  if (!caseItem) {
+    // Case not found
+    if (!caseItem) {
         return (
-        <div className="p-8">
-            <div>Case not found</div>
-        </div>
+            <div className="p-8">
+                <div>Case not found</div>
+            </div>
         );
-  }
+    }
 
-  return (
+    return (
         <div className="p-8">
             <button 
                 onClick={() => navigate('/history')}

@@ -11,7 +11,7 @@ export async function apiFetch(endpoint, options = {}) {
         ...options.headers,
     };
 
-    // Only set Content-Type if not FormData (multipart requests set it automatically)
+    // Only set Content-Type if not FormData
     if (!(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
@@ -41,6 +41,7 @@ export async function apiFetch(endpoint, options = {}) {
             return response.json();
         }
         return response.text();
+        
     } catch (err) {
         console.error("apiFetch error:", err);
         throw err;

@@ -5,10 +5,10 @@ import { useAuthStore } from "../stores/authStore";
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, jwt } = useAuthStore();
     
-    if (!isAuthenticated || !jwt) {
-        return <Navigate to="/login" replace />;
-    }
+    // Send unauthenticated users to login
+    if (!isAuthenticated || !jwt) return <Navigate to="/login" replace />;
 
+    // Allow authenticated users to proceed
     return children;
 };
 

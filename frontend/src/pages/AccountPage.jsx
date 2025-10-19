@@ -16,11 +16,13 @@ const AccountPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showPasswordFields, setShowPasswordFields] = useState(false);
 
+    // Handle input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
+    // Update profile details
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -42,6 +44,7 @@ const AccountPage = () => {
 
             auth.updateProfile(form.first_name, form.last_name, form.job_title);
             
+            // Update form state to reflect saved data
             setForm((prev) => ({
                 ...prev,
                 first_name: form.first_name,
@@ -55,6 +58,7 @@ const AccountPage = () => {
         }
     };
 
+    // Change password
     const handleChangePassword = async (e) => {
         e.preventDefault();
 

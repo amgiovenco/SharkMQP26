@@ -21,7 +21,7 @@ export const useCases = () => {
 
             const response = await fetch(`/api/cases?${params}`, {
                 headers: {
-                'Authorization': `Bearer ${jwt}`,
+                    'Authorization': `Bearer ${jwt}`,
                 },
             });
 
@@ -39,11 +39,7 @@ export const useCases = () => {
     };
 
     // Fetch cases on mount if authenticated
-    useEffect(() => {
-        if (jwt) {
-        fetchCases();
-        }
-    }, [jwt]);
+    useEffect(() => { if (jwt) fetchCases() }, [jwt]);
 
     return {
         cases,

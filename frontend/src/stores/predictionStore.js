@@ -9,11 +9,13 @@ export const usePredictionStore = create(
                 predictions: [],
                 selectedPrediction: null,
 
+                // Add a new prediction to history
                 addPrediction: (prediction) =>
                     set((state) => ({
                         predictions: [prediction, ...state.predictions], // newest first
                     })),
 
+                // Remove a prediction by jobId
                 removePrediction: (jobId) =>
                     set((state) => ({
                         predictions: state.predictions.filter((p) => p.jobId !== jobId),
@@ -23,12 +25,15 @@ export const usePredictionStore = create(
                             : state.selectedPrediction,
                     })),
 
+                // Set the selected prediction
                 selectPrediction: (prediction) =>
                     set({ selectedPrediction: prediction }),
 
+                // Clear all history
                 clearHistory: () =>
                     set({ predictions: [], selectedPrediction: null }),
 
+                // Get prediction by jobId
                 getPredictionByJobId: (jobId) => {
                     const { predictions } = get();
                     return predictions.find((p) => p.jobId === jobId);
@@ -54,6 +59,7 @@ export const useCurrentPredictionStore = create(
         error: null,
         progress: 0,
 
+        // Start a new prediction
         startPrediction: (fileName, jobId) =>
             set({
                 isLoading: true,
@@ -63,20 +69,24 @@ export const useCurrentPredictionStore = create(
                 progress: 0,
             }),
 
+        // Update progress
         setProgress: (progress) => set({ progress }),
 
+        // Set error state
         setError: (error) =>
             set({
                 error,
                 isLoading: false,
             }),
 
+        // Mark prediction as complete
         completePrediction: () =>
             set({
                 isLoading: false,
                 progress: 100,
             }),
 
+        // Reset current prediction state
         resetPrediction: () =>
             set({
                 isLoading: false,
@@ -85,5 +95,6 @@ export const useCurrentPredictionStore = create(
                 error: null,
                 progress: 0,
             }),
+            
     }), { name: 'CurrentPredictionStore' })
 );

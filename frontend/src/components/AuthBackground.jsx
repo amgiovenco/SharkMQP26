@@ -1,3 +1,4 @@
+// background SVG from figma
 const AuthBackground = () => {
     return (
         <div className="absolute top-0 right-0 h-full pointer-events-none">

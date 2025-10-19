@@ -14,6 +14,7 @@ const LoginPage = () => {
     const { setAuth } = useAuthStore();
     const { setCases, setIsLoading: setCasesLoading, setError: setCasesError } = useCasesStore();
 
+    // Mutation for login
     const loginMutation = useMutation({
         mutationFn: async () => {
             return apiFetch("/auth/login", {
@@ -32,13 +33,13 @@ const LoginPage = () => {
 
             // Store auth in Zustand
             setAuth(
-              token,
-              user.id,
-              user.username,
-              user.role,
-              user.first_name,
-              user.last_name,
-              user.job_title
+                token,
+                user.id,
+                user.username,
+                user.role,
+                user.first_name,
+                user.last_name,
+                user.job_title
             );
 
             // Fetch cases after login
@@ -53,6 +54,7 @@ const LoginPage = () => {
                 setCasesLoading(false);
             }
 
+            // Navigate to home page if login is successful
             navigate("/home", { replace: true });
         },
         onError: (error) => {

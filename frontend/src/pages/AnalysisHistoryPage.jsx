@@ -6,6 +6,7 @@ const AnalysisHistoryPage = () => {
     const navigate = useNavigate();
     const { cases, isLoading, error } = useCasesStore();
 
+    // Loading state
     if (isLoading) {
         return (
             <div className="p-8">
@@ -15,6 +16,7 @@ const AnalysisHistoryPage = () => {
         );
     }
 
+    // Error state
     if (error) {
         return (
             <div className="p-8">
@@ -24,6 +26,7 @@ const AnalysisHistoryPage = () => {
         );
     }
 
+    // No cases state
     if (!cases || cases.length === 0) {
         return (
             <div className="p-8">
