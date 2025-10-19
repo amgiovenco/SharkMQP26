@@ -22,9 +22,11 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["jobs"])
 
+# Helper to emit a job update to the frontend
 async def emit_job_status(job_id: str, status: str):
     await sio.emit('job_status', {'job_id': job_id, 'status': status})
 
+# Helper to get DB connection
 def get_db():
     db = SessionLocal()
     try:
@@ -32,6 +34,7 @@ def get_db():
     finally:
         db.close()
 
+# Helper to get Redis connection
 async def get_redis():
     r = from_url(settings.redis_url, decode_responses=True)
     try:
@@ -42,12 +45,14 @@ async def get_redis():
     logger.debug("Connected to Redis at %s", settings.redis_url)
     return r
 
+# Get the current user based on their jwt
 def get_current_user_obj(username: str = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
     return user
 
+# Helper to validate file upload type
 def _validate_csv_content_type(ct: Optional[str]) -> None:
     # different broswers can have different content types
     allowed = {
@@ -59,6 +64,7 @@ def _validate_csv_content_type(ct: Optional[str]) -> None:
     if ct is None or ct.lower() not in allowed:
         logger.debug("Unrecognized CSV content-type: %s", ct)
 
+# Parse case_id from string to UUID
 def _parse_case_id(case_id: Optional[str]) -> Optional[UUID_t]:
     if not case_id:
         return None

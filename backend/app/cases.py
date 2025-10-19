@@ -13,6 +13,7 @@ from .logger import get_logger
 logger = get_logger(__name__)
 router = APIRouter(tags=["cases"])
 
+# Helper to get DB connection
 def get_db():
     db = SessionLocal()
     try:
@@ -20,13 +21,14 @@ def get_db():
     finally:
         db.close()
 
-def get_current_user_obj(username: str = Depends(get_current_user),
-                         db: Session = Depends(get_db)) -> User:
+# Get the current user based on their jwt
+def get_current_user_obj(username: str = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
     return user
 
+# Helper to require researcher or admin role
 def _require_researcher_or_admin(user: User):
     if user.role.value not in ("admin", "researcher"):
         raise HTTPException(status_code=403, detail="Forbidden")

@@ -17,14 +17,17 @@ auth_scheme = HTTPBearer(auto_error=False)
 
 router = APIRouter()
 
+# Helper to hash a password
 def hash_password(p: str) -> str:
     logger.debug("Hashing password")
     return pwd.hash(p)
 
+# Helper to verify a password against a hash
 def verify_password(p: str, h: str) -> bool:
     logger.debug("Verifying password hash")
     return pwd.verify(p, h)
 
+# Helper to create a jwt
 def create_access_token(sub: str) -> str:
     payload = {
         "sub": sub,
@@ -35,7 +38,7 @@ def create_access_token(sub: str) -> str:
     logger.info("Created access token for user=%s", sub)
     return token
 
-
+# Helper to get the current user based on their jwt
 def get_current_user(creds: HTTPAuthorizationCredentials = Depends(auth_scheme), db: Session = Depends(lambda: None)):
     # verify credentials
     if not creds:

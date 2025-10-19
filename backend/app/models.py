@@ -64,14 +64,14 @@ class Case(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(120), nullable=True)  # brief title for the case
     description = Column(Text, nullable=True)
-    person_name = Column(String(120), nullable=True)      # person who brought in the data
+    person_name = Column(String(120), nullable=True) # person who brought in the data
 
     # researcher relationship (replaces researcher_name string)
     researcher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     researcher = relationship("User", back_populates="research_cases", lazy="joined", foreign_keys=[researcher_id])
 
-    data_created = Column(DateTime(timezone=True), nullable=True)  # when the underlying data was created
-    created_at = Column(DateTime(timezone=True), server_default=func.now())  # when case record was created
+    data_created = Column(DateTime(timezone=True), nullable=True) # when the underlying data was created
+    created_at = Column(DateTime(timezone=True), server_default=func.now()) # when case record was created
     case_metadata = Column("metadata", JSON, nullable=True)
 
     # relationship to jobs

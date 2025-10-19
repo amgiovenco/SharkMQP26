@@ -46,6 +46,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Set up API routers
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth")
 api_router.include_router(jobs_router, prefix="/jobs")
@@ -53,10 +54,7 @@ api_router.include_router(cases_router, prefix="/cases")
 
 app.include_router(api_router, prefix="/api")
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
+# Socket.IO event handlers
 @sio.event
 async def connect(sid, environ, auth):
     """Handle socket connection with JWT auth"""
@@ -71,30 +69,41 @@ async def connect(sid, environ, auth):
 async def disconnect(sid):
     logger.info(f"Socket client {sid} disconnected")
 
+# Redis listener for job status updates
 async def listen_to_redis_updates():
     """Listen for job status updates from worker via Redis pub/sub"""
     r = None
     pubsub = None
+
+    # Subscribe to Redis channel
     try:
         r = await from_url(settings.redis_url, decode_responses=True)
         pubsub = r.pubsub()
         await pubsub.subscribe('job_status_updates')
         logger.info("Redis job status listener started and subscribed")
         
+        # Listen for messages indefinitely
         async for message in pubsub.listen():
             if message['type'] == 'message':
+
+                # Broadcast to all connected Socket.IO clients
                 try:
                     data = json.loads(message['data'])
                     logger.info(f"Broadcasting job status: {data.get('job_id')} -> {data.get('status')}")
                     await sio.emit('job_status', data)
                     logger.info(f"Emitted job_status event to all connected clients")
+
                 except Exception as e:
                     logger.error(f"Error broadcasting job status: {e}", exc_info=True)
+    
     except asyncio.CancelledError:
         logger.info("Redis listener cancelled")
         raise
+    
     except Exception as e:
         logger.error(f"Redis listener error: {e}", exc_info=True)
+    
+    # Cleanup on exit
     finally:
         if pubsub:
             await pubsub.unsubscribe('job_status_updates')
