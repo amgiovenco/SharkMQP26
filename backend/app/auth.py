@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import Depends, HTTPException, APIRouter
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from .settings import settings
 from .models import User, UserRole
 from .logger import get_logger
-from datetime import datetime, timedelta, timezone
 
 logger = get_logger(__name__)
 
@@ -78,16 +77,40 @@ def require_role(required: UserRole):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    """
+    Login endpoint. Returns JWT token + user object.
+    """
     logger.info("Login attempt for username=%s", payload.username)
+    
+    # Validate input
+    if not payload.username or not payload.password:
+        logger.warning("Login attempt with empty credentials")
+        raise HTTPException(status_code=400, detail="Username and password required")
+    
+    # Fetch user
     user = db.query(User).filter(User.username == payload.username).one_or_none()
 
-    # verify user exists and password matches
+    # Verify user exists and password matches
     if not user or not verify_password(payload.password, user.password_hash):
         logger.warning("Invalid login for username=%s", payload.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    logger.info("Login successful for username=%s", payload.username)
-    return TokenResponse(access_token=create_access_token(payload.username))
+    # Generate token
+    access_token = create_access_token(payload.username)
+    
+    logger.info("Login successful for username=%s id=%s", payload.username, user.id)
+    
+    # Return token + user data
+    return TokenResponse(
+        access_token=access_token,
+        user={
+            "id": user.id,
+            "username": user.username,
+            "role": user.role.value,
+            "full_name": user.full_name,
+            "job_title": user.job_title,
+        }
+    )
 
 @router.post("/register", response_model=RegisterResponse)
 async def register_user(
@@ -95,27 +118,52 @@ async def register_user(
     _admin=Depends(require_role(UserRole.admin)),
     db: Session = Depends(get_db),
 ):
+    """
+    Register a new user. Admin only.
+    """
     logger.info("Admin requested creation of user=%s with role=%s", payload.username, payload.role)
 
-    # check if username taken
+    # Validate input
+    if not payload.username or not payload.password:
+        logger.warning("Registration attempt with empty credentials")
+        raise HTTPException(status_code=400, detail="Username and password required")
+    
+    if len(payload.password) < 8:
+        logger.warning("Registration attempt with weak password for user=%s", payload.username)
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    # Check if username taken
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing:
         logger.warning("Attempt to register existing username=%s", payload.username)
         raise HTTPException(status_code=409, detail="Username already exists")
 
-    # hash password and store role
-    hashed = hash_password(payload.password)
+    # Validate role
     try:
-        role = UserRole(payload.role) # validate against enum
+        role = UserRole(payload.role)
     except ValueError:
         logger.warning("Invalid role provided during registration: %s", payload.role)
         raise HTTPException(status_code=400, detail="Invalid role")
 
-    # add user to db
-    user = User(username=payload.username, password_hash=hashed, role=role)
+    # Hash password and create user
+    hashed = hash_password(payload.password)
+    user = User(
+        username=payload.username,
+        password_hash=hashed,
+        role=role,
+        first_name=payload.first_name if hasattr(payload, 'first_name') else None,
+        last_name=payload.last_name if hasattr(payload, 'last_name') else None,
+        job_title=payload.job_title if hasattr(payload, 'job_title') else None,
+    )
+    
     db.add(user)
     db.commit()
     db.refresh(user)
     
     logger.info("User created id=%s username=%s role=%s", user.id, user.username, user.role)
-    return RegisterResponse(id=user.id, username=user.username, role=user.role.value)
+    return RegisterResponse(
+        id=user.id,
+        username=user.username,
+        role=user.role.value,
+        full_name=user.full_name,
+    )

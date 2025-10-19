@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import NavBar from '../components/Navbar';
+import { SocketProvider } from '../contexts/SocketContext';
 
 const PageLayout = () => {
     return (
@@ -19,7 +20,9 @@ const PageLayout = () => {
 const MainLayout = () => {
     return (
         <>
-            <PageLayout />
+            <SocketProvider>
+                <PageLayout />
+            </SocketProvider>
         </>
     );
 }

@@ -2,11 +2,17 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "../utility/ApiFetch";
+import { useAuthStore } from "../stores";
+import { useCasesStore } from "../stores";
 import AuthBackground from "../components/AuthBackground";
 
 const LoginPage = () => {
     const navigate = useNavigate();
     const [form, setForm] = useState({ username: "", password: "" });
+    
+    // Zustand stores
+    const { setAuth } = useAuthStore();
+    const { setCases, setIsLoading: setCasesLoading, setError: setCasesError } = useCasesStore();
 
     const loginMutation = useMutation({
         mutationFn: async () => {
@@ -15,17 +21,39 @@ const LoginPage = () => {
                 body: JSON.stringify(form),
             });
         },
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
             const token = data?.access_token;
+            const user = data?.user;
+
             if (!token) {
                 console.error("Login succeeded but no token returned:", data);
                 return;
             }
-            localStorage.setItem("access_token", token);
+
+            // Store auth in Zustand (persists to localStorage)
+            setAuth(token, user.id, user.username);
+
+            // Fetch cases after login
+            try {
+                setCasesLoading(true);
+                const casesData = await apiFetch("/cases", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                });
+                setCases(casesData.cases || []);
+                setCasesLoading(false);
+            } catch (err) {
+                console.error("Failed to fetch cases:", err);
+                setCasesError(err.message);
+                setCasesLoading(false);
+            }
+
             navigate("/home", { replace: true });
         },
         onError: (error) => {
-        console.error("Login failed:", error);
+            console.error("Login failed:", error);
         },
     });
 
