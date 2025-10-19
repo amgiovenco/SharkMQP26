@@ -16,10 +16,14 @@ from .db import SessionLocal
 from .models import Job, User, Case
 from .auth import get_current_user
 from .logger import get_logger
+from .socket_io import sio
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["jobs"])
+
+async def emit_job_status(job_id: str, status: str):
+    await sio.emit('job_status', {'job_id': job_id, 'status': status})
 
 def get_db():
     db = SessionLocal()

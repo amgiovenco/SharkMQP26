@@ -3,13 +3,18 @@ import { useAuthStore } from '../stores/authStore';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export async function apiFetch(endpoint, options = {}) {
+    // Get the auth store (need to call it as a function to get current state)
     const { jwt } = useAuthStore.getState();
 
     const headers = {
-        "Content-Type": "application/json",
         ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
         ...options.headers,
     };
+
+    // Only set Content-Type if not FormData (multipart requests set it automatically)
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {

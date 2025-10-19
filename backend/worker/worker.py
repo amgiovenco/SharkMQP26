@@ -4,10 +4,14 @@ from datetime import datetime, timezone
 
 from redis.asyncio import from_url
 from sqlalchemy.orm import Session
+import asyncio
 
 from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 def run_inference(filepath: str):
     # TODO: real ML inference
@@ -44,7 +48,7 @@ def _mark_done(db: Session, job_id: str, result: dict):
         return
 
     # job is now done
-    job.status = "done"
+    job.status = "completed"
     job.finished_at = now
     job.result_json = result
     db.add(job)
@@ -103,22 +107,34 @@ async def main():
             finally:
                 db.close()
 
+            # Publish completion status
+            await r.publish('job_status_updates', json.dumps({
+                'job_id': job_id,
+                'status': 'completed',
+                'result': result,
+            }))
+            
+            logger.info(f"[worker] completed job {job_id}")
+
             print(f"[worker] completed job {job_id}")
 
         except Exception as e:
-            # if job_id known, mark error
-            try:
-                if job_id:
-                    db = _db_session()
-                    try:
-                        _mark_error(db, job_id, str(e))
-                    finally:
-                        db.close()
-            except Exception:
-                pass
-            print(f"[worker] error: {e}")
-            time.sleep(1)
+            if job_id:
+                db = _db_session()
+                try:
+                    _mark_error(db, job_id, str(e))
+                    
+                    # Publish error status
+                    await r.publish('job_status_updates', json.dumps({
+                        'job_id': job_id,
+                        'status': 'error',
+                        'error': str(e),
+                    }))
+                finally:
+                    db.close()
+            
+            logger.error(f"[worker] error: {e}")
+            await asyncio.sleep(1)
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())

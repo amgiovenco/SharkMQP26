@@ -6,6 +6,11 @@ const SocketContext = createContext(null);
 
 export const useSocket = () => useContext(SocketContext);
 
+const getSocketUrl = () => {
+    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+    return apiBaseUrl.replace(/\/api\/?$/, '');
+};
+
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const { jwt, isAuthenticated } = useAuthStore();
@@ -22,12 +27,15 @@ export const SocketProvider = ({ children }) => {
         }
 
         // Create new socket connection with JWT auth
-        const newSocket = io({
+        const socketUrl = getSocketUrl();
+        const newSocket = io(socketUrl, {
+            path: '/socket.io/',
             auth: { token: jwt },
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             reconnectionAttempts: 5,
+            transports: ['polling', 'websocket'],
         });
 
         // Connection events
