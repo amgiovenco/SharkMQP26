@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuthStore } from "../stores/authStore";
 import PalegiaLogo from "../assets/logos/pelagiaLogo.svg";
 
 const NAV_LINKS = [
@@ -10,7 +11,15 @@ const NAV_LINKS = [
 
 const Navbar = ({ logoSize = "48px" }) => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { clearAuth } = useAuthStore();
+
     const isActive = (path) => location.pathname === path;
+
+    const handleLogout = () => {
+        clearAuth();
+        navigate("/login", { replace: true });
+    };
 
     return (
         <nav className="sticky top-0 z-20 flex items-center justify-between bg-white px-6 py-3 shadow-sm border-b border-gray-200">
@@ -42,9 +51,12 @@ const Navbar = ({ logoSize = "48px" }) => {
                 ))}
             </div>
 
-            {/* Right: Logout placeholder */}
+            {/* Right: Logout button */}
             <div className="flex items-center space-x-3">
-                <button className="rounded-md bg-pelagia-navy text-white px-3 py-1 text-sm hover:bg-pelagia-deepblue">
+                <button
+                    onClick={handleLogout}
+                    className="rounded-md bg-pelagia-navy text-white px-3 py-1 text-sm hover:bg-pelagia-deepblue"
+                >
                     Logout
                 </button>
             </div>

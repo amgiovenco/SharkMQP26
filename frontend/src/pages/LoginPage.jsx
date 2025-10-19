@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "../utility/ApiFetch";
-import { useAuthStore } from "../stores";
-import { useCasesStore } from "../stores";
+import { useAuthStore } from "../stores/authStore";
+import { useCasesStore } from "../stores/casesStore";
 import AuthBackground from "../components/AuthBackground";
 
 const LoginPage = () => {
@@ -30,8 +30,16 @@ const LoginPage = () => {
                 return;
             }
 
-            // Store auth in Zustand (persists to localStorage)
-            setAuth(token, user.id, user.username);
+            // Store auth in Zustand
+            setAuth(
+              token,
+              user.id,
+              user.username,
+              user.role,
+              user.first_name,
+              user.last_name,
+              user.job_title
+            );
 
             // Fetch cases after login
             try {

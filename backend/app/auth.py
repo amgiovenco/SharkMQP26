@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import Depends, HTTPException, APIRouter
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from .schemas import LoginRequest, TokenResponse, UploadResponse, JobResult, RegisterRequest, RegisterResponse
+from .schemas import LoginRequest, TokenResponse, UploadResponse, JobResult, RegisterRequest, RegisterResponse, UpdateProfileRequest, ChangePasswordRequest
 from .db import get_db
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -107,7 +107,8 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
             "id": user.id,
             "username": user.username,
             "role": user.role.value,
-            "full_name": user.full_name,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
             "job_title": user.job_title,
         }
     )
@@ -165,5 +166,75 @@ async def register_user(
         id=user.id,
         username=user.username,
         role=user.role.value,
-        full_name=user.full_name,
+        first_name=user.first_name,
+        last_name=user.last_name,
     )
+
+@router.put("/users/profile")
+async def update_profile(
+    payload: UpdateProfileRequest,
+    current_username: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update user profile information (name, job title).
+    """
+    logger.info("User %s requesting profile update", current_username)
+    
+    # Validate new password length if provided
+    if not payload.first_name and not payload.last_name and not payload.job_title:
+        raise HTTPException(status_code=400, detail="At least one field must be provided")
+    
+    # Get user
+    user = db.query(User).filter(User.username == current_username).first()
+    if not user:
+        logger.warning("User not found during profile update: %s", current_username)
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update fields
+    if payload.first_name is not None:
+        user.first_name = payload.first_name
+    if payload.last_name is not None:
+        user.last_name = payload.last_name
+    if payload.job_title is not None:
+        user.job_title = payload.job_title
+    
+    db.commit()
+    db.refresh(user)
+    
+    logger.info("Profile updated for user=%s", current_username)
+    return {
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "job_title": user.job_title,
+        "full_name": user.full_name,
+    }
+
+@router.put("/users/password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_username: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Change user password.
+    """
+    logger.info("User %s requesting password change", current_username)
+    
+    # Validate password length
+    if len(payload.new_password) < 8:
+        logger.warning("Password change rejected for %s: too short", current_username)
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    
+    # Get user
+    user = db.query(User).filter(User.username == current_username).first()
+    if not user:
+        logger.warning("User not found during password change: %s", current_username)
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Hash and update password
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    
+    logger.info("Password changed for user=%s", current_username)
+    return {"message": "Password changed successfully"}

@@ -27,3 +27,11 @@ class RegisterResponse(BaseModel):
     id: int
     username: str
     role: str
+
+class UpdateProfileRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    job_title: str | None = None
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
