@@ -24,3 +24,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 ```
+
+```
+. .venv/bin/activate && python -m uvicorn app.main:sio_asgi_app --reload --host 0.0.0.0 --port 8000
+```
