@@ -75,7 +75,7 @@ const LoginPage = () => {
             <div className="relative z-10 w-full flex items-center justify-center px-8">
                 <div className="w-full max-w-[575px]">
                     <div className="text-center mb-6">
-                        <h1 className="text-[75px] font-black text-pelagia-darknavy leading-[28px] tracking-[-1.5px] mb-6">
+                        <h1 className="text-[75px] font-black text-pelagia-darknavy leading-[28px] tracking-[-1.5px] mb-7">
                             Login
                         </h1>
                         <div className="w-[279px] h-1 bg-gradient-login mx-auto mb-8"/>
