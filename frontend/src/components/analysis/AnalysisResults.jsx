@@ -28,7 +28,9 @@ const AnalysisResults = ({ completedJobs, uploadedFiles, onReset }) => {
                                     <p className="text-sm text-gray-600">Top Prediction</p>
                                     <p className="text-2xl font-bold text-green-700">{job.result.winner}</p>
                                     <p className="text-lg font-semibold text-green-600 mt-1">
-                                        {(job.result.confidence * 100).toFixed(1)}% confidence
+                                        {(
+                                            (job.result.confidence || (job.result.topk?.[0]?.prob ?? 0)) * 100
+                                        ).toFixed(1)}% confidence
                                     </p>
                                 </div>
 
