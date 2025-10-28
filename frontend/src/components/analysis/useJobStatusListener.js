@@ -9,15 +9,16 @@ export const useJobStatusListener = (processingJobs, setProcessingJobs, setCompl
 
         // Handler for job status updates
         const handleJobStatus = (data) => {
-            const { job_id, status } = data;
-            
+            const { job_id, status, result, error } = data;
+
             // Update job status in processingJobs
             setProcessingJobs(prev => {
                 const job = prev.find(j => j.id === job_id);
                 if (!job) return prev;
 
                 if (status === 'completed' || status === 'failed') {
-                    setCompletedJobs(prevCompleted => [...prevCompleted, { ...job, status }]);
+                    const completedJob = { ...job, status, result, error };
+                    setCompletedJobs(prevCompleted => [...prevCompleted, completedJob]);
                     return prev.filter(j => j.id !== job_id);
                 }
 
