@@ -11,27 +11,27 @@ export const useJobStatusListener = (processingJobs, setProcessingJobs, setCompl
         const handleJobStatus = (data) => {
             const { job_id, status, result, error } = data;
 
-            // Update job status in processingJobs
+            // Update job status in processingJobs and check for completion
             setProcessingJobs(prev => {
                 const job = prev.find(j => j.id === job_id);
                 if (!job) return prev;
 
+                let updatedJobs = prev;
+
                 if (status === 'completed' || status === 'failed') {
                     const completedJob = { ...job, status, result, error };
                     setCompletedJobs(prevCompleted => [...prevCompleted, completedJob]);
-                    return prev.filter(j => j.id !== job_id);
+                    updatedJobs = prev.filter(j => j.id !== job_id);
+                } else {
+                    updatedJobs = prev.map(j => j.id === job_id ? { ...j, status } : j);
                 }
 
-                return prev.map(j => j.id === job_id ? { ...j, status } : j);
-            });
-
-            // Check if all jobs are done
-            setProcessingJobs(prev => {
-                const remaining = prev.filter(j => j.id !== job_id && (j.status === 'queued' || j.status === 'processing'));
-                if (remaining.length === 0 && prev.some(j => j.id === job_id)) {
+                // Check if all jobs are done after this update
+                if (updatedJobs.length === 0) {
                     onComplete();
                 }
-                return remaining;
+
+                return updatedJobs;
             });
         };
 
