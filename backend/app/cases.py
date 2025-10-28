@@ -127,3 +127,44 @@ def list_case_jobs(
         .all()
     )
     return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in rows]}
+
+@router.delete("/{case_id}")
+def delete_case(
+    case_id: UUID_t,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj),
+):
+    # Only admins can delete cases
+    if current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete cases")
+
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    # Delete all jobs associated with this case first
+    db.query(Job).filter(Job.case_id == case_id).delete()
+
+    # Delete the case
+    db.delete(case)
+    db.commit()
+
+    return {"detail": "Case deleted successfully"}
+
+@router.delete("")
+def delete_all_cases(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj),
+):
+    # Only admins can delete all cases
+    if current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete cases")
+
+    # Delete all jobs first
+    db.query(Job).delete()
+
+    # Delete all cases
+    db.query(Case).delete()
+    db.commit()
+
+    return {"detail": "All cases and associated jobs deleted successfully"}
