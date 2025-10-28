@@ -3,16 +3,18 @@
 @tailwind utilities;
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('./assets/fonts/Nunito/Nunito-VariableFont_wght.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("./assets/fonts/Nunito/Nunito-VariableFont_wght.ttf")
+    format("truetype");
   font-weight: 100 900; /* variable font range */
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('./assets/fonts/Nunito/Nunito-Italic-VariableFont_wght.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("./assets/fonts/Nunito/Nunito-Italic-VariableFont_wght.ttf")
+    format("truetype");
   font-weight: 100 900;
   font-style: italic;
   font-display: swap;
@@ -21,27 +23,30 @@
 /* Nunito Sans Added */
 @font-face {
   font-family: "Nunito Sans";
-  src: url("./assets/fonts/Nunito_Sans/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf") format("truetype");
+  src: url("./assets/fonts/Nunito_Sans/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf")
+    format("truetype");
   font-weight: 100 900;
   font-style: normal;
 }
 
 @font-face {
   font-family: "Nunito Sans";
-  src: url("./assets/fonts/Nunito_Sans/NunitoSans-Italic-VariableFont_YTLC,opsz,wdth,wght.ttf") format("truetype");
+  src: url("./assets/fonts/Nunito_Sans/NunitoSans-Italic-VariableFont_YTLC,opsz,wdth,wght.ttf")
+    format("truetype");
   font-weight: 100 900;
   font-style: italic;
 }
 
-
 body {
   @apply font-sans text-gray-800 bg-white text-lg;
-  font-family: 'Nunito', sans-serif;
+  font-family: "Nunito", sans-serif;
 }
 
-html, body, #root {
-    height: 100%;
-    margin: 0;
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
 }
 
 @layer utilities {
@@ -62,3 +67,8 @@ html, body, #root {
   width: 0px;
   height: 0px;
 }
+
+/* Animations */
+
+/* Text animations */
+

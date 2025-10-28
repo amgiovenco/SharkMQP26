@@ -1,4 +1,5 @@
 import shark1 from "../assets/photos/shark1.jpg";
+import GradientText from "../components/GradientText";
 
 const HomePage = () => {
   return (
@@ -15,9 +16,18 @@ const HomePage = () => {
       {/* Text overlay */}
       <div className="relative text-center px-4">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold">
-          <span className="text-black font-nunitoSans">Where algorithms meet </span>
+          <span className="text-black font-nunitoSans">
+            Where algorithms meet{" "}
+          </span>
           <br />
-          <span className="text-indigo-800 font-nunitoSans">oceans.</span>
+          <GradientText
+            colors={["#252491", "#3B4FFF", "#0CB6FF", "#44B3D3", "#9FB6C4"]}
+            animationSpeed={11}
+            showBorder={false}
+            className="custom-class"
+          >
+            oceans
+          </GradientText>
         </h1>
       </div>
     </div>
