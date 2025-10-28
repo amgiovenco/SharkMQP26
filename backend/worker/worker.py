@@ -5,25 +5,27 @@ from datetime import datetime, timezone
 from redis.asyncio import from_url
 from sqlalchemy.orm import Session
 import asyncio
+import torch
 
 from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
+from inference import run_inference as ml_inference
 
 logger = get_logger(__name__)
 
+# Determine device
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 def run_inference(filepath: str):
-    # TODO: real ML inference
-    return {
-        "winner": "Carcharhinus leucas",
-        "topk": [
-            {"label": "Carcharhinus leucas", "prob": 0.82},
-            {"label": "Carcharhinus limbatus", "prob": 0.12},
-            {"label": "Sphyrna lewini", "prob": 0.06},
-        ],
-        "source_file": filepath,
-    }
+    """Run ML inference on the uploaded file"""
+    try:
+        result = ml_inference(filepath, device=DEVICE)
+        return result
+    except Exception as e:
+        logger.error(f"Inference error: {e}")
+        raise
 
 def _db_session() -> Session:
     return SessionLocal()
