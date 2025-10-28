@@ -208,3 +208,36 @@ def list_jobs(
     jobs = q.order_by(Job.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
 
     return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in jobs]}
+
+@router.delete("/{job_id}")
+def delete_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj),
+):
+    """Delete a specific job. Only admins can delete."""
+    if current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete jobs")
+
+    job = db.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    db.delete(job)
+    db.commit()
+
+    return {"detail": "Job deleted successfully"}
+
+@router.delete("")
+def delete_all_jobs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_obj),
+):
+    """Delete all jobs. Only admins can delete."""
+    if current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete jobs")
+
+    db.query(Job).delete()
+    db.commit()
+
+    return {"detail": "All jobs deleted successfully"}
