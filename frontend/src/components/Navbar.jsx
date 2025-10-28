@@ -9,7 +9,7 @@ const NAV_LINKS = [
     { name: "Account", path: "/account" },
 ];
 
-const Navbar = ({ logoSize = "48px" }) => {
+const Navbar = ({ logoSize = "60px" }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { clearAuth } = useAuthStore();
@@ -27,15 +27,15 @@ const Navbar = ({ logoSize = "48px" }) => {
             <Link to="/home" className="flex items-center space-x-2">
                 <img
                     src={PalegiaLogo}
-                    alt="Pelagia Logo"
+                    alt="Logo"
                     style={{ width: logoSize, height: logoSize }}
                     className="rounded-full"
                 />
-                <span className="text-lg font-semibold text-pelagia-navy">Pelagia</span>
+                <span className="text-lg font-semibold text-pelagia-navy"></span>
             </Link>
 
             {/* Middle: Nav links */}
-            <div className="hidden md:flex items-center space-x-6">
+            <div className="hidden md:flex items-left space-x-6">
                 {NAV_LINKS.map((link) => (
                 <Link
                     key={link.path}
@@ -52,7 +52,7 @@ const Navbar = ({ logoSize = "48px" }) => {
             </div>
 
             {/* Right: Logout button */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-end space-x-3">
                 <button
                     onClick={handleLogout}
                     className="rounded-md bg-pelagia-navy text-white px-3 py-1 text-sm hover:bg-pelagia-deepblue"
