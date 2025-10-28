@@ -1,25 +1,25 @@
+import shark1 from "../assets/photos/shark1.jpg";
+
 const HomePage = () => {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center space-y-8 pt-20 pb-20">
-      <div className="w-[683px] h-32 text-center">
-        <span class="text-black text-6xl font-extrabold [text-shadow:_0px_4px_5px_rgb(0_0_0_/_0.20)]">
-          Where algorithms meet{" "}
-        </span>
-        <span class="text-indigo-900 text-6xl font-extrabold font- [text-shadow:_0px_4px_5px_rgb(0_0_0_/_0.20)]">
-          oceans
-        </span>
-        <span class="text-black text-6xl font-extrabold font- [text-shadow:_0px_4px_5px_rgb(0_0_0_/_0.20)]">
-          .
-        </span>
+    <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${shark1})` }}
+      />
+
+      {/* White-to-transparent gradient at the top */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-white/70 to-transparent" />
+
+      {/* Text overlay */}
+      <div className="relative text-center px-4">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold">
+          <span className="text-black font-nunitoSans">Where algorithms meet </span>
+          <br />
+          <span className="text-indigo-800 font-nunitoSans">oceans.</span>
+        </h1>
       </div>
-      {/* rotation of photos i have to find others. maybe different gradient */}
-      {/* <div className="w-[1920px] h-[1238px] relative">
-        <div className="w-[1920px] h-[1238px] left-0 top-0 absolute bg-gradient-to-b from-black/0 via-black/25 to-black" />
-        <img
-          className="w-[2232.58px] h-[1255.82px] left-[-157.75px] top-[-74.39px] absolute"
-          src="./assets/photos/sarkImage.png"
-        />
-      </div> */}
     </div>
   );
 };
