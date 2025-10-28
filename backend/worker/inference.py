@@ -13,7 +13,7 @@ warnings.filterwarnings('ignore')
 # Get the directory where this script is located
 WORKER_DIR = Path(__file__).parent
 
-# Class names (57 shark species as they appear in the training dataset)
+# Class names
 CLASS_NAMES = [
     'Arabian smooth-hound',
     'Atlantic Sharpnose shark',
