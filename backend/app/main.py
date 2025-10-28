@@ -117,3 +117,6 @@ sio_asgi_app = ASGIApp(
     other_asgi_app=app,
     socketio_path='socket.io'
 )
+
+# Export the ASGI app for uvicorn
+app = sio_asgi_app
