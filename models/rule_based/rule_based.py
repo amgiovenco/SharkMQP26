@@ -125,7 +125,7 @@ def engineer_features(X_raw: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 # 3) Train a quick baseline
 # ----------------------------
 
-def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "rf", seed: int = 42):
+def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "rf", seed: int = 8):
     """
     Train RF or LR on engineered features.
     Splits: 60% train, 20% val, 20% test (stratified).
@@ -266,7 +266,7 @@ def extract_rules(Xf: pd.DataFrame, y_enc: np.ndarray, feature_names: List[str],
     """
     Fit a small decision tree and return human-readable if-then rules.
     """
-    tree = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=5, random_state=42)
+    tree = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=5, random_state=8)
     tree.fit(Xf, y_enc)
     rules = export_text(tree, feature_names=list(feature_names))
     return rules

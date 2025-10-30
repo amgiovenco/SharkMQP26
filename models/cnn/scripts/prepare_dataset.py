@@ -10,7 +10,7 @@ DATASET_DIR = Path('../../data/shark_dataset_split')
 TRAIN_RATIO = 0.7
 VAL_RATIO = 0.15
 TEST_RATIO = 0.15
-RANDOM_SEED = 42
+RANDOM_SEED = 8
 
 random.seed(RANDOM_SEED)
 

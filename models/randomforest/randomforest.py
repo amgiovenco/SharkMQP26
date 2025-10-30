@@ -18,13 +18,13 @@ y = data["Species"]
 
 # --- Train/test split with stratification (keeps species balanced across sets) ---
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X, y, test_size=0.2, random_state=8, stratify=y
 )
 
 rf = RandomForestClassifier(
     n_estimators=300,   # number of trees
     max_depth=None,     # fully expanded trees
-    random_state=42,
+    random_state=8,
     n_jobs=-1           # use all CPU cores
 )
 
