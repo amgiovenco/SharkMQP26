@@ -5,8 +5,8 @@ import random
 import json
 
 # Configuration
-IMAGES_DIR = Path('shark_images')
-DATASET_DIR = Path('shark_dataset_split')
+IMAGES_DIR = Path('../../data/shark_images')
+DATASET_DIR = Path('../../data/shark_dataset_split')
 TRAIN_RATIO = 0.7
 VAL_RATIO = 0.15
 TEST_RATIO = 0.15
