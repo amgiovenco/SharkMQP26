@@ -8,7 +8,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    user: dict[str, Any]
 
 class UploadResponse(BaseModel):
     job_id: UUID
@@ -27,3 +27,11 @@ class RegisterResponse(BaseModel):
     id: int
     username: str
     role: str
+
+class UpdateProfileRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    job_title: str | None = None
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str

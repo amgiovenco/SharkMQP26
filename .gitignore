@@ -8,3 +8,9 @@ __pycache__/
 */__pycache__/
 build/
 */build/
+node_modules/
+*/node_modules/
+package-lock.json
+*/package-lock.json
+**/*.pth
+**/*.pt

@@ -1,4 +1,5 @@
 fastapi[standard]
+fastapi_socketio
 uvicorn[standard]
 sqlalchemy
 PyJWT
@@ -6,4 +7,5 @@ passlib
 pydantic
 pydantic_settings
 psycopg2-binary
+socketio
 redis
