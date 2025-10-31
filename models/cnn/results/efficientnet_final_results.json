@@ -1,0 +1,107 @@
+{
+  "model": "EfficientNet-B0",
+  "configuration": {
+    "batch_size": 32,
+    "epochs": 150,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "focal_alpha": 1.0,
+    "focal_gamma": 2.0,
+    "mixup_alpha": 0.4,
+    "use_mixup": true,
+    "patience": 25,
+    "n_folds": 5
+  },
+  "cross_validation": {
+    "fold_results": [
+      98.83720930232558,
+      97.67441860465117,
+      100.0,
+      97.6470588235294,
+      95.29411764705883
+    ],
+    "mean_val_acc": 97.89056087551299,
+    "std_val_acc": 1.5616276658065629
+  },
+  "test_results": {
+    "individual_fold_accs": [
+      95.45454545454545,
+      94.6969696969697,
+      96.96969696969697,
+      94.6969696969697,
+      92.42424242424242
+    ],
+    "best_fold": 3,
+    "best_test_acc": 96.96969696969697
+  },
+  "training_stats": [
+    {
+      "fold": 1,
+      "final_train_loss": 0.0058320389877983625,
+      "final_train_acc": 99.41348973607037,
+      "final_val_loss": 0.09922650883284707,
+      "final_val_acc": 97.67441860465117,
+      "best_val_acc": 98.83720930232558,
+      "epochs_trained": 56,
+      "final_lr": 0.0007036649532163622
+    },
+    {
+      "fold": 2,
+      "final_train_loss": 0.04225759453732859,
+      "final_train_acc": 97.36070381231671,
+      "final_val_loss": 0.17021573769549528,
+      "final_val_acc": 94.18604651162791,
+      "best_val_acc": 97.67441860465117,
+      "epochs_trained": 52,
+      "final_lr": 0.0007411359602138069
+    },
+    {
+      "fold": 3,
+      "final_train_loss": 0.01667692223352126,
+      "final_train_acc": 99.41520467836257,
+      "final_val_loss": 0.019868939538961666,
+      "final_val_acc": 98.82352941176471,
+      "best_val_acc": 100.0,
+      "epochs_trained": 53,
+      "final_lr": 0.0007319163695423711
+    },
+    {
+      "fold": 4,
+      "final_train_loss": 0.04623358603566885,
+      "final_train_acc": 96.78362573099415,
+      "final_val_loss": 0.18371034832671285,
+      "final_val_acc": 94.11764705882354,
+      "best_val_acc": 97.6470588235294,
+      "epochs_trained": 43,
+      "final_lr": 0.0008188932828794705
+    },
+    {
+      "fold": 5,
+      "final_train_loss": 0.036320261540822685,
+      "final_train_acc": 97.36842105263158,
+      "final_val_loss": 0.32362356781959534,
+      "final_val_acc": 92.94117647058823,
+      "best_val_acc": 95.29411764705883,
+      "epochs_trained": 46,
+      "final_lr": 0.0007940987335200903
+    }
+  ],
+  "misclassified_samples": [
+    {
+      "true": "Blacknose_shark",
+      "predicted": "Spinner_shark"
+    },
+    {
+      "true": "Blacktip_reef_shark",
+      "predicted": "Blacktip_shark"
+    },
+    {
+      "true": "Dusky_shark",
+      "predicted": "Oceanic_whitetip_shark"
+    },
+    {
+      "true": "Narrownose_smooth-hound",
+      "predicted": "Gummy_shark"
+    }
+  ]
+}
