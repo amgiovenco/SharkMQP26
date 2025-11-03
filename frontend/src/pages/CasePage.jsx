@@ -42,6 +42,64 @@ const CasePage = () => {
         fetchCaseData(1);
     }, [caseId]);
 
+    // Listen for real-time job status updates via socket
+    useEffect(() => {
+        if (!socket) {
+            console.log('CasePage: Socket not ready');
+            return;
+        }
+
+        console.log('CasePage: Setting up socket listener, currently have', jobs.length, 'jobs');
+
+        const handleJobStatus = (data) => {
+            console.log('CasePage: Received job_status event:', data);
+            const { job_id, status, result, error } = data;
+
+            // Update the job in the jobs list if it belongs to this case
+            setJobs(prevJobs => {
+                const jobIndex = prevJobs.findIndex(j => j.id === job_id);
+                console.log('CasePage: Looking for job', job_id, '- found at index:', jobIndex, 'in', prevJobs.length, 'jobs');
+
+                if (jobIndex === -1) {
+                    console.log('CasePage: Job not in current page, skipping update');
+                    return prevJobs; // Job not in current list
+                }
+
+                console.log('CasePage: Updating job at index', jobIndex, 'with status:', status);
+
+                const updatedJob = {
+                    ...prevJobs[jobIndex],
+                    status,
+                    result_json: result || prevJobs[jobIndex].result_json,
+                    error: error || prevJobs[jobIndex].error,
+                };
+
+                // Update finished_at if job is now complete/failed
+                if ((status === 'completed' || status === 'failed' || status === 'done' || status === 'error') && !prevJobs[jobIndex].finished_at) {
+                    updatedJob.finished_at = new Date().toISOString();
+                }
+
+                // Update started_at if job is now running and hasn't started
+                if ((status === 'running' || status === 'processing') && !prevJobs[jobIndex].started_at) {
+                    updatedJob.started_at = new Date().toISOString();
+                }
+
+                const newJobs = [...prevJobs];
+                newJobs[jobIndex] = updatedJob;
+                console.log('CasePage: Job updated, new status:', updatedJob.status);
+                return newJobs;
+            });
+        };
+
+        console.log('CasePage: Attaching job_status listener');
+        socket.on('job_status', handleJobStatus);
+
+        return () => {
+            console.log('CasePage: Removing job_status listener');
+            socket.off('job_status', handleJobStatus);
+        };
+    }, [socket, jobs.length]);
+
     // Helper functions
     const getStatusColor = (status) => {
         switch (status) {
