@@ -1,28 +1,38 @@
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 
-// Component for uploading files associated with a case
-const FileUploader = ({ caseTitle }) => {
-    const [uploadedFiles, setUploadedFiles] = useState([]);
+/**
+ * FileUploader Component
+ * Reusable component for uploading CSV files
+ *
+ * @param {File[]} uploadedFiles - Array of currently selected files
+ * @param {Function} onFilesChange - Callback when files are added (receives File[])
+ * @param {Function} onRemoveFile - Callback to remove a file by index
+ * @param {string} caseTitle - Title of the case (for display)
+ */
+const FileUploader = ({ uploadedFiles, onFilesChange, onRemoveFile, caseTitle }) => {
     const fileInputRef = useRef(null);
 
     // Handle file selection
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
-        setUploadedFiles(prev => [...prev, ...files]);
+        if (files.length > 0) {
+            onFilesChange([...uploadedFiles, ...files]);
+        }
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    // Remove a file from the list
-    const removeFile = (index) => {
-        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    const handleRemoveFile = (index) => {
+        onRemoveFile(index);
     };
 
     return (
         <div>
             <h2 className="text-xl font-semibold mb-4">Step 2: Upload Files</h2>
-            <p className="text-sm text-gray-600 mb-4">
-                Case: <strong>{caseTitle}</strong>
-            </p>
+            {caseTitle && (
+                <p className="text-sm text-gray-600 mb-4">
+                    Case: <strong>{caseTitle}</strong>
+                </p>
+            )}
 
             <div
                 onClick={() => fileInputRef.current?.click()}
@@ -49,7 +59,7 @@ const FileUploader = ({ caseTitle }) => {
                             <div key={i} className="flex justify-between items-center p-2 border rounded bg-gray-50">
                                 <span className="text-sm">{file.name}</span>
                                 <button
-                                    onClick={() => removeFile(i)}
+                                    onClick={() => handleRemoveFile(i)}
                                     className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                                 >
                                     Remove
@@ -59,8 +69,6 @@ const FileUploader = ({ caseTitle }) => {
                     </div>
                 </div>
             )}
-
-            {uploadedFiles}
         </div>
     );
 };

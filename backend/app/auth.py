@@ -241,3 +241,30 @@ async def change_password(
     
     logger.info("Password changed for user=%s", current_username)
     return {"message": "Password changed successfully"}
+
+@router.get("/me")
+async def get_current_user_profile(
+    current_username: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get the current user's profile information.
+    Validates JWT token and returns fresh user data.
+    """
+    logger.info("User %s requesting their profile", current_username)
+
+    # Get user
+    user = db.query(User).filter(User.username == current_username).first()
+    if not user:
+        logger.warning("User not found: %s", current_username)
+        raise HTTPException(status_code=404, detail="User not found")
+
+    logger.info("Profile fetched for user=%s", current_username)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role.value,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "job_title": user.job_title,
+    }
