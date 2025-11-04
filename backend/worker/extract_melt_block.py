@@ -47,7 +47,7 @@ def clean_temperature_and_ids(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
     # 1) Clear any 'Temperature...' cell anywhere
-    out = out.applymap(lambda v: "" if _is_temperature_header(v) else v)
+    out = out.map(lambda v: "" if _is_temperature_header(v) else v)
 
     # 2) Detect & remove the ID column (first column) rather than touching the first row.
     if out.shape[1] > 0:
@@ -141,8 +141,8 @@ def process_text_file_multi(input_path: Path,
 # ---------- Excel mode ----------
 
 def find_all_marker_rows_df(df: pd.DataFrame, marker: str) -> List[int]:
-    mask = df.applymap(lambda x: (str(x).strip() if x is not None else ""))
-    hit = (mask.applymap(lambda s: marker in s)).values
+    mask = df.map(lambda x: (str(x).strip() if x is not None else ""))
+    hit = (mask.map(lambda s: marker in s)).values
     loc = np.argwhere(hit)
     return sorted(set(int(r) for r, _ in loc)) if loc.size else []
 
@@ -182,14 +182,36 @@ def process_excel_file_multi(input_path: Path,
 def write_outputs(dfs: List[pd.DataFrame], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if len(dfs) == 1:
-        dfs[0].to_csv(output_path, index=False, header=False)
+        df = dfs[0].copy()
+        # Set the first row as column headers (temperature values)
+        headers = [str(h).strip() for h in df.iloc[0]]
+        # Remove empty headers and corresponding columns
+        valid_headers = [(i, h) for i, h in enumerate(headers) if h and h != '']
+        if valid_headers:
+            valid_indices = [i for i, _ in valid_headers]
+            df = df.iloc[1:, valid_indices].reset_index(drop=True)
+            df.columns = [h for _, h in valid_headers]
+        else:
+            df = df.iloc[1:].reset_index(drop=True)
+        df.to_csv(output_path, index=False, header=True)
     else:
         stem = output_path.stem
         suffix = output_path.suffix or ".csv"
         folder = output_path.parent
         for i, df in enumerate(dfs, start=1):
+            df_copy = df.copy()
+            # Set the first row as column headers (temperature values)
+            headers = [str(h).strip() for h in df_copy.iloc[0]]
+            # Remove empty headers and corresponding columns
+            valid_headers = [(j, h) for j, h in enumerate(headers) if h and h != '']
+            if valid_headers:
+                valid_indices = [j for j, _ in valid_headers]
+                df_copy = df_copy.iloc[1:, valid_indices].reset_index(drop=True)
+                df_copy.columns = [h for _, h in valid_headers]
+            else:
+                df_copy = df_copy.iloc[1:].reset_index(drop=True)
             out = folder / f"{stem}_run{i}{suffix}"
-            df.to_csv(out, index=False, header=False)
+            df_copy.to_csv(out, index=False, header=True)
 
 def process_file(input_path: str,
                  output_path: str,

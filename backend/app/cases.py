@@ -82,8 +82,10 @@ def list_cases(
             (Case.person_name.ilike(like))
         )
 
-    # count rows and return them
-    total = query.with_entities(func.count()).scalar() or 0
+    # Count total matching rows before pagination
+    total = query.count()
+
+    # Get paginated rows
     rows = (
         query.order_by(Case.created_at.desc())
         .offset((page - 1) * per_page)

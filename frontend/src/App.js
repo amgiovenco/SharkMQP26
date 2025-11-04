@@ -11,7 +11,7 @@ import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AnalysisHistoryPage from "./pages/AnalysisHistoryPage";
-import CasePage from "./pages/CasePage";
+import CaseDetailPage from "./pages/CaseDetailPage";
 import AccountPage from "./pages/AccountPage";
 
 const App = () => {
@@ -66,7 +66,7 @@ const App = () => {
                     path="/case/:caseId"
                     element={
                     <ProtectedRoute>
-                        <CasePage />
+                        <CaseDetailPage />
                     </ProtectedRoute>
                     }
                 />

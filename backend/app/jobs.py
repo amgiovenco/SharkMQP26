@@ -1,5 +1,6 @@
 import json
 import hashlib
+import uuid
 from uuid import UUID as UUID_t
 from pathlib import Path
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ from .models import Job, User, Case
 from .auth import get_current_user
 from .logger import get_logger
 from .socket_io import sio
+from worker.extract_melt_block import process_file as convert_raw_csv
 
 logger = get_logger(__name__)
 
@@ -98,24 +100,14 @@ async def upload_and_enqueue(
         if not case:
             raise HTTPException(status_code=404, detail="Case not found")
 
-    # Create job row first to get its UUID
-    new_job = Job(
-        case_id=case_uuid,
-        file_path="",
-        sha256="",
-        status="queued",
-        created_at=ts,
-        user_id=current_user.id,
-    )
-    db.add(new_job)
-    db.commit()
-    db.refresh(new_job)
+    # Create batch ID to group all samples from this upload
+    batch_id = uuid.uuid4()
 
-    # Save file to disk: {storage_dir}/{case_id or uncategorized}/{job_id}/sample.csv
+    # Save file to disk: {storage_dir}/{case_id or uncategorized}/{batch_id}/sample.csv
     case_folder = str(case_uuid) if case_uuid else "uncategorized"
-    job_folder = base_dir / case_folder / str(new_job.id)
-    job_folder.mkdir(parents=True, exist_ok=True)
-    csv_path = job_folder / "sample.csv"
+    batch_folder = base_dir / case_folder / str(batch_id)
+    batch_folder.mkdir(parents=True, exist_ok=True)
+    csv_path = batch_folder / "sample.csv"
 
     # hash file while saving
     hasher = hashlib.sha256()
@@ -130,41 +122,86 @@ async def upload_and_enqueue(
                 hasher.update(chunk)
                 total_bytes += len(chunk)
     except Exception as e:
-        logger.error("Error saving uploaded file for job %s: %s", new_job.id, e)
+        logger.error("Error saving uploaded file for batch %s: %s", batch_id, e)
         raise HTTPException(status_code=500, detail="Failed to save uploaded file") from e
 
-    # Update job with file path and sha256
+    # Get file hash
     sha256 = hasher.hexdigest()
     logger.info(
-        "Saved uploaded file for job %s: path=%s bytes=%d sha256=%s",
-        new_job.id, str(csv_path), total_bytes, sha256
+        "Saved uploaded file for batch %s: path=%s bytes=%d sha256=%s",
+        batch_id, str(csv_path), total_bytes, sha256
     )
 
-    new_job.file_path = str(csv_path)
-    new_job.sha256 = sha256
-    db.add(new_job)
-    db.commit()
-    db.refresh(new_job)
-
-    # Enqueue
-    payload = {
-        "job_id": str(new_job.id),
-        "case_id": str(case_uuid) if case_uuid else None,
-        "filepath": new_job.file_path,
-        "sha256": new_job.sha256,
-        "user_id": new_job.user_id,
-        "created_at": new_job.created_at.isoformat(),
-    }
-
+    # Convert raw CSV to inference format
+    converted_csv_path = batch_folder / "sample_converted.csv"
     try:
-        await r.lpush(settings.redis_queue, json.dumps(payload))
-        logger.info("Enqueued job %s to Redis queue %s", new_job.id, settings.redis_queue)
+        convert_raw_csv(str(csv_path), str(converted_csv_path))
+        logger.info("Converted CSV for batch %s: path=%s", batch_id, str(converted_csv_path))
+    except Exception as e:
+        logger.error("Failed to convert CSV for batch %s: %s", batch_id, e)
+        raise HTTPException(status_code=500, detail="Failed to convert uploaded CSV") from e
+
+    # Read converted CSV to determine number of samples
+    import pandas as pd
+    try:
+        df_converted = pd.read_csv(converted_csv_path)
+        num_samples = len(df_converted)
+        logger.info("Batch %s contains %d samples", batch_id, num_samples)
+    except Exception as e:
+        logger.error("Failed to read converted CSV for batch %s: %s", batch_id, e)
+        raise HTTPException(status_code=500, detail="Failed to read converted CSV") from e
+
+    # Create individual jobs and queue entries for each sample
+    job_ids = []
+    try:
+        for sample_idx in range(num_samples):
+            # Create individual job for this sample
+            new_job = Job(
+                id=uuid.uuid4(),
+                batch_id=batch_id,
+                sample_index=sample_idx,
+                case_id=case_uuid,
+                file_path=str(converted_csv_path),
+                sha256=sha256,
+                status="queued",
+                created_at=ts,
+                user_id=current_user.id,
+            )
+            db.add(new_job)
+            db.commit()
+            db.refresh(new_job)
+            job_ids.append(str(new_job.id))
+
+            # Create job payload for this sample
+            payload = {
+                "job_id": str(new_job.id),
+                "batch_id": str(batch_id),
+                "sample_index": sample_idx,
+                "case_id": str(case_uuid) if case_uuid else None,
+                "filepath": str(converted_csv_path),
+                "converted_filepath": str(converted_csv_path),
+                "sha256": sha256,
+                "user_id": new_job.user_id,
+                "created_at": new_job.created_at.isoformat(),
+            }
+
+            # Enqueue to Redis
+            await r.lpush(settings.redis_queue, json.dumps(payload))
+            logger.info("Enqueued job %s (sample %d/%d) from batch %s", new_job.id, sample_idx, num_samples, batch_id)
+
+        logger.info("Successfully created and queued %d jobs for batch %s", num_samples, batch_id)
 
     except Exception as e:
-        logger.error("Failed to enqueue job %s to Redis: %s", new_job.id, e)
-        raise HTTPException(status_code=500, detail="Failed to enqueue job") from e
+        logger.error("Failed to create/enqueue jobs for batch %s: %s", batch_id, e)
+        raise HTTPException(status_code=500, detail="Failed to enqueue jobs") from e
 
-    return JSONResponse({"status": "queued", "queue": settings.redis_queue, "job": new_job.to_dict()})
+    return JSONResponse({
+        "status": "queued",
+        "batch_id": str(batch_id),
+        "num_samples": num_samples,
+        "job_ids": job_ids,
+        "queue": settings.redis_queue
+    })
 
 
 @router.get("/{job_id}")
@@ -189,11 +226,20 @@ def list_jobs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     case_id: Optional[str] = Query(default=None),
+    batch_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_obj),
 ):
     """List jobs globally or within a case. Non-admin users see only their jobs."""
     q = db.query(Job)
+
+    # find by batch id (all samples from same upload)
+    if batch_id:
+        try:
+            batch_uuid = UUID_t(batch_id)
+            q = q.filter(Job.batch_id == batch_uuid)
+        except Exception:
+            raise HTTPException(status_code=400, detail="batch_id must be a valid UUID")
 
     # find by case id
     if case_id:
@@ -205,7 +251,8 @@ def list_jobs(
 
     # pagination
     total = q.with_entities(func.count()).scalar() or 0
-    jobs = q.order_by(Job.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    # Order by batch_id and sample_index to keep batch samples together
+    jobs = q.order_by(Job.batch_id.desc(), Job.sample_index.asc()).offset((page - 1) * per_page).limit(per_page).all()
 
     return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in jobs]}
 

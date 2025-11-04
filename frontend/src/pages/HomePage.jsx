@@ -1,6 +1,4 @@
 import shark1 from "../assets/photos/shark1.jpg";
-import shark2 from "../assets/photos/shark2.jpg";
-import FadeContent from "../components/FadeContent";
 import GradientText from "../components/GradientText";
 
 const HomePage = () => {
