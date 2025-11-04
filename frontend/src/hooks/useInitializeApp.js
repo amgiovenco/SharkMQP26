@@ -13,7 +13,6 @@ export const useInitializeApp = () => {
     const { setCases, setError } = useCasesStore();
     const hasInitialized = useRef(false);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         // Get current auth state
         const authState = useAuthStore.getState();
@@ -64,5 +63,6 @@ export const useInitializeApp = () => {
         };
 
         initializeApp();
-    }, []); // Empty dependency array - only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 };
