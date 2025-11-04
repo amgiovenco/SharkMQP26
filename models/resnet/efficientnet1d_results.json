@@ -1,0 +1,40 @@
+{
+  "model": "EfficientNet-B0 1D",
+  "configuration": {
+    "batch_size": 16,
+    "epochs": 150,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "focal_alpha": 1.0,
+    "focal_gamma": 2.0,
+    "patience": 25,
+    "n_folds": 5,
+    "data_augmentation": {
+      "noise_std": 0.01,
+      "scale_range": 0.05,
+      "shift_range": 5
+    }
+  },
+  "cross_validation": {
+    "fold_results": [
+      89.31297709923665,
+      94.61538461538461,
+      89.23076923076923,
+      88.46153846153847,
+      91.53846153846153
+    ],
+    "mean_val_acc": 90.6318261890781,
+    "std_val_acc": 2.2406783675958373
+  },
+  "test_results": {
+    "individual_fold_accs": [
+      96.31336405529954,
+      98.9247311827957,
+      97.54224270353302,
+      98.00307219662058,
+      97.84946236559139
+    ],
+    "best_fold": 2,
+    "best_test_acc": 98.9247311827957
+  }
+}
