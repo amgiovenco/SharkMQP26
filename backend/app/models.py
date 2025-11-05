@@ -106,9 +106,11 @@ class Case(Base):
 class Job(Base):
     __tablename__ = "jobs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id = Column(UUID(as_uuid=True), nullable=False) # groups multiple samples from same upload
+    sample_index = Column(Integer, nullable=False, default=0) # which sample in batch (0-indexed)
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id"), nullable=True)
     file_path = Column(Text, nullable=False)
-    sha256 = Column(String(64), nullable=False)
+    sha256 = Column(String(64), nullable=False) # same for all samples in batch
     status = Column(String(16), nullable=False, default="queued") # queued|running|done|error
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # time when job was created
     started_at = Column(DateTime(timezone=True), nullable=True) # time when job started processing
@@ -134,6 +136,8 @@ class Job(Base):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": _uuid(self.id),
+            "batch_id": _uuid(self.batch_id),
+            "sample_index": self.sample_index,
             "case_id": _uuid(self.case_id),
             "file_path": self.file_path,
             "sha256": self.sha256,

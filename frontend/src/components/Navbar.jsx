@@ -1,19 +1,11 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { HiHome, HiOutlineChartBar, HiOutlineClock, HiOutlineUser } from "react-icons/hi";
 import PalegiaLogo from "../assets/logos/pelagiaLogo.svg";
-import { useAuthStore } from "../stores/authStore";
 
 const Navbar = ({ logoSize = "36px" }) => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { clearAuth } = useAuthStore();
 
   const isActive = (path) => location.pathname === path;
-
-  const handleLogout = () => {
-    clearAuth();
-    navigate("/login", { replace: true });
-  };
 
   return (
     <nav className="sticky top-0 z-20 flex items-center justify-between bg-white px-6 py-2 border-b border-gray-200 shadow-sm">

@@ -11,17 +11,17 @@ from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
-from inference import run_inference as ml_inference
+from worker.inference import run_inference as ml_inference
 
 logger = get_logger(__name__)
 
 # Determine device
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def run_inference(filepath: str):
-    """Run ML inference on the uploaded file"""
+def run_inference(filepath: str, sample_index: int = 0):
+    """Run ML inference on a specific sample in the CSV file"""
     try:
-        result = ml_inference(filepath, device=DEVICE)
+        result = ml_inference(filepath, sample_index=sample_index, device=DEVICE)
         return result
     except Exception as e:
         logger.error(f"Inference error: {e}")
@@ -90,7 +90,9 @@ async def main():
             _qname, payload = item
             job_msg = json.loads(payload)
             job_id = job_msg.get("job_id")
-            filepath = job_msg.get("filepath")
+            sample_index = job_msg.get("sample_index", 0)
+            # Use converted filepath for inference, fallback to raw filepath for compatibility
+            filepath = job_msg.get("converted_filepath") or job_msg.get("filepath")
 
             # update DB -> running
             db = _db_session()
@@ -99,8 +101,8 @@ async def main():
             finally:
                 db.close()
 
-            # Run model
-            result = run_inference(filepath)
+            # Run model on specific sample
+            result = run_inference(filepath, sample_index=sample_index)
 
             # update DB -> done
             db = _db_session()

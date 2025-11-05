@@ -335,7 +335,7 @@ if __name__ == "__main__":
     import argparse
 
     # 👇 set your default CSV path here
-    DEFAULT_CSV = Path(r"C:/Users/maxho/OneDrive/Documents/cs1004/Rule_based/cleaned_data_but_in_rows.csv")
+    DEFAULT_CSV = Path("data/shark_dataset.csv")
 
     parser = argparse.ArgumentParser(description="Run multiclass thresholding pipeline on a melting-curve CSV.")
     parser.add_argument("--csv", default=str(DEFAULT_CSV),

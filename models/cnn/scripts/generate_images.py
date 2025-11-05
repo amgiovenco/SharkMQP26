@@ -33,7 +33,16 @@ def generate_line_plot(time_values, signal_values, species_name, output_path):
     plt.close(fig)
 
 def main():
+    """Generate images from CSV dataset for use in training."""
     print("Loading shark dataset...")
+
+    csv_path = Path(CSV_FILE)
+    if not csv_path.exists():
+        raise FileNotFoundError(
+            f"CSV file not found: {csv_path.absolute()}\n"
+            f"Expected dataset at {csv_path.absolute()}"
+        )
+
     df = pd.read_csv(CSV_FILE)
 
     # Extract time values from column names (skip 'Species' column)
@@ -49,13 +58,13 @@ def main():
     print(f"Number of unique species: {len(species_list)}")
 
     # Create output directory
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Create subdirectory for each species
     species_dirs = {}
     for species in species_list:
         species_dir = OUTPUT_DIR / species.replace(' ', '_').replace('/', '_')
-        species_dir.mkdir(exist_ok=True)
+        species_dir.mkdir(parents=True, exist_ok=True)
         species_dirs[species] = species_dir
 
     print(f"\nGenerating images...")

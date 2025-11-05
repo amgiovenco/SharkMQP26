@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./utility/MainLayout";
 import ProtectedRoute from "./utility/ProtectedRoute";
+import { useInitializeApp } from "./hooks/useInitializeApp";
 
 // Public pages
 import LoginPage from "./pages/LoginPage";
@@ -10,10 +11,13 @@ import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AnalysisHistoryPage from "./pages/AnalysisHistoryPage";
-import CasePage from "./pages/CasePage";
+import CaseDetailPage from "./pages/CaseDetailPage";
 import AccountPage from "./pages/AccountPage";
 
 const App = () => {
+    // Initialize app on mount - fetches fresh user data and cases
+    useInitializeApp();
+
     return (
         <div className="App h-full">
             <Routes>
@@ -62,7 +66,7 @@ const App = () => {
                     path="/case/:caseId"
                     element={
                     <ProtectedRoute>
-                        <CasePage />
+                        <CaseDetailPage />
                     </ProtectedRoute>
                     }
                 />
