@@ -1,0 +1,91 @@
+{
+  "total_experiments": 48,
+  "best_configuration": {
+    "experiment_name": "nn_arch1",
+    "models": "rf+rb+stats+resnet+cnn",
+    "n_models": 5,
+    "n_features": 285,
+    "mean_accuracy": 0.9908162066940693,
+    "std_accuracy": 0.011215877118482348,
+    "min_accuracy": 0.9694656488549618,
+    "max_accuracy": 1.0
+  },
+  "top_10_configurations": [
+    {
+      "experiment_name": "nn_arch1",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9908162066940693,
+      "std_accuracy": 0.011215877118482348
+    },
+    {
+      "experiment_name": "nn_arch2",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9908162066940693,
+      "std_accuracy": 0.012225569049747751
+    },
+    {
+      "experiment_name": "xgb_d10_eta0.1",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9908162066940693,
+      "std_accuracy": 0.012225569049747751
+    },
+    {
+      "experiment_name": "combo_rf+rb+stats+resnet+cnn",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9908162066940693,
+      "std_accuracy": 0.011215877118482348
+    },
+    {
+      "experiment_name": "rf_n300_d10",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9908044627128596,
+      "std_accuracy": 0.008916427766594836
+    },
+    {
+      "experiment_name": "xgb_d10_eta0.2",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9907927187316501,
+      "std_accuracy": 0.007517835981912214
+    },
+    {
+      "experiment_name": "xgb_d5_eta0.2",
+      "models": "rf+rb+stats+resnet+cnn",
+      "mean_accuracy": 0.9907927187316501,
+      "std_accuracy": 0.007517835981912214
+    },
+    {
+      "experiment_name": "combo_rf+rb+cnn",
+      "models": "rf+rb+cnn",
+      "mean_accuracy": 0.9892777451556078,
+      "std_accuracy": 0.011431280271900523
+    },
+    {
+      "experiment_name": "combo_rf+rb+stats+cnn",
+      "models": "rf+rb+stats+cnn",
+      "mean_accuracy": 0.9892777451556078,
+      "std_accuracy": 0.011431280271900523
+    },
+    {
+      "experiment_name": "combo_rf+rb+resnet",
+      "models": "rf+rb+resnet",
+      "mean_accuracy": 0.9892777451556078,
+      "std_accuracy": 0.0133420930427445
+    }
+  ],
+  "best_model_combination": {
+    "experiment_name": "combo_rf+rb+stats+resnet+cnn",
+    "models": "rf+rb+stats+resnet+cnn",
+    "n_models": 5,
+    "n_features": 285,
+    "mean_accuracy": 0.9908162066940693,
+    "std_accuracy": 0.011215877118482348,
+    "min_accuracy": 0.9694656488549618,
+    "max_accuracy": 1.0
+  },
+  "efficiency_analysis": {
+    "2_models": 0.9892660011743981,
+    "3_models": 0.9892777451556078,
+    "4_models": 0.9892777451556078,
+    "5_models": 0.9908162066940693
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "baseline_cv_accuracy": 0.9185907222548444,
+  "baseline_fold_scores": [
+    0.916030534351145,
+    0.9,
+    0.9076923076923077,
+    0.9230769230769231,
+    0.9461538461538461
+  ],
+  "best_model": "optimized_rb",
+  "best_cv_accuracy": 0.9508279506752789,
+  "best_params": {
+    "model_type": "et",
+    "et_n_estimators": 790,
+    "et_min_samples_leaf": 1,
+    "et_max_depth": 15,
+    "et_max_features": null
+  },
+  "improvement_percentage": 3.2237228420434527
+}

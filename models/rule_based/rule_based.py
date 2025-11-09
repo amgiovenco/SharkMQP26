@@ -1,7 +1,7 @@
 # rule_based.py
 # End-to-end multiclass thresholding pipeline for melting-curve data.
 
-import os, json, sys
+import os, json, sys, pickle
 from pathlib import Path
 from typing import Tuple, List
 
@@ -42,7 +42,7 @@ def load_dataset(csv_path: str, target_name: str = None) -> Tuple[pd.DataFrame, 
     X = X.replace([np.inf, -np.inf], np.nan)
     # Interpolate along each row (sequence-wise); then fill edges
     X = X.interpolate(axis=1, limit_direction="both")
-    X = X.fillna(method="bfill", axis=1).fillna(method="ffill", axis=1)
+    X = X.bfill(axis=1).ffill(axis=1)
 
     y = df[target_name].astype(str)
     return X, y
@@ -71,8 +71,8 @@ def _curve_features(y: np.ndarray, t: np.ndarray) -> np.ndarray:
     tmax = float(t[idx_max])
 
     # Area & centroid
-    auc = float(np.trapz(yb, t))
-    centroid = float(np.trapz(yb * t, t) / (auc + 1e-12))
+    auc = float(np.trapezoid(yb, t))
+    centroid = float(np.trapezoid(yb * t, t) / (auc + 1e-12))
 
     # FWHM
     half = 0.5 * ymax
@@ -91,8 +91,8 @@ def _curve_features(y: np.ndarray, t: np.ndarray) -> np.ndarray:
     decay_time = float(t[max(lo_i2, hi_i2)] - t[min(lo_i2, hi_i2)]) if ymax > 0 else 0.0
 
     # Left/right area & asymmetry
-    auc_left = float(np.trapz(yb[:idx_max + 1], t[:idx_max + 1]))
-    auc_right = float(np.trapz(yb[idx_max:], t[idx_max:]))
+    auc_left = float(np.trapezoid(yb[:idx_max + 1], t[:idx_max + 1]))
+    auc_right = float(np.trapezoid(yb[idx_max:], t[idx_max:]))
     asymmetry = float((auc_right - auc_left) / (auc + 1e-12))
 
     # Global stats on raw y
@@ -335,17 +335,19 @@ if __name__ == "__main__":
     import argparse
 
     # 👇 set your default CSV path here
-    DEFAULT_CSV = Path("data/shark_dataset.csv")
+    DEFAULT_CSV = Path("../../data/shark_dataset.csv")
 
     parser = argparse.ArgumentParser(description="Run multiclass thresholding pipeline on a melting-curve CSV.")
     parser.add_argument("--csv", default=str(DEFAULT_CSV),
-                        help="Path to the CSV file (defaults to cleaned_data_but_in_rows.csv)")
+                        help="Path to the CSV file (defaults to shark_dataset.csv)")
     parser.add_argument("--model", default="rf", choices=["rf", "lr"],
                         help="Classifier: rf (RandomForest) or lr (LogisticRegression)")
     parser.add_argument("--margin", type=float, default=0.1,
                         help="Top1-Top2 probability margin for abstention")
     parser.add_argument("--export_dir", default=None,
                         help="Optional directory to export thresholds/rules/results")
+    parser.add_argument("--save_models", action="store_true",
+                        help="Save trained models for each fold with accuracy in filename")
     args = parser.parse_args()
 
     csv_path = Path(args.csv)
@@ -354,20 +356,104 @@ if __name__ == "__main__":
         print(f"[error] File not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
 
-    out = run_pipeline(
-        str(csv_path),
-        target_name=None,
-        model=args.model,
-        margin=args.margin,
-        export_dir=args.export_dir
-    )
+    # If save_models flag set, run 5-fold training and save models
+    if args.save_models:
+        print("\n" + "="*60)
+        print("RULE-BASED MODEL TRAINING - 5-FOLD")
+        print("="*60)
 
-    # Pretty console output
-    pretty_print_eval_table(out["eval_rows"], title="=== Train vs Val vs Test (Plain & Rule-based) ===")
+        from sklearn.model_selection import StratifiedKFold
 
-    print("\n=== Per-Class Probability Thresholds (F1-optimized) ===")
-    thr_df = pd.DataFrame({"Class": out["classes"], "Threshold": out["thresholds_f1"]})
-    print(thr_df.to_string(index=False, float_format="%.3f"))
+        # Load data
+        X_raw, y = load_dataset(str(csv_path), target_name=None)
+        Xf, names = engineer_features(X_raw)
+        le = LabelEncoder()
+        y_enc = le.fit_transform(y)
 
-    print("\n=== Interpretable Rules (depth=3 tree) ===")
-    print(out["rules_depth3"])
+        # 5-fold stratified split
+        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=8)
+        fold_results = []
+
+        for fold_idx, (train_val_idx, test_idx) in enumerate(skf.split(Xf, y_enc)):
+            print(f"\nFold {fold_idx + 1}/5:")
+
+            # Split train_val into train/val
+            X_tv = Xf.iloc[train_val_idx]
+            y_tv = y_enc[train_val_idx]
+            X_test_fold = Xf.iloc[test_idx]
+            y_test_fold = y_enc[test_idx]
+
+            Xtr, Xva, ytr, yva = train_test_split(
+                X_tv, y_tv, test_size=0.2, random_state=8, stratify=y_tv
+            )
+
+            # Train
+            scaler = StandardScaler()
+            Xtr_scaled = scaler.fit_transform(Xtr)
+            Xva_scaled = scaler.transform(Xva)
+            Xte_scaled = scaler.transform(X_test_fold)
+
+            if args.model == "rf":
+                clf = RandomForestClassifier(n_estimators=300, max_depth=15, random_state=8, n_jobs=-1)
+            else:
+                clf = LogisticRegression(max_iter=1000, multi_class="multinomial", solver="lbfgs")
+
+            clf.fit(Xtr_scaled, ytr)
+
+            # Evaluate
+            va_pred = clf.predict(Xva_scaled)
+            te_pred = clf.predict(Xte_scaled)
+            va_acc = accuracy_score(yva, va_pred)
+            te_acc = accuracy_score(y_test_fold, te_pred)
+
+            print(f"  Val Acc: {va_acc*100:.2f}%")
+            print(f"  Test Acc: {te_acc*100:.2f}%")
+
+            # Save model package
+            model_package = {
+                'model': clf,
+                'scaler': scaler,
+                'label_encoder': le,
+                'feature_names': names,
+            }
+
+            acc_str = f"{va_acc*100:.2f}".replace('.', '')
+            model_path = Path(".") / f"rulebased_{acc_str}.pkl"
+
+            with open(model_path, 'wb') as f:
+                pickle.dump(model_package, f)
+
+            print(f"  ✅ Saved: {model_path.name}")
+
+            fold_results.append({
+                'fold': fold_idx + 1,
+                'val_acc': float(va_acc),
+                'test_acc': float(te_acc),
+            })
+
+        print(f"\n{'='*60}")
+        print("SUMMARY")
+        print(f"{'='*60}")
+        va_accs = [r['val_acc'] for r in fold_results]
+        te_accs = [r['test_acc'] for r in fold_results]
+        print(f"Val Mean: {np.mean(va_accs)*100:.2f}% ± {np.std(va_accs)*100:.2f}%")
+        print(f"Test Mean: {np.mean(te_accs)*100:.2f}% ± {np.std(te_accs)*100:.2f}%")
+    else:
+        # Original single train/test pipeline
+        out = run_pipeline(
+            str(csv_path),
+            target_name=None,
+            model=args.model,
+            margin=args.margin,
+            export_dir=args.export_dir
+        )
+
+        # Pretty console output
+        pretty_print_eval_table(out["eval_rows"], title="=== Train vs Val vs Test (Plain & Rule-based) ===")
+
+        print("\n=== Per-Class Probability Thresholds (F1-optimized) ===")
+        thr_df = pd.DataFrame({"Class": out["classes"], "Threshold": out["thresholds_f1"]})
+        print(thr_df.to_string(index=False, float_format="%.3f"))
+
+        print("\n=== Interpretable Rules (depth=3 tree) ===")
+        print(out["rules_depth3"])

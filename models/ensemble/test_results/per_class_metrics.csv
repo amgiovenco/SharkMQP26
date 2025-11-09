@@ -1,0 +1,58 @@
+Species,Precision,Recall,F1-Score,Support
+Arabian smooth-hound,1.0,1.0,1.0,1
+Atlantic Sharpnose shark,1.0,1.0,1.0,1
+Blackchin guitarfish,1.0,1.0,1.0,1
+Blacknose shark,1.0,1.0,1.0,2
+Blackspotted smooth-hound,1.0,1.0,1.0,1
+Blacktip reef shark,1.0,1.0,1.0,1
+Blacktip shark,1.0,1.0,1.0,6
+Blue shark,1.0,1.0,1.0,7
+Bonnethead shark,1.0,1.0,1.0,2
+Bowmouth guitarfish,1.0,1.0,1.0,1
+Brownbanded bamboo shark,1.0,1.0,1.0,2
+Bull shark,1.0,1.0,1.0,6
+Caribbean reef shark,1.0,1.0,1.0,2
+Common thresher shark,1.0,1.0,1.0,2
+Copper shark,1.0,1.0,1.0,3
+Dusky shark,1.0,1.0,1.0,2
+Finetooth shark,1.0,1.0,1.0,1
+Great hammerhead shark,1.0,1.0,1.0,8
+Great white shark,1.0,1.0,1.0,1
+Grey reef shark,1.0,1.0,1.0,4
+Gulper shark,1.0,1.0,1.0,2
+Gummy shark,1.0,1.0,1.0,1
+Halavi guitarfish,1.0,1.0,1.0,1
+Hooktooth shark,1.0,1.0,1.0,1
+Japanese topeshark,1.0,1.0,1.0,2
+Java shark,1.0,1.0,1.0,2
+Lemon shark,1.0,1.0,1.0,2
+Longtail stingray,1.0,1.0,1.0,3
+Milk shark,1.0,1.0,1.0,3
+Narrownose smooth-hound,1.0,1.0,1.0,1
+Night shark,1.0,1.0,1.0,2
+Oceanic whitetip shark,1.0,1.0,1.0,2
+Pacific bonnethead shark,1.0,1.0,1.0,2
+Sandbar shark,1.0,1.0,1.0,2
+Pacific guitarfish,1.0,1.0,1.0,2
+Pelagic thresher shark,1.0,1.0,1.0,2
+Porbeagle shark,1.0,1.0,1.0,2
+Sandtiger shark,1.0,1.0,1.0,6
+Roughskin dogfish,1.0,1.0,1.0,1
+Scalloped hammerhead shark,1.0,1.0,1.0,3
+Scalloped bonnethead shark,1.0,1.0,1.0,3
+Spinner shark,1.0,1.0,1.0,2
+Spot-tail shark,1.0,1.0,1.0,1
+Shortfin mako,1.0,1.0,1.0,2
+Silky shark,1.0,1.0,1.0,6
+Silvertip shark,1.0,1.0,1.0,3
+Small tail shark,1.0,1.0,1.0,1
+Smooth hammerhead shark,1.0,1.0,1.0,1
+Spadenose stingray,1.0,1.0,1.0,1
+Tiger shark,1.0,1.0,1.0,2
+Tope shark,1.0,1.0,1.0,2
+Spotted Eagleray,1.0,1.0,1.0,5
+Thornback ray,1.0,1.0,1.0,1
+Whitecheeck shark,1.0,1.0,1.0,2
+Zebra shark,1.0,1.0,1.0,1
+Pacific smalltail shark,0.0,0.0,0.0,0
+Nurse shark,0.0,0.0,0.0,0

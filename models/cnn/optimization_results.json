@@ -1,0 +1,21 @@
+{
+  "baseline_cv_accuracy": 0.9692307692307692,
+  "baseline_fold_scores": [
+    0.9692307692307692,
+    0.9692307692307692,
+    0.9692307692307692,
+    0.9692307692307692,
+    0.9692307692307692
+  ],
+  "best_model": "optimized_cnn",
+  "best_cv_accuracy": 0.9846153846153847,
+  "best_params": {
+    "cnn_dropout1": 0.7,
+    "cnn_dropout2": 0.5,
+    "cnn_learning_rate": 0.0020594007612475913,
+    "cnn_batch_size": 32,
+    "cnn_weight_decay": 1.0083970230770894e-05,
+    "cnn_focal_gamma": 1.5
+  },
+  "improvement_percentage": 1.5384615384615472
+}

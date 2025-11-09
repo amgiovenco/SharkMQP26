@@ -1,0 +1,21 @@
+{
+  "baseline_cv_accuracy": 0.8955490311215503,
+  "baseline_fold_scores": [
+    0.8931297709923665,
+    0.8923076923076924,
+    0.9153846153846154,
+    0.8692307692307693,
+    0.9076923076923077
+  ],
+  "best_model": "optimized_rf",
+  "best_cv_accuracy": 0.9232178508514387,
+  "best_params": {
+    "rf_n_estimators": 900,
+    "rf_max_depth": 40,
+    "rf_min_samples_split": 3,
+    "rf_min_samples_leaf": 1,
+    "rf_max_features": 0.7,
+    "rf_class_weight": "balanced"
+  },
+  "improvement_percentage": 2.766881972988844
+}
