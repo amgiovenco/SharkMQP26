@@ -11,6 +11,7 @@ Synthetic data is NEVER in validation or test sets, only training sets.
 import numpy as np
 import pandas as pd
 import json
+import copy
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedKFold
@@ -28,9 +29,7 @@ try:
     print(f"Using device: {DEVICE}")
     if torch.cuda.is_available():
         print(f"CUDA device: {torch.cuda.get_device_name(0)}")
-        # Set seeds for reproducibility
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+
 except ImportError:
     TORCH_AVAILABLE = False
     DEVICE = None
@@ -57,7 +56,7 @@ def normalize_confusion_matrix(cm):
 NORMAL_DATA_PATH = "../../data/shark_dataset.csv"
 SYNTHETIC_DATA_PATH = "../../data/synthetic_only.csv"
 SPECIES_COL = "Species"
-NUM_EPOCHS = 100
+NUM_EPOCHS = 200
 RANDOM_STATE = 8
 N_SPLITS = 5
 
@@ -73,10 +72,8 @@ BEST_PARAMS = {
 # ============================================================================
 # SET RANDOM SEEDS FOR REPRODUCIBILITY
 # ============================================================================
-np.random.seed(RANDOM_STATE)
-torch.manual_seed(RANDOM_STATE)
-torch.cuda.manual_seed(RANDOM_STATE)
-torch.cuda.manual_seed_all(RANDOM_STATE)
+torch.manual_seed(8)
+np.random.seed(8)
 
 # ============================================================================
 # RESNET1D MODEL (identical to train_cv_model.py and train_final_model.py)
@@ -134,45 +131,57 @@ class ResNet1D(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
+        # Initial conv layer
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        
+        # Residual layers
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+        
+        # Global pooling and flatten
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.dropout(x)
+        
+        # Classification layer
         x = self.fc(x)
+
         return x
 
 
 # ============================================================================
 # DATA LOADING AND PREPROCESSING
 # ============================================================================
-def load_and_normalize_data(csv_path, mean_vals=None, std_vals=None):
-    """Load and normalize data from CSV.
+def load_and_normalize_data(csv_path, mean_val=None, std_val=None):
+    """Load and normalize data from CSV using global mean/std.
 
     Args:
         csv_path: Path to CSV file
-        mean_vals: Pre-computed mean values (for synthetic data normalization)
-        std_vals: Pre-computed std values (for synthetic data normalization)
+        mean_val: Pre-computed global mean (for synthetic data normalization)
+        std_val: Pre-computed global std (for synthetic data normalization)
     """
     df = pd.read_csv(csv_path)
     X_raw = df.drop(columns=[SPECIES_COL], errors='ignore')
     y = df[SPECIES_COL].astype(str)
 
-    # Normalize X
-    if mean_vals is None:
-        # First time: compute mean/std from this dataset
-        mean_vals = X_raw.mean().values
-        std_vals = X_raw.std().values
+    X_values = X_raw.values  # Convert to numpy array for global stats
 
-    # Normalize using provided or computed mean/std
-    X = (X_raw - mean_vals) / (std_vals + 1e-8)
-    X = X.fillna(0).astype(np.float32).values
-    X = np.expand_dims(X, axis=1)  # Add channel dimension for Conv1D
+    # Normalize X using global mean/std across all elements
+    if mean_val is None:
+        # First time: compute global mean/std from this dataset
+        mean_val = X_values.mean()  # Single scalar
+        std_val = X_values.std()    # Single scalar
 
-    return X, y.values, mean_vals, std_vals
+    # Normalize using provided or computed global mean/std
+    X = (X_values - mean_val) / (std_val + 1e-8)
+    X = X.astype(np.float32)
+    X = np.expand_dims(X, axis=1)  # Add channel dimension for Conv1D (N, 1, T)
+
+    return X, y.values, mean_val, std_val
 
 
 print("="*80)
@@ -199,13 +208,17 @@ print(f"Number of classes: {len(le.classes_)}")
 # ============================================================================
 # TRAINING FUNCTION
 # ============================================================================
-def train_model(X_train, y_train, num_classes, epochs=NUM_EPOCHS):
-    """Train a ResNet1D model."""
+def train_model(X_train, y_train, X_val, y_val, num_classes, max_epochs=NUM_EPOCHS):
+    """Train a ResNet1D model with validation monitoring, early stopping, and scheduler."""
     X_train_tensor = torch.FloatTensor(X_train).to(DEVICE)
     y_train_tensor = torch.LongTensor(y_train).to(DEVICE)
+    X_val_tensor = torch.FloatTensor(X_val).to(DEVICE)
+    y_val_tensor = torch.LongTensor(y_val).to(DEVICE)
 
     train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
     train_loader = DataLoader(train_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=False)
 
     # Create model
     model = ResNet1D(
@@ -215,21 +228,75 @@ def train_model(X_train, y_train, num_classes, epochs=NUM_EPOCHS):
         dropout=BEST_PARAMS['dropout']
     ).to(DEVICE)
 
-    # Optimizer
+    # Optimizer and criterion
     optimizer = optim.Adam(model.parameters(),
-                          lr=BEST_PARAMS['learning_rate'],
-                          weight_decay=BEST_PARAMS['weight_decay'])
+                           lr=BEST_PARAMS['learning_rate'],
+                           weight_decay=BEST_PARAMS['weight_decay'])
     criterion = nn.CrossEntropyLoss()
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
-    # Training loop
-    for epoch in range(epochs):
+    # Training variables
+    best_val_acc = 0.0
+    best_model_state = None
+    min_val_loss = float('inf')
+    epochs_no_improve = 0
+    patience = 15
+
+    for epoch in range(max_epochs):
+        # Train one epoch
         model.train()
+        running_loss = 0.0
+        correct = 0
+        total = 0
         for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
             loss.backward()
             optimizer.step()
+            running_loss += loss.item() * X_batch.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            total += y_batch.size(0)
+            correct += (predicted == y_batch).sum().item()
+        train_loss = running_loss / total
+        train_acc = correct / total
+
+        # Validate
+        model.eval()
+        val_running_loss = 0.0
+        val_correct = 0
+        val_total = 0
+        with torch.no_grad():
+            for X_batch, y_batch in val_loader:
+                outputs = model(X_batch)
+                loss = criterion(outputs, y_batch)
+                val_running_loss += loss.item() * X_batch.size(0)
+                _, predicted = torch.max(outputs.data, 1)
+                val_total += y_batch.size(0)
+                val_correct += (predicted == y_batch).sum().item()
+        val_loss = val_running_loss / val_total
+        val_acc = val_correct / val_total
+
+        # Scheduler step
+        scheduler.step(val_loss)
+
+        # Track best model based on val_acc
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_model_state = copy.deepcopy(model.state_dict())
+
+        # Early stopping based on val_loss
+        if val_loss < min_val_loss:
+            min_val_loss = val_loss
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+        if epochs_no_improve == patience:
+            break
+
+    # Load best model state
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
 
     return model
 
@@ -286,19 +353,19 @@ baseline_precisions = []
 baseline_recalls = []
 baseline_cms = []
 
-for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
-    X_train, X_test = X_normal[train_idx], X_normal[test_idx]
-    y_train, y_test = y_normal_encoded[train_idx], y_normal_encoded[test_idx]
+for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
+    X_train, X_val = X_normal[train_idx], X_normal[val_idx]
+    y_train, y_val = y_normal_encoded[train_idx], y_normal_encoded[val_idx]
 
     print(f"\n  Fold {fold_idx}/{N_SPLITS}")
     print(f"    Training size: {len(X_train)} samples (normal only)")
-    print(f"    Test size: {len(X_test)} samples")
+    print(f"    Val size: {len(X_val)} samples")
 
-    # Train model
-    model = train_model(X_train, y_train, len(le.classes_))
+    # Train with val monitoring
+    model = train_model(X_train, y_train, X_val, y_val, len(le.classes_))
 
-    # Evaluate
-    fold_metrics = evaluate_model(model, X_test, y_test)
+    # Evaluate (now on best model)
+    fold_metrics = evaluate_model(model, X_val, y_val)
 
     baseline_accuracies.append(fold_metrics['accuracy'])
     baseline_f1_scores.append(fold_metrics['f1'])
@@ -312,7 +379,7 @@ for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_en
         "f1": float(fold_metrics['f1']),
         "precision": float(fold_metrics['precision']),
         "recall": float(fold_metrics['recall']),
-        "test_size": len(y_test),
+        "val_size": len(y_val),
         "train_size": len(X_train)
     })
 
@@ -361,23 +428,23 @@ enhanced_precisions = []
 enhanced_recalls = []
 enhanced_cms = []
 
-for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
-    X_train, X_test = X_normal[train_idx], X_normal[test_idx]
-    y_train, y_test = y_normal_encoded[train_idx], y_normal_encoded[test_idx]
+for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
+    X_train_real, X_val = X_normal[train_idx], X_normal[val_idx]
+    y_train_real, y_val = y_normal_encoded[train_idx], y_normal_encoded[val_idx]
 
-    # IMPORTANT: Add synthetic data to training set ONLY
-    X_train_combined = np.concatenate([X_train, X_synthetic], axis=0)
-    y_train_combined = np.concatenate([y_train, y_synthetic_encoded], axis=0)
+    # Add synthetic to training only
+    X_train_combined = np.concatenate([X_train_real, X_synthetic], axis=0)
+    y_train_combined = np.concatenate([y_train_real, y_synthetic_encoded], axis=0)
 
     print(f"\n  Fold {fold_idx}/{N_SPLITS}")
-    print(f"    Training size: {len(X_train)} real + {len(X_synthetic)} synthetic = {len(X_train_combined)} total")
-    print(f"    Test size: {len(X_test)} samples (normal only)")
+    print(f"    Training size: {len(X_train_real)} real + {len(X_synthetic)} synthetic = {len(X_train_combined)} total")
+    print(f"    Val size: {len(X_val)} samples (normal only)")
 
-    # Train model
-    model = train_model(X_train_combined, y_train_combined, len(le.classes_))
+    # Train with val monitoring
+    model = train_model(X_train_combined, y_train_combined, X_val, y_val, len(le.classes_))
 
-    # Evaluate on original test set (normal data only)
-    fold_metrics = evaluate_model(model, X_test, y_test)
+    # Evaluate (now on best model)
+    fold_metrics = evaluate_model(model, X_val, y_val)
 
     enhanced_accuracies.append(fold_metrics['accuracy'])
     enhanced_f1_scores.append(fold_metrics['f1'])
@@ -391,8 +458,8 @@ for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_en
         "f1": float(fold_metrics['f1']),
         "precision": float(fold_metrics['precision']),
         "recall": float(fold_metrics['recall']),
-        "test_size": len(y_test),
-        "train_size_real": len(X_train),
+        "val_size": len(y_val),
+        "train_size_real": len(X_train_real),
         "train_size_synthetic": len(X_synthetic),
         "train_size_total": len(X_train_combined)
     })

@@ -38,19 +38,20 @@ N_SPLITS = 5
 
 # Top 18 features (from feature_importance.csv)
 TOP_18_FEATURES = [
-    'peak_max_x', 'max_slope', 'y_middle_std', 'max', 'range', 'y_middle_max',
-    'fft_power_1', 'fft_power_4', 'fft_power_0', 'fft_power_2', 'fft_entropy',
-    'mean_abs_curvature', 'fft_power_3', 'y_middle_mean', 'y_right_max',
-    'slope_std', 'mean_abs_slope', 'std'
+    'peak_max_x', 'max_slope', 'y_middle_std', 'mean_abs_curvature',
+    'fft_power_4', 'mean_abs_slope', 'max_curvature', 'range',
+    'fft_entropy', 'max', 'y_middle_max', 'fft_power_2',
+    'fft_power_1', 'fft_power_0', 'fft_power_3', 'y_right_max',
+    'slope_std', 'y_left_max'
 ]
 
 # Best model parameters (from optimize_stats.py and train_cv_model.py)
 BEST_PARAMS = {
     'n_estimators': 1700,
-    'max_depth': 50,
-    'min_samples_split': 7,
+    'max_depth': None,
+    'min_samples_split': 9,
     'min_samples_leaf': 1,
-    'max_features': 'sqrt',
+    'max_features': 0.7,
     'class_weight': 'balanced',
     'random_state': RANDOM_STATE,
     'n_jobs': -1
@@ -149,10 +150,6 @@ def extract_features(x, y):
     feat["fft_total_power"] = float(np.sum(fft_power))
     feat["fft_entropy"] = float(entropy(fft_power + 1e-10))
 
-    # Additional features (2)
-    feat["cv"] = feat["std"] / (feat["mean"] + 1e-10)
-    feat["peak_to_mean_ratio"] = feat["max"] / (feat["mean"] + 1e-10)
-
     return feat
 
 
@@ -191,110 +188,89 @@ def select_features(feat_df):
     return X, y
 
 
-def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None, n_repeats=5):
+def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None):
     """
-    Run 60/20/20 stratified split, repeated 5 times.
-    - Train: 60% real (+ synthetic if provided)
-    - Val: 20% real
+    Run 5-fold stratified CV (80/20 train/test per fold).
+    - Train: 80% real (+ synthetic if provided)
     - Test: 20% real
     Returns: summary, list of (y_true, y_pred) for test sets
     """
     print(f"\n{'='*70}")
     print(f"SCENARIO: {scenario_name}")
-    print(f"  → 60/20/20 stratified splits × {n_repeats} (seed 8 base)")
+    print(f"  → 5-fold stratified CV (seed 8)")
     print(f"{'='*70}")
 
-    np.random.seed(RANDOM_STATE)
-    seeds = [RANDOM_STATE + i for i in range(n_repeats)]
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
     fold_results = []
     all_y_true = []
     all_y_pred = []
     all_y_proba = []
 
-    for rep in range(1, n_repeats + 1):
-        seed = seeds[rep - 1]
-
-        # First split: 80/20 → (train+val) / test
-        X_trainval, X_test, y_trainval, y_test = train_test_split(
-            X, y, test_size=0.20, stratify=y, random_state=seed
-        )
-
-        # Second split: 75/25 of trainval → train (60%) / val (20%)
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_trainval, y_trainval, test_size=0.25, stratify=y_trainval, random_state=seed
-        )
+    for fold, (train_idx, test_idx) in enumerate(skf.split(X, y), 1):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
 
         # Add synthetic data to training only
         if synthetic_X is not None:
             X_train = np.vstack([X_train, synthetic_X])
             y_train = np.concatenate([y_train, synthetic_y])
-            data_note = f"Real: {len(X_trainval)*0.75:.0f} | Synth: {len(synthetic_X)} | Train: {len(X_train)}"
+            data_note = f"Real: {len(train_idx)} | Synth: {len(synthetic_X)} | Train: {len(X_train)}"
         else:
             data_note = f"Real only: {len(X_train)}"
 
         # Train model
         model = ExtraTreesClassifier(**BEST_PARAMS)
-        model.fit(X_train, y_train)
 
-        # Optional: calibration (keep for consistency)
-        calibrated_model = CalibratedClassifierCV(model, cv='prefit', method="isotonic")
+        # Calibration (no prefit, use cv=3 for consistency with first script)
+        calibrated_model = CalibratedClassifierCV(model, cv=3, method="isotonic")
         calibrated_model.fit(X_train, y_train)
 
-        # === Evaluate on VAL ===
-        y_val_pred = calibrated_model.predict(X_val)
-        val_acc = accuracy_score(y_val, y_val_pred)
-        val_f1 = f1_score(y_val, y_val_pred, average='macro', zero_division=0)
+        # Evaluate on VAL (fold's holdout)
+        y_val_pred = calibrated_model.predict(X_test)
+        y_val_proba = calibrated_model.predict_proba(X_test)
 
-        # === Evaluate on TEST ===
-        y_test_pred = calibrated_model.predict(X_test)
-        y_test_proba = calibrated_model.predict_proba(X_test)
-
-        test_acc = accuracy_score(y_test, y_test_pred)
-        test_f1 = f1_score(y_test, y_test_pred, average='macro', zero_division=0)
-        precision = precision_score(y_test, y_test_pred, average='macro', zero_division=0)
-        recall = recall_score(y_test, y_test_pred, average='macro', zero_division=0)
+        val_acc = accuracy_score(y_test, y_val_pred)
+        val_f1 = f1_score(y_test, y_val_pred, average='macro', zero_division=0)
+        precision = precision_score(y_test, y_val_pred, average='macro', zero_division=0)
+        recall = recall_score(y_test, y_val_pred, average='macro', zero_division=0)
 
         fold_results.append({
-            "repeat": rep,
-            "seed": seed,
+            "fold": fold,
+            "seed": RANDOM_STATE,
             "val_accuracy": float(val_acc),
             "val_f1": float(val_f1),
-            "test_accuracy": float(test_acc),
-            "test_f1": float(test_f1),
-            "test_precision": float(precision),
-            "test_recall": float(recall),
+            "val_precision": float(precision),
+            "val_recall": float(recall),
             "train_size": len(X_train),
-            "val_size": len(X_val),
-            "test_size": len(X_test),
+            "val_size": len(X_test),
             "data_note": data_note
         })
 
         all_y_true.extend(y_test)
-        all_y_pred.extend(y_test_pred)
-        all_y_proba.append(y_test_proba)
+        all_y_pred.extend(y_val_pred)
+        all_y_proba.append(y_val_proba)
 
-        print(f"  Rep {rep}/{n_repeats} | "
-              f"Val: {val_acc:.4f} | "
-              f"Test: {test_acc:.4f} (F1: {test_f1:.4f}) | "
+        print(f"  Fold {fold}/5 | "
+              f"Val: {val_acc:.4f} (F1: {val_f1:.4f}) | "
               f"{data_note}")
 
-    # === Aggregate TEST metrics ===
-    test_accs = [r["test_accuracy"] for r in fold_results]
-    test_f1s = [r["test_f1"] for r in fold_results]
-    precisions = [r["test_precision"] for r in fold_results]
-    recalls = [r["test_recall"] for r in fold_results]
+    # Aggregate VAL metrics
+    val_accs = [r["val_accuracy"] for r in fold_results]
+    val_f1s = [r["val_f1"] for r in fold_results]
+    precisions = [r["val_precision"] for r in fold_results]
+    recalls = [r["val_recall"] for r in fold_results]
 
     summary = {
         "scenario": scenario_name,
-        "evaluation": "60/20/20 stratified × 5 repeats",
-        "n_repeats": n_repeats,
-        "seed_base": RANDOM_STATE,
+        "evaluation": "5-fold stratified CV",
+        "n_folds": 5,
+        "seed": RANDOM_STATE,
         "accuracy": {
-            "mean": float(np.mean(test_accs)),
-            "std": float(np.std(test_accs)),
-            "min": float(np.min(test_accs)),
-            "max": float(np.max(test_accs))
+            "mean": float(np.mean(val_accs)),
+            "std": float(np.std(val_accs)),
+            "min": float(np.min(val_accs)),
+            "max": float(np.max(val_accs))
         },
         "precision": {
             "mean": float(np.mean(precisions)),
@@ -305,14 +281,14 @@ def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None, n
             "std": float(np.std(recalls))
         },
         "f1": {
-            "mean": float(np.mean(test_f1s)),
-            "std": float(np.std(test_f1s))
+            "mean": float(np.mean(val_f1s)),
+            "std": float(np.std(val_f1s))
         },
-        "fold_results": fold_results  # now "repeat_results"
+        "fold_results": fold_results
     }
 
-    print(f"\n  TEST Mean Accuracy: {np.mean(test_accs):.4f} ± {np.std(test_accs):.4f}")
-    print(f"  TEST Mean F1: {np.mean(test_f1s):.4f} ± {np.std(test_f1s):.4f}")
+    print(f"\n  VAL Mean Accuracy: {np.mean(val_accs):.4f} ± {np.std(val_accs):.4f}")
+    print(f"  VAL Mean F1: {np.mean(val_f1s):.4f} ± {np.std(val_f1s):.4f}")
     return summary, all_y_true, all_y_pred
 
 def save_confusion_matrix_data(y_true, y_pred):
@@ -343,7 +319,7 @@ def plot_comparison_metrics(results_normal, results_synthetic):
     recalls = [results_normal["recall"]["mean"], results_synthetic["recall"]["mean"]]
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle('Model Performance (TEST): Real vs Real+Synthetic\n(60/20/20 × 5 stratified splits)', fontsize=14, fontweight='bold')
+    fig.suptitle('Model Performance (VAL): Real vs Real+Synthetic\n(5-fold Stratified CV)', fontsize=14, fontweight='bold')
 
     # Accuracy
     axes[0, 0].bar(scenarios, accuracies, color=['#3498db', '#2ecc71'], alpha=0.8)
@@ -386,11 +362,11 @@ def plot_comparison_metrics(results_normal, results_synthetic):
     return filepath
 
 
-def plot_repeat_test_accuracy(results_normal, results_synthetic):
-    """Compare accuracy across all folds"""
+def plot_fold_val_accuracy(results_normal, results_synthetic):
+    """Compare validation accuracy across all folds"""
     folds = list(range(1, 6))
-    acc_normal = [r["test_accuracy"] for r in results_normal["fold_results"]]
-    acc_synthetic = [r["test_accuracy"] for r in results_synthetic["fold_results"]]
+    acc_normal = [r["val_accuracy"] for r in results_normal["fold_results"]]
+    acc_synthetic = [r["val_accuracy"] for r in results_synthetic["fold_results"]]
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -404,9 +380,9 @@ def plot_repeat_test_accuracy(results_normal, results_synthetic):
 
     ax.set_ylabel('Accuracy', fontsize=12)
     ax.set_xlabel('Fold', fontsize=12)
-    ax.set_title('Test Accuracy per Repeat (60/20/20 Splits)', fontsize=13, fontweight='bold')
+    ax.set_title('Validation Accuracy per Fold (5-fold CV)', fontsize=13, fontweight='bold')
     ax.set_xticks(x)
-    ax.set_xticklabels([f'Rep {i}' for i in folds])
+    ax.set_xticklabels([f'Fold {i}' for i in folds])
     ax.legend(fontsize=11)
     ax.set_ylim([0, 1])
     ax.grid(axis='y', alpha=0.3)
@@ -444,17 +420,15 @@ if __name__ == "__main__":
     # Scenario 1: Real data only
     results_real, y_true_real, y_pred_real = run_cv_experiment(
         X_real, y_real,
-        scenario_name="Real Data Only (60/20/20 × 5)",
-        n_repeats=5
+        scenario_name="Real Data Only (5-fold CV)"
     )
 
     # Scenario 2: Real + Synthetic (synthetic only in training)
     results_synthetic, y_true_synthetic, y_pred_synthetic = run_cv_experiment(
         X_real, y_real,
-        scenario_name="Real + Synthetic in Training (60/20/20 × 5)",
+        scenario_name="Real + Synthetic in Training (5-fold CV)",
         synthetic_X=X_synthetic,
-        synthetic_y=y_synthetic,
-        n_repeats=5
+        synthetic_y=y_synthetic
     )
 
     # ====================================================================
@@ -475,7 +449,7 @@ if __name__ == "__main__":
     print(f"{'='*70}")
 
     plot_comparison_metrics(results_real, results_synthetic)
-    plot_repeat_test_accuracy(results_real, results_synthetic)
+    plot_fold_val_accuracy(results_real, results_synthetic)
 
     # ====================================================================
     # SAVE JSON RESULTS
@@ -493,14 +467,14 @@ if __name__ == "__main__":
 
     # Combined results
     combined_results = {
-        "experiment": "Compare Real vs Real+Synthetic using 60/20/20 stratified splits × 5 (seed 8)",
-        "evaluation_protocol": "60% train (real + synth), 20% val (real), 20% test (real) — repeated 5×",        "timestamp": pd.Timestamp.now().isoformat(),
+        "experiment": "Compare Real vs Real+Synthetic using 5-fold stratified CV (seed 8)",
+        "evaluation_protocol": "5-fold CV: ~80% train (real + synth for scenario 2), ~20% test (real)",
+        "timestamp": pd.Timestamp.now().isoformat(),
         "random_state": RANDOM_STATE,
         "model_type": "ExtraTreesClassifier",
         "model_parameters": BEST_PARAMS,
-        "n_splits": N_SPLITS,
+        "n_splits": 5,
         "top_features_used": TOP_18_FEATURES,
-        "model_parameters": BEST_PARAMS,
         "data_summary": {
             "real_data_path": str(REAL_DATA_PATH),
             "synthetic_data_path": str(SYNTHETIC_DATA_PATH),
@@ -537,13 +511,13 @@ if __name__ == "__main__":
     print("FINAL RESULTS SUMMARY")
     print(f"{'='*70}")
 
-    print(f"\nScenario 1: Real Data Only (60/20/20 × 5)")
-    print(f" TEST Accuracy: {results_real['accuracy']['mean']:.4f} ± {results_real['accuracy']['std']:.4f}")
-    print(f" TEST F1 Score: {results_real['f1']['mean']:.4f} ± {results_real['f1']['std']:.4f}")
+    print(f"\nScenario 1: Real Data Only (5-fold CV)")
+    print(f" VAL Accuracy: {results_real['accuracy']['mean']:.4f} ± {results_real['accuracy']['std']:.4f}")
+    print(f" VAL F1 Score: {results_real['f1']['mean']:.4f} ± {results_real['f1']['std']:.4f}")
 
-    print(f"\nScenario 2: Real + Synthetic Training (60/20/20 × 5)")
-    print(f" TEST Accuracy: {results_synthetic['accuracy']['mean']:.4f} ± {results_synthetic['accuracy']['std']:.4f}")
-    print(f" TEST F1 Score: {results_synthetic['f1']['mean']:.4f} ± {results_synthetic['f1']['std']:.4f}")
+    print(f"\nScenario 2: Real + Synthetic Training (5-fold CV)")
+    print(f" VAL Accuracy: {results_synthetic['accuracy']['mean']:.4f} ± {results_synthetic['accuracy']['std']:.4f}")
+    print(f" VAL F1 Score: {results_synthetic['f1']['mean']:.4f} ± {results_synthetic['f1']['std']:.4f}")
 
     print(f"\nImprovement from Synthetic Data:")
     print(f"  Accuracy: {improvement_accuracy:+.4f} ({improvement_percent:+.2f}%)")

@@ -39,13 +39,20 @@ except ImportError as e:
     print(f"Error importing required libraries: {e}")
     exit(1)
 
+# Set random seeds for reproducibility
+RANDOM_STATE = 8
+torch.manual_seed(RANDOM_STATE)
+np.random.seed(RANDOM_STATE)
+
 # Config
 REAL_DATA_PATH = "../../data/shark_dataset.csv"
 SYNTHETIC_DATA_PATH = "../../data/synthetic_only.csv"
 SPECIES_COL = "Species"
-RANDOM_STATE = 8
 N_SPLITS = 5
 NUM_EPOCHS = 150
+PATIENCE = 25
+FOCAL_ALPHA = 1.0
+FOCAL_GAMMA = 1.5
 
 # Best params from optimization_results.json
 BEST_PARAMS = {
@@ -55,6 +62,14 @@ BEST_PARAMS = {
     "dropout1": 0.7,
     "dropout2": 0.5,
 }
+
+
+class AddGaussianNoise(object):
+    def __init__(self, std=0.005):
+        self.std = std
+    
+    def __call__(self, tensor):
+        return tensor + torch.randn_like(tensor) * self.std
 
 
 class FluorescenceImageDataset(Dataset):
@@ -98,18 +113,43 @@ class CNNModel(nn.Module):
         return self.model(x)
 
 
-def _generate_image(temps: np.ndarray, values: np.ndarray) -> Image.Image:
-    """Generate PIL image from fluorescence curve."""
-    try:
-        fig, ax = plt.subplots(figsize=(3, 2.25), dpi=96)
-        ax.plot(temps, values, linewidth=1.5, color='steelblue')
-        ax.set_xlim(temps.min(), temps.max())
-        ax.set_xlabel('temperature')
-        ax.set_ylabel('fluorescence')
-        ax.grid(True, alpha=0.3)
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1.0, gamma=2.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+    
+    def forward(self, inputs, targets):
+        ce_loss = nn.functional.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+        return focal_loss.mean()
 
+
+def _generate_image(temps: np.ndarray, values: np.ndarray) -> Image.Image:
+    """Generate PIL image from fluorescence curve, matching script 1's style."""
+    try:
+        DPI = 100
+        IMAGE_SIZE = (224, 224)
+        fig, ax = plt.subplots(figsize=(IMAGE_SIZE[0]/DPI, IMAGE_SIZE[1]/DPI), dpi=DPI)
+
+        # Plot the time series (matching color and linewidth)
+        ax.plot(temps, values, linewidth=2, color='#2E86AB')
+
+        # Set limits (matching ylim padding; xlim is the same)
+        ax.set_xlim(temps.min(), temps.max())
+        ax.set_ylim(values.min() - 0.001, values.max() + 0.001)
+
+        # Remove axes, labels, and grid (axis off, no grid)
+        ax.axis('off')
+
+        # Remove all margins and padding
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+        # Save to buffer with tight bbox and no padding
         buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight', dpi=96)
+        fig.savefig(buf, format='png', dpi=DPI, bbox_inches='tight', pad_inches=0,
+                    facecolor='white', edgecolor='none')
         buf.seek(0)
         img = Image.open(buf).convert('RGB')
         plt.close(fig)
@@ -119,30 +159,77 @@ def _generate_image(temps: np.ndarray, values: np.ndarray) -> Image.Image:
         return None
 
 
-def train_and_evaluate(train_images, y_train, test_images, y_test, num_classes, fold_idx, dataset_type):
-    """Train model and return predictions and metrics."""
+def train_epoch(model, loader, criterion, optimizer, device):
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    for inputs, labels in loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+    
+    return running_loss / len(loader), 100. * correct / total
+
+
+def validate(model, loader, criterion, device):
+    model.eval()
+    running_loss = 0.0
+    all_preds = []
+    all_labels = []
+    
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    
+    accuracy = 100. * accuracy_score(all_labels, all_preds)
+    f1 = 100. * f1_score(all_labels, all_preds, average='weighted', zero_division=0)
+    precision = 100. * precision_score(all_labels, all_preds, average='weighted', zero_division=0)
+    recall = 100. * recall_score(all_labels, all_preds, average='weighted', zero_division=0)
+    
+    return running_loss / len(loader), accuracy, f1, precision, recall, all_preds, all_labels
+
+
+def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fold_idx, dataset_type):
+    """Train model with validation and return metrics on validation set."""
     # Image transforms
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(p=0.3),
+        transforms.RandomAffine(degrees=0, translate=(0.0, 0.03)),  # small vertical shift only
+        transforms.ColorJitter(brightness=0.1, contrast=0.1),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                           std=[0.229, 0.224, 0.225])
+        AddGaussianNoise(std=0.005),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     transform_val = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                           std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Create datasets and dataloaders
     train_dataset = FluorescenceImageDataset(train_images, y_train, transform=transform_train)
     train_loader = DataLoader(train_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=True, num_workers=0)
 
-    test_dataset = FluorescenceImageDataset(test_images, y_test, transform=transform_val)
-    test_loader = DataLoader(test_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=False, num_workers=0)
+    val_dataset = FluorescenceImageDataset(val_images, y_val, transform=transform_val)
+    val_loader = DataLoader(val_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=False, num_workers=0)
 
     # Model
     model = CNNModel(
@@ -152,82 +239,58 @@ def train_and_evaluate(train_images, y_train, test_images, y_test, num_classes, 
         hidden_size=256
     ).to(DEVICE)
 
-    # Optimizer
-    optimizer = optim.Adam(model.parameters(),
-                          lr=BEST_PARAMS['learning_rate'],
-                          weight_decay=BEST_PARAMS['weight_decay'])
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=0.5,
-        patience=5
-    )
-    criterion = nn.CrossEntropyLoss()
+    # Optimizer, criterion, scheduler
+    optimizer = optim.AdamW(model.parameters(),
+                           lr=BEST_PARAMS['learning_rate'],
+                           weight_decay=BEST_PARAMS['weight_decay'])
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS, eta_min=1e-6)
+    criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
 
-    # Training loop with early stopping
-    best_val_loss = float('inf')
+    # Training loop with early stopping on val_acc
+    best_val_acc = 0.0
+    best_val_metrics = None
+    best_model_state = None
     patience_counter = 0
-    patience = 25
 
     for epoch in range(NUM_EPOCHS):
-        # Train
-        model.train()
-        train_loss = 0.0
-        for X_batch, y_batch in train_loader:
-            X_batch = X_batch.to(DEVICE)
-            y_batch = y_batch.to(DEVICE)
-
-            optimizer.zero_grad()
-            outputs = model(X_batch)
-            loss = criterion(outputs, y_batch)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
-
-        # Validate on training set (for early stopping)
-        model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for X_batch, y_batch in train_loader:
-                X_batch = X_batch.to(DEVICE)
-                y_batch = y_batch.to(DEVICE)
-                outputs = model(X_batch)
-                val_loss += criterion(outputs, y_batch).item()
-
-        val_loss /= len(train_loader)
-        scheduler.step(val_loss)
-
-        # Early stopping
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
+        val_loss, val_acc, val_f1, val_precision, val_recall, val_preds, val_labels = validate(model, val_loader, criterion, DEVICE)
+        
+        scheduler.step()
+        
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_model_state = model.state_dict().copy()
+            best_val_metrics = {
+                'accuracy': val_acc / 100.0,  # Convert back to fraction for consistency
+                'f1': val_f1 / 100.0,
+                'precision': val_precision / 100.0,
+                'recall': val_recall / 100.0
+            }
             patience_counter = 0
         else:
             patience_counter += 1
-
-        if patience_counter >= patience:
+        
+        if patience_counter >= PATIENCE:
+            print(f"  Early stopping at epoch {epoch+1}")
             break
 
-    # Evaluate on test set
-    model.eval()
-    test_preds = []
-    with torch.no_grad():
-        for X_batch, y_batch in test_loader:
-            X_batch = X_batch.to(DEVICE)
-            outputs = model(X_batch)
-            test_preds.extend(torch.argmax(outputs, dim=1).cpu().numpy())
+    # Restore best model
+    if best_model_state:
+        model.load_state_dict(best_model_state)
 
-    y_pred = np.array(test_preds)
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='macro', zero_division=0)
-    precision = precision_score(y_test, y_pred, average='macro', zero_division=0)
-    recall = recall_score(y_test, y_pred, average='macro', zero_division=0)
+    # Report best validation metrics (converted to fraction)
+    acc = best_val_metrics['accuracy']
+    f1 = best_val_metrics['f1']
+    precision = best_val_metrics['precision']
+    recall = best_val_metrics['recall']
 
     print(f"  Fold {fold_idx:2d}/5 ({dataset_type:20s}) | Acc: {acc:.4f} | F1: {f1:.4f} | Prec: {precision:.4f} | Rec: {recall:.4f}")
 
     # Clean up
-    del model, optimizer, criterion, train_loader, test_loader
+    del model, optimizer, criterion, train_loader, val_loader
 
-    return y_pred, acc, f1, precision, recall
+    return val_preds, acc, f1, precision, recall
 
 
 # ============================================================================
@@ -335,18 +398,18 @@ print("EXPERIMENT 1: Normal Data Only (Baseline)")
 print("-"*80)
 
 fold_idx = 0
-for train_idx, test_idx in skf.split(images_real, y_real_encoded):
+for train_idx, val_idx in skf.split(images_real, y_real_encoded):
     fold_idx += 1
 
     # Get subset of images (all from real data)
     train_images = [images_real[i] for i in train_idx]
     y_train = y_real_encoded[train_idx]
-    test_images = [images_real[i] for i in test_idx]
-    y_test = y_real_encoded[test_idx]
+    val_images = [images_real[i] for i in val_idx]
+    y_val = y_real_encoded[val_idx]
 
     # Train and evaluate
     y_pred, acc, f1, prec, rec = train_and_evaluate(
-        train_images, y_train, test_images, y_test,
+        train_images, y_train, val_images, y_val,
         num_classes, fold_idx, "Normal Data Only"
     )
 
@@ -356,14 +419,14 @@ for train_idx, test_idx in skf.split(images_real, y_real_encoded):
     results_normal["fold_precisions"].append(prec)
     results_normal["fold_recalls"].append(rec)
     results_normal["all_predictions"].extend(y_pred)
-    results_normal["all_true_labels"].extend(y_test)
+    results_normal["all_true_labels"].extend(y_val)
     results_normal["fold_details"].append({
         "fold": fold_idx,
         "accuracy": float(acc),
         "f1": float(f1),
         "precision": float(prec),
         "recall": float(rec),
-        "test_size": len(y_test)
+        "val_size": len(y_val)
     })
 
 # ============================================================================
@@ -374,14 +437,14 @@ print("EXPERIMENT 2: Real + Synthetic Data (Synthetic Only in Training)")
 print("-"*80)
 
 fold_idx = 0
-for train_idx, test_idx in skf.split(images_real, y_real_encoded):
+for train_idx, val_idx in skf.split(images_real, y_real_encoded):
     fold_idx += 1
 
-    # Get subset of images from REAL data for train/test split
+    # Get subset of images from REAL data for train/val split
     train_images_real = [images_real[i] for i in train_idx]
     y_train_real = y_real_encoded[train_idx]
-    test_images = [images_real[i] for i in test_idx]
-    y_test = y_real_encoded[test_idx]
+    val_images = [images_real[i] for i in val_idx]
+    y_val = y_real_encoded[val_idx]
 
     # ADD synthetic data ONLY to training set
     train_images_combined = train_images_real + images_synthetic
@@ -389,7 +452,7 @@ for train_idx, test_idx in skf.split(images_real, y_real_encoded):
 
     # Train and evaluate
     y_pred, acc, f1, prec, rec = train_and_evaluate(
-        train_images_combined, y_train_combined, test_images, y_test,
+        train_images_combined, y_train_combined, val_images, y_val,
         num_classes, fold_idx, "Real + Synthetic (Train Only)"
     )
 
@@ -399,14 +462,14 @@ for train_idx, test_idx in skf.split(images_real, y_real_encoded):
     results_synthetic["fold_precisions"].append(prec)
     results_synthetic["fold_recalls"].append(rec)
     results_synthetic["all_predictions"].extend(y_pred)
-    results_synthetic["all_true_labels"].extend(y_test)
+    results_synthetic["all_true_labels"].extend(y_val)
     results_synthetic["fold_details"].append({
         "fold": fold_idx,
         "accuracy": float(acc),
         "f1": float(f1),
         "precision": float(prec),
         "recall": float(rec),
-        "test_size": len(y_test),
+        "val_size": len(y_val),
         "train_size_real": len(train_images_real),
         "train_size_synthetic": len(images_synthetic),
         "train_size_total": len(train_images_combined)
