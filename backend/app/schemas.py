@@ -35,9 +35,3 @@ class UpdateProfileRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     new_password: str
-
-class CreateCaseRequest(BaseModel):
-    title: str | None = None
-    description: str | None = None
-    person_name: str | None = None
-    researcher_id: int | None = None

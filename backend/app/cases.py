@@ -9,7 +9,6 @@ from .db import SessionLocal
 from .models import Case, User, UserRole, Job
 from .auth import get_current_user
 from .logger import get_logger
-from .schemas import CreateCaseRequest
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["cases"])
@@ -36,23 +35,26 @@ def _require_researcher_or_admin(user: User):
 
 @router.post("")
 def create_case(
-    payload: CreateCaseRequest,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    person_name: Optional[str] = None,
+    researcher_id: Optional[int] = None,  # if omitted and caller is researcher, we'll assign them
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_obj),
 ):
     # validate perms
     _require_researcher_or_admin(current_user)
 
-    # validate user
-    assigned_researcher_id = payload.researcher_id
+    # validate user 
+    assigned_researcher_id = researcher_id
     if assigned_researcher_id is None and current_user.role == UserRole.researcher:
         assigned_researcher_id = current_user.id
 
     # make case object
     case = Case(
-        title=payload.title,
-        description=payload.description,
-        person_name=payload.person_name,
+        title=title,
+        description=description,
+        person_name=person_name,
         researcher_id=assigned_researcher_id,
     )
 
@@ -60,7 +62,6 @@ def create_case(
     db.commit()
     db.refresh(case)
 
-    logger.info("Case created id=%s title=%s researcher_id=%s", case.id, case.title, case.researcher_id)
     return case.to_dict()
 
 @router.get("")

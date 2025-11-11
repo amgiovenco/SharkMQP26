@@ -20,11 +20,7 @@ export const useJobStatusListener = (processingJobs, setProcessingJobs, setCompl
 
                 if (status === 'completed' || status === 'failed') {
                     const completedJob = { ...job, status, result, error };
-                    // Add to completed jobs only if not already there
-                    setCompletedJobs(prevCompleted => {
-                        const jobExists = prevCompleted.some(j => j.id === job_id);
-                        return jobExists ? prevCompleted : [...prevCompleted, completedJob];
-                    });
+                    setCompletedJobs(prevCompleted => [...prevCompleted, completedJob]);
                     updatedJobs = prev.filter(j => j.id !== job_id);
                 } else {
                     updatedJobs = prev.map(j => j.id === job_id ? { ...j, status } : j);

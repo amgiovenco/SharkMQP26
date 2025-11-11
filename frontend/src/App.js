@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./utility/MainLayout";
 import ProtectedRoute from "./utility/ProtectedRoute";
-import { useInitializeApp } from "./hooks/useInitializeApp";
 
 // Public pages
 import LoginPage from "./pages/LoginPage";
@@ -15,9 +14,6 @@ import CasePage from "./pages/CasePage";
 import AccountPage from "./pages/AccountPage";
 
 const App = () => {
-    // Initialize app on mount - fetches fresh user data and cases
-    useInitializeApp();
-
     return (
         <div className="App h-full">
             <Routes>

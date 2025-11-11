@@ -11,7 +11,7 @@ from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
-from worker.inference import run_inference as ml_inference
+from inference import run_inference as ml_inference
 
 logger = get_logger(__name__)
 

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtools, persist } from 'zustand/middleware';
 
 export const useCasesStore = create(
     devtools(
-        (set, get) => ({
+        persist(
+            (set, get) => ({
                 cases: [],
                 isLoading: false,
                 error: null,
@@ -61,6 +62,16 @@ export const useCasesStore = create(
                     return cases.find((c) => c.id === caseId);
                 },
             }),
+            {
+                name: 'cases-storage',
+                partialize: (state) => ({
+                    cases: state.cases,
+                    page: state.page,
+                    perPage: state.perPage,
+                    total: state.total,
+                }),
+            }
+        ),
         { name: 'CasesStore' }
     )
 );
