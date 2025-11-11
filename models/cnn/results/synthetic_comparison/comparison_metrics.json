@@ -1,0 +1,199 @@
+{
+  "configuration": {
+    "n_splits": 5,
+    "random_state": 8,
+    "num_epochs": 150,
+    "best_params": {
+      "batch_size": 32,
+      "learning_rate": 0.0020594007612475913,
+      "weight_decay": 1.0083970230770894e-05,
+      "dropout1": 0.7,
+      "dropout2": 0.5
+    },
+    "class_names": [
+      "Arabian smooth-hound",
+      "Atlantic Sharpnose shark",
+      "Blackchin guitarfish",
+      "Blacknose shark",
+      "Blackspotted smooth-hound",
+      "Blacktip reef shark",
+      "Blacktip shark",
+      "Blue shark",
+      "Bonnethead shark",
+      "Bowmouth guitarfish",
+      "Brownbanded bamboo shark",
+      "Bull shark",
+      "Caribbean reef shark",
+      "Common thresher shark",
+      "Copper shark",
+      "Dusky shark",
+      "Finetooth shark",
+      "Great hammerhead shark",
+      "Great white shark",
+      "Grey reef shark",
+      "Gulper shark",
+      "Gummy shark",
+      "Halavi guitarfish",
+      "Hooktooth shark",
+      "Japanese topeshark",
+      "Java shark",
+      "Lemon shark",
+      "Longtail stingray",
+      "Milk shark",
+      "Narrownose smooth-hound",
+      "Night shark",
+      "Nurse shark",
+      "Oceanic whitetip shark",
+      "Pacific bonnethead shark",
+      "Pacific guitarfish",
+      "Pacific smalltail shark",
+      "Pelagic thresher shark",
+      "Porbeagle shark",
+      "Roughskin dogfish",
+      "Sandbar shark",
+      "Sandtiger shark",
+      "Scalloped bonnethead shark",
+      "Scalloped hammerhead shark",
+      "Shortfin mako",
+      "Silky shark",
+      "Silvertip shark",
+      "Small tail shark",
+      "Smooth hammerhead shark",
+      "Spadenose stingray",
+      "Spinner shark",
+      "Spot-tail shark",
+      "Spotted Eagleray",
+      "Thornback ray",
+      "Tiger shark",
+      "Tope shark",
+      "Whitecheeck shark",
+      "Zebra shark"
+    ],
+    "num_classes": 57
+  },
+  "normal_data_only": {
+    "mean_accuracy": 0.9631356429829714,
+    "std_accuracy": 0.013228040084213315,
+    "mean_f1": 0.9395485683906737,
+    "std_f1": 0.02715819754114968,
+    "mean_precision": 0.9427990430622011,
+    "std_precision": 0.028993153628037827,
+    "mean_recall": 0.9481552365762893,
+    "std_recall": 0.021329658014387368,
+    "fold_details": [
+      {
+        "fold": 1,
+        "accuracy": 0.9618320610687023,
+        "f1": 0.9404329004329004,
+        "precision": 0.953030303030303,
+        "recall": 0.9454545454545454,
+        "test_size": 131
+      },
+      {
+        "fold": 2,
+        "accuracy": 0.9538461538461539,
+        "f1": 0.9128654970760234,
+        "precision": 0.9093567251461987,
+        "recall": 0.932748538011696,
+        "test_size": 130
+      },
+      {
+        "fold": 3,
+        "accuracy": 0.9692307692307692,
+        "f1": 0.9532163742690057,
+        "precision": 0.9597953216374269,
+        "recall": 0.9590643274853802,
+        "test_size": 130
+      },
+      {
+        "fold": 4,
+        "accuracy": 0.9846153846153847,
+        "f1": 0.9824561403508771,
+        "precision": 0.9824561403508771,
+        "recall": 0.9824561403508771,
+        "test_size": 130
+      },
+      {
+        "fold": 5,
+        "accuracy": 0.9461538461538461,
+        "f1": 0.9087719298245613,
+        "precision": 0.9093567251461989,
+        "recall": 0.9210526315789473,
+        "test_size": 130
+      }
+    ]
+  },
+  "real_plus_synthetic": {
+    "mean_accuracy": 0.9677157956547269,
+    "std_accuracy": 0.010243983393261059,
+    "mean_f1": 0.9507017811909453,
+    "std_f1": 0.022064847226330175,
+    "mean_precision": 0.9543496367180578,
+    "std_precision": 0.02575046171917647,
+    "mean_recall": 0.9580595427963848,
+    "std_recall": 0.016757027258955698,
+    "fold_details": [
+      {
+        "fold": 1,
+        "accuracy": 0.9847328244274809,
+        "f1": 0.9806060606060607,
+        "precision": 0.9878787878787879,
+        "recall": 0.9818181818181818,
+        "test_size": 131,
+        "train_size_real": 520,
+        "train_size_synthetic": 240,
+        "train_size_total": 760
+      },
+      {
+        "fold": 2,
+        "accuracy": 0.9538461538461539,
+        "f1": 0.915204678362573,
+        "precision": 0.9122807017543859,
+        "recall": 0.932748538011696,
+        "test_size": 130,
+        "train_size_real": 521,
+        "train_size_synthetic": 240,
+        "train_size_total": 761
+      },
+      {
+        "fold": 3,
+        "accuracy": 0.9692307692307692,
+        "f1": 0.9598997493734336,
+        "precision": 0.9612573099415205,
+        "recall": 0.966374269005848,
+        "test_size": 130,
+        "train_size_real": 521,
+        "train_size_synthetic": 240,
+        "train_size_total": 761
+      },
+      {
+        "fold": 4,
+        "accuracy": 0.9615384615384616,
+        "f1": 0.9586171310629514,
+        "precision": 0.9688109161793372,
+        "recall": 0.9619883040935672,
+        "test_size": 130,
+        "train_size_real": 521,
+        "train_size_synthetic": 240,
+        "train_size_total": 761
+      },
+      {
+        "fold": 5,
+        "accuracy": 0.9692307692307692,
+        "f1": 0.9391812865497076,
+        "precision": 0.9415204678362574,
+        "recall": 0.9473684210526315,
+        "test_size": 130,
+        "train_size_real": 521,
+        "train_size_synthetic": 240,
+        "train_size_total": 761
+      }
+    ]
+  },
+  "comparison": {
+    "accuracy_improvement": 0.004580152671755489,
+    "f1_improvement": 0.011153212800271595,
+    "accuracy_improvement_percent": 0.45801526717554886,
+    "f1_improvement_percent": 1.1153212800271595
+  }
+}
