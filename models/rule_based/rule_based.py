@@ -372,7 +372,7 @@ if __name__ == "__main__":
     # If save_models flag set, run 5-fold training and save models
     if args.save_models:
         print("\n" + "="*60)
-        print("RULE-BASED MODEL TRAINING - 5-FOLD")
+        print("RULE-BASED MODEL TRAINING - 5-FOLD (60/20/20)")
         print("="*60)
 
         from sklearn.model_selection import StratifiedKFold
@@ -390,22 +390,24 @@ if __name__ == "__main__":
         for fold_idx, (train_val_idx, test_idx) in enumerate(skf.split(Xf, y_enc)):
             print(f"\nFold {fold_idx + 1}/5:")
 
-            # Split train_val into train/val
-            X_tv = Xf.iloc[train_val_idx]
+            # --- 60/20/20 split ---
+            X_tv = Xf.iloc[train_val_idx]      # 80% of data
             y_tv = y_enc[train_val_idx]
-            X_test_fold = Xf.iloc[test_idx]
-            y_test_fold = y_enc[test_idx]
+            X_test = Xf.iloc[test_idx]         # 20% test
+            y_test = y_enc[test_idx]
 
-            Xtr, Xva, ytr, yva = train_test_split(
-                X_tv, y_tv, test_size=0.2, random_state=8, stratify=y_tv
+            # Split 80% → 60% train + 20% val (test_size=0.25 of 80% = 20% of total)
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_tv, y_tv, test_size=0.25, random_state=8, stratify=y_tv
             )
 
-            # Train
+            # Scale
             scaler = StandardScaler()
-            Xtr_scaled = scaler.fit_transform(Xtr)
-            Xva_scaled = scaler.transform(Xva)
-            Xte_scaled = scaler.transform(X_test_fold)
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_val_scaled = scaler.transform(X_val)
+            X_test_scaled = scaler.transform(X_test)
 
+            # Model
             if args.model == "et":
                 clf = ExtraTreesClassifier(
                     n_estimators=790,
@@ -416,50 +418,60 @@ if __name__ == "__main__":
                     n_jobs=-1
                 )
             elif args.model == "rf":
-                clf = RandomForestClassifier(n_estimators=300, max_depth=15, random_state=8, n_jobs=-1)
+                clf = RandomForestClassifier(
+                    n_estimators=300,
+                    min_samples_leaf=2,
+                    random_state=8,
+                    n_jobs=-1
+                )
             else:
-                clf = LogisticRegression(max_iter=1000, multi_class="multinomial", solver="lbfgs")
+                clf = LogisticRegression(
+                    max_iter=1000,
+                    multi_class="multinomial",
+                    solver="lbfgs"
+                )
 
-            clf.fit(Xtr_scaled, ytr)
+            clf.fit(X_train_scaled, y_train)
 
             # Evaluate
-            va_pred = clf.predict(Xva_scaled)
-            te_pred = clf.predict(Xte_scaled)
-            va_acc = accuracy_score(yva, va_pred)
-            te_acc = accuracy_score(y_test_fold, te_pred)
+            val_pred = clf.predict(X_val_scaled)
+            test_pred = clf.predict(X_test_scaled)
+            val_acc = accuracy_score(y_val, val_pred)
+            test_acc = accuracy_score(y_test, test_pred)
 
-            print(f"  Val Acc: {va_acc*100:.2f}%")
-            print(f"  Test Acc: {te_acc*100:.2f}%")
+            print(f"  Train size: {len(X_train)}")
+            print(f"  Val size: {len(X_val)}")
+            print(f"  Test size: {len(X_test)}")
+            print(f"  Val Acc: {val_acc*100:.2f}%")
+            print(f"  Test Acc: {test_acc*100:.2f}%")
 
-            # Save model package
+            # Save model
             model_package = {
                 'model': clf,
                 'scaler': scaler,
                 'label_encoder': le,
                 'feature_names': names,
             }
-
-            acc_str = f"{va_acc*100:.2f}".replace('.', '')
-            model_path = Path(".") / f"rulebased_{acc_str}.pkl"
-
+            acc_str = f"{val_acc*100:.2f}".replace('.', '')
+            model_path = Path(".") / f"rulebased_60_20_20_{acc_str}.pkl"
             with open(model_path, 'wb') as f:
                 pickle.dump(model_package, f)
-
             print(f"  [SAVED] {model_path.name}")
 
             fold_results.append({
                 'fold': fold_idx + 1,
-                'val_acc': float(va_acc),
-                'test_acc': float(te_acc),
+                'val_acc': float(val_acc),
+                'test_acc': float(test_acc),
             })
 
+        # Summary
         print(f"\n{'='*60}")
-        print("SUMMARY")
+        print("SUMMARY (60/20/20)")
         print(f"{'='*60}")
-        va_accs = [r['val_acc'] for r in fold_results]
-        te_accs = [r['test_acc'] for r in fold_results]
-        print(f"Val Mean: {np.mean(va_accs)*100:.2f}% ± {np.std(va_accs)*100:.2f}%")
-        print(f"Test Mean: {np.mean(te_accs)*100:.2f}% ± {np.std(te_accs)*100:.2f}%")
+        val_accs = [r['val_acc'] for r in fold_results]
+        test_accs = [r['test_acc'] for r in fold_results]
+        print(f"Val Mean: {np.mean(val_accs)*100:.2f}% ± {np.std(val_accs)*100:.2f}%")
+        print(f"Test Mean: {np.mean(test_accs)*100:.2f}% ± {np.std(test_accs)*100:.2f}%")
     else:
         # Original single train/test pipeline
         out = run_pipeline(
