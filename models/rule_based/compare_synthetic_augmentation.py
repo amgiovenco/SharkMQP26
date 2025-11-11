@@ -10,7 +10,7 @@ import warnings
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import (
     accuracy_score, f1_score, precision_score, recall_score,
     confusion_matrix, classification_report
@@ -139,93 +139,68 @@ def compute_comprehensive_metrics(y_true, y_pred, fold_idx, scenario_name, class
 # =============================================================================
 # CROSS-VALIDATION FUNCTIONS
 # =============================================================================
-def run_cv_real_only(X_real, y_real, le, class_names):
-    """5-fold CV using only real data."""
-    print("\n" + "="*70)
-    print("SCENARIO 1: 5-FOLD CV WITH REAL DATA ONLY")
-    print("="*70)
+def run_cv_60_20_20(X_real, y_real, X_synth=None, y_synth=None, le=None, class_names=None, scenario_name="real_only"):
+    """5-fold CV with 60/20/20 split inside each fold."""
+    print(f"\n{'='*70}")
+    print(f"SCENARIO: 5-FOLD CV (60/20/20) - {scenario_name.upper()}")
+    print(f"{'='*70}")
 
     skf = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     fold_results = []
     all_predictions = []
 
-    for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_real, y_real), 1):
+    for fold_idx, (train_val_idx, test_idx) in enumerate(skf.split(X_real, y_real), 1):
         print(f"\nFold {fold_idx}/{N_SPLITS}:")
 
-        X_train, X_test = X_real[train_idx], X_real[test_idx]
-        y_train, y_test = y_real[train_idx], y_real[test_idx]
+        X_tv = X_real[train_val_idx]
+        y_tv = y_real[train_val_idx]
+        X_test = X_real[test_idx]
+        y_test = y_real[test_idx]
 
-        # Train model with exact same setup as existing code
+        # 60/20 split: test_size=0.25 of 80% = 20% of total
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_tv, y_tv, test_size=0.25, random_state=RANDOM_STATE, stratify=y_tv
+        )
+
+        # Optional: add synthetic to train only
+        if X_synth is not None:
+            X_train = np.vstack([X_train, X_synth])
+            y_train = np.concatenate([y_train, y_synth])
+
+        # Scale
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
+        X_val_scaled = scaler.transform(X_val)
         X_test_scaled = scaler.transform(X_test)
 
+        # Model
         clf = ExtraTreesClassifier(**MODEL_PARAMS)
         clf.fit(X_train_scaled, y_train)
 
         # Predict
-        y_pred = clf.predict(X_test_scaled)
+        y_val_pred = clf.predict(X_val_scaled)
+        y_test_pred = clf.predict(X_test_scaled)
 
-        # Metrics
-        metrics = compute_comprehensive_metrics(y_test, y_pred, fold_idx,
-                                                'real_only', class_names, len(class_names))
+        val_acc = accuracy_score(y_val, y_val_pred)
+        test_acc = accuracy_score(y_test, y_test_pred)
+
+        print(f"  Train size: {len(X_train)}")
+        print(f"  Val size: {len(X_val)}")
+        print(f"  Test size: {len(X_test)}")
+        print(f"  Val Acc: {val_acc:.4f}")
+        print(f"  Test Acc: {test_acc:.4f}")
+
+        # Full metrics on test
+        metrics = compute_comprehensive_metrics(
+            y_test, y_test_pred, fold_idx, scenario_name, class_names, len(class_names)
+        )
+        metrics.update({
+            'val_accuracy': float(val_acc),
+            'train_size': int(len(X_train)),
+            'val_size': int(len(X_val)),
+        })
         fold_results.append(metrics)
-        all_predictions.append((y_test, y_pred))
-
-        print(f"  Train size: {len(X_train)} (100% real)")
-        print(f"  Test size:  {len(X_test)}")
-        print(f"  Accuracy:   {metrics['accuracy']:.4f}")
-        print(f"  F1 Macro:   {metrics['f1_macro']:.4f}")
-
-    return fold_results, all_predictions
-
-
-def run_cv_with_synthetic(X_real, y_real, X_synth, y_synth, le, class_names):
-    """5-fold CV using real + synthetic (synthetic only in training)."""
-    print("\n" + "="*70)
-    print("SCENARIO 2: 5-FOLD CV WITH REAL + SYNTHETIC DATA")
-    print("(Synthetic data only added to training sets)")
-    print("="*70)
-
-    skf = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
-    fold_results = []
-    all_predictions = []
-
-    for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_real, y_real), 1):
-        print(f"\nFold {fold_idx}/{N_SPLITS}:")
-
-        # Real data split
-        X_train_real, X_test = X_real[train_idx], X_real[test_idx]
-        y_train_real, y_test = y_real[train_idx], y_real[test_idx]
-
-        # Augment training set with ALL synthetic data
-        X_train = np.vstack([X_train_real, X_synth])
-        y_train = np.concatenate([y_train_real, y_synth])
-
-        # Train model with exact same setup
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-
-        clf = ExtraTreesClassifier(**MODEL_PARAMS)
-        clf.fit(X_train_scaled, y_train)
-
-        # Predict (only on real test data)
-        y_pred = clf.predict(X_test_scaled)
-
-        # Metrics
-        metrics = compute_comprehensive_metrics(y_test, y_pred, fold_idx,
-                                                'real_synthetic', class_names, len(class_names))
-        fold_results.append(metrics)
-        all_predictions.append((y_test, y_pred))
-
-        real_pct = len(X_train_real) / len(X_train) * 100
-        synth_pct = len(X_synth) / len(X_train) * 100
-        print(f"  Train size: {len(X_train)} ({len(X_train_real)} real + {len(X_synth)} synthetic)")
-        print(f"              ({real_pct:.1f}% real, {synth_pct:.1f}% synthetic)")
-        print(f"  Test size:  {len(X_test)} (100% real)")
-        print(f"  Accuracy:   {metrics['accuracy']:.4f}")
-        print(f"  F1 Macro:   {metrics['f1_macro']:.4f}")
+        all_predictions.append((y_test, y_test_pred))
 
     return fold_results, all_predictions
 
@@ -491,9 +466,13 @@ def main():
     print(f"\nModel: ExtraTreesClassifier")
     print(f"  Parameters: {MODEL_PARAMS}")
 
-    # Run both scenarios
-    real_results, real_predictions = run_cv_real_only(X_real, y_real, le, class_names)
-    synth_results, synth_predictions = run_cv_with_synthetic(X_real, y_real, X_synth, y_synth, le, class_names)
+    # Run both scenarios with 60/20/20
+    real_results, real_predictions = run_cv_60_20_20(
+        X_real, y_real, le=le, class_names=class_names, scenario_name="real_only"
+    )
+    synth_results, synth_predictions = run_cv_60_20_20(
+        X_real, y_real, X_synth, y_synth, le=le, class_names=class_names, scenario_name="real_synthetic"
+    )
 
     # Compute summary statistics
     print("\n" + "="*70)
