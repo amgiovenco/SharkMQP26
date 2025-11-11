@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 
 # Configuration
-DATA_DIR = Path('../../data')
+DATA_DIR = Path('../../../data')
 DATASET_DIR = DATA_DIR / 'shark_dataset_split'
 
 def prepare_dataset():

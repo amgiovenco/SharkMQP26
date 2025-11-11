@@ -7,8 +7,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Configuration
-CSV_FILE = '../../data/shark_dataset.csv'
-OUTPUT_DIR = Path('../../data/shark_images')
+CSV_FILE = '../../../data/shark_dataset.csv'
+OUTPUT_DIR = Path('../../../data/shark_images')
 IMAGE_SIZE = (224, 224)
 DPI = 100
 

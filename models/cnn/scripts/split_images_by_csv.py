@@ -4,8 +4,8 @@ import pandas as pd
 import json
 
 # Configuration
-IMAGES_DIR = Path('../../data/shark_images')
-DATA_DIR = Path('../../data')
+IMAGES_DIR = Path('../../../data/shark_images')
+DATA_DIR = Path('../../../data')
 TRAIN_CSV = DATA_DIR / 'shark_training_data.csv'
 VAL_CSV = DATA_DIR / 'shark_validation_data.csv'
 TEST_CSV = DATA_DIR / 'shark_test_data.csv'

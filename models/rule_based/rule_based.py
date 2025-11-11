@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import make_pipeline
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier, export_text
 
@@ -125,9 +125,9 @@ def engineer_features(X_raw: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 # 3) Train a quick baseline
 # ----------------------------
 
-def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "rf", seed: int = 8):
+def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "et", seed: int = 8):
     """
-    Train RF or LR on engineered features.
+    Train ExtraTreesClassifier (optimized), RF, or LR on engineered features.
     Splits: 60% train, 20% val, 20% test (stratified).
     """
     le = LabelEncoder()
@@ -140,7 +140,20 @@ def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "rf", seed: int 
         Xtr_te, ytr_te, test_size=0.25, random_state=seed, stratify=ytr_te
     )  # 0.25 of 0.8 = 0.2
 
-    if model == "rf":
+    if model == "et":
+        # Optimized ExtraTreesClassifier with best hyperparameters
+        clf = make_pipeline(
+            StandardScaler(),
+            ExtraTreesClassifier(
+                n_estimators=790,
+                min_samples_leaf=1,
+                max_depth=15,
+                max_features=None,
+                random_state=seed,
+                n_jobs=-1
+            )
+        )
+    elif model == "rf":
         clf = make_pipeline(
             StandardScaler(),
             RandomForestClassifier(
@@ -340,8 +353,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run multiclass thresholding pipeline on a melting-curve CSV.")
     parser.add_argument("--csv", default=str(DEFAULT_CSV),
                         help="Path to the CSV file (defaults to shark_dataset.csv)")
-    parser.add_argument("--model", default="rf", choices=["rf", "lr"],
-                        help="Classifier: rf (RandomForest) or lr (LogisticRegression)")
+    parser.add_argument("--model", default="et", choices=["et", "rf", "lr"],
+                        help="Classifier: et (ExtraTreesClassifier), rf (RandomForest), or lr (LogisticRegression)")
     parser.add_argument("--margin", type=float, default=0.1,
                         help="Top1-Top2 probability margin for abstention")
     parser.add_argument("--export_dir", default=None,
@@ -393,7 +406,16 @@ if __name__ == "__main__":
             Xva_scaled = scaler.transform(Xva)
             Xte_scaled = scaler.transform(X_test_fold)
 
-            if args.model == "rf":
+            if args.model == "et":
+                clf = ExtraTreesClassifier(
+                    n_estimators=790,
+                    min_samples_leaf=1,
+                    max_depth=15,
+                    max_features=None,
+                    random_state=8,
+                    n_jobs=-1
+                )
+            elif args.model == "rf":
                 clf = RandomForestClassifier(n_estimators=300, max_depth=15, random_state=8, n_jobs=-1)
             else:
                 clf = LogisticRegression(max_iter=1000, multi_class="multinomial", solver="lbfgs")
@@ -423,7 +445,7 @@ if __name__ == "__main__":
             with open(model_path, 'wb') as f:
                 pickle.dump(model_package, f)
 
-            print(f"  ✅ Saved: {model_path.name}")
+            print(f"  [SAVED] {model_path.name}")
 
             fold_results.append({
                 'fold': fold_idx + 1,

@@ -1,7 +1,7 @@
 Species,Precision,Recall,F1-Score,Support
 Great hammerhead shark,1.0,1.0,1.0,8
 Blue shark,0.875,1.0,0.9333333333333333,7
-Blacktip shark,0.8571428571428571,1.0,0.9230769230769231,6
+Blacktip shark,1.0,1.0,1.0,6
 Bull shark,1.0,1.0,1.0,6
 Sandtiger shark,0.8571428571428571,1.0,0.9230769230769231,6
 Silky shark,1.0,1.0,1.0,6
@@ -15,7 +15,7 @@ Porbeagle shark,1.0,1.0,1.0,3
 Milk shark,1.0,1.0,1.0,3
 Scalloped bonnethead shark,1.0,1.0,1.0,3
 Silvertip shark,1.0,1.0,1.0,3
-Tiger shark,1.0,1.0,1.0,2
+Tiger shark,0.6666666666666666,1.0,0.8,2
 Great white shark,1.0,1.0,1.0,2
 Halavi guitarfish,1.0,1.0,1.0,2
 Caribbean reef shark,1.0,1.0,1.0,2
@@ -30,7 +30,7 @@ Zebra shark,1.0,1.0,1.0,2
 Thornback ray,1.0,1.0,1.0,2
 Spinner shark,1.0,1.0,1.0,2
 Narrownose smooth-hound,1.0,1.0,1.0,2
-Java shark,1.0,1.0,1.0,2
+Java shark,1.0,0.5,0.6666666666666666,2
 Lemon shark,1.0,1.0,1.0,2
 Pacific bonnethead shark,1.0,1.0,1.0,2
 Blacknose shark,0.5,1.0,0.6666666666666666,1
@@ -38,7 +38,7 @@ Arabian smooth-hound,1.0,1.0,1.0,1
 Atlantic Sharpnose shark,1.0,1.0,1.0,1
 Blackspotted smooth-hound,1.0,1.0,1.0,1
 Finetooth shark,1.0,1.0,1.0,1
-Blacktip reef shark,0.0,0.0,0.0,1
+Blacktip reef shark,1.0,1.0,1.0,1
 Bonnethead shark,1.0,1.0,1.0,1
 Japanese topeshark,1.0,1.0,1.0,1
 Hooktooth shark,1.0,1.0,1.0,1

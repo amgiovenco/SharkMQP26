@@ -1,0 +1,21 @@
+{
+  "baseline_val_accuracy": 0.9461538461538461,
+  "baseline_test_accuracy": 0.9236641221374046,
+  "best_model": "optimized_extratrees",
+  "best_val_accuracy": 0.9769230769230769,
+  "best_test_accuracy": 0.9541984732824428,
+  "best_params": {
+    "et_n_estimators": 1700,
+    "et_max_depth": 50,
+    "et_min_samples_split": 7,
+    "et_min_samples_leaf": 1,
+    "et_max_features": "sqrt",
+    "et_class_weight": "balanced"
+  },
+  "improvement_percentage": 3.076923076923077,
+  "train_test_split": {
+    "train_samples": 390,
+    "val_samples": 130,
+    "test_samples": 131
+  }
+}

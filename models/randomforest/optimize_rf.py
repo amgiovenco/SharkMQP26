@@ -5,12 +5,11 @@ import numpy as np
 import pandas as pd
 import joblib
 import json
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
 from scipy.integrate import simpson
-from scipy.signal import find_peaks
 import optuna
 from optuna.storages import RDBStorage
 import lightgbm as lgb
@@ -51,8 +50,8 @@ y = label_encoder.fit_transform(y)
 print(f"Data shape: {X_raw.shape}")
 print(f"Classes: {len(np.unique(y))}")
 
-# Enhanced feature engineering
-def enhanced_feature_engineering(df):
+# Feature engineering (matching notebook exactly)
+def feature_engineering(df):
     features = pd.DataFrame()
     temps = df.columns.astype(float)
 
@@ -60,60 +59,82 @@ def enhanced_feature_engineering(df):
     features['min'] = df.min(axis=1)
     features['mean'] = df.mean(axis=1)
     features['std'] = df.std(axis=1)
-    
+
     features['auc'] = df.apply(lambda row: simpson(row, temps), axis=1)
     features['centroid'] = df.apply(lambda row: np.sum(row*temps)/np.sum(row), axis=1)
-    
+
     features['temp_peak'] = df.apply(lambda row: temps[np.argmax(row)], axis=1)
     features['fwhm'] = df.apply(lambda row: np.sum(row > 0.5*row.max()), axis=1)
     features['rise_time'] = df.apply(lambda row: np.argmax(row), axis=1)
     features['decay_time'] = df.apply(lambda row: len(row) - np.argmax(row[::-1]), axis=1)
-    
+
     features['auc_left'] = df.apply(lambda row: simpson(row[:np.argmax(row)+1], temps[:np.argmax(row)+1]), axis=1)
     features['auc_right'] = df.apply(lambda row: simpson(row[np.argmax(row):], temps[np.argmax(row):]), axis=1)
-    
+
     features['asymmetry'] = features['auc_left'] / (features['auc_right'] + 1e-8)
-
-    # Gradient features
-    def max_gradient(row):
-        grad = np.gradient(row.values, temps)
-        return np.max(np.abs(grad))
-
-    features['max_gradient'] = df.apply(max_gradient, axis=1)
-
-    # Peak count features
-    def count_peaks(row):
-        peaks, _ = find_peaks(row.values, prominence=row.max()*0.1)
-        return len(peaks)
-
-    features['n_peaks'] = df.apply(count_peaks, axis=1)
-
-    # Range features at different temperature regions
-    n = len(temps)
-    third = n // 3
-    features['range_low'] = df.iloc[:, :third].max(axis=1) - df.iloc[:, :third].min(axis=1)
-    features['range_mid'] = df.iloc[:, third:2*third].max(axis=1) - df.iloc[:, third:2*third].min(axis=1)
-    features['range_high'] = df.iloc[:, 2*third:].max(axis=1) - df.iloc[:, 2*third:].min(axis=1)
-
-    # Variance across temperature
-    features['temp_variance'] = df.var(axis=1)
-
     return features
 
-print("\nExtracting enhanced features...")
-X_features = enhanced_feature_engineering(X_raw)
+def enhanced_features(features):
+    enhanced = features.copy()
+
+    # Interaction features from top performers
+    enhanced['fwhm_rise_ratio'] = features['fwhm'] / (features['rise_time'] + 1e-8)
+    enhanced['peak_temp_std'] = features['temp_peak'] * features['std']
+    enhanced['asymmetry_fwhm'] = features['asymmetry'] * features['fwhm']
+    enhanced['rise_decay_ratio'] = features['rise_time'] / (features['decay_time'] + 1e-8)
+
+    return enhanced
+
+print("\nExtracting features...")
+X_features = feature_engineering(X_raw)
+X_features = enhanced_features(X_features)
 X = X_features.to_numpy(float)
 
 print(f"Feature shape: {X.shape}")
 print(f"Features: {list(X_features.columns[:10])}...")
 
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+# 60/20/20 split: train/val/test
+X_train_temp, X_test, y_train_temp, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
+)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_temp, y_train_temp, test_size=0.25, random_state=RANDOM_STATE, stratify=y_train_temp
+)
+
+print(f"\nData split:")
+print(f"Train: {X_train.shape[0]} samples ({X_train.shape[0]/len(X)*100:.1f}%)")
+print(f"Val:   {X_val.shape[0]} samples ({X_val.shape[0]/len(X)*100:.1f}%)")
+print(f"Test:  {X_test.shape[0]} samples ({X_test.shape[0]/len(X)*100:.1f}%)")
 
 # Baseline
 print("\n" + "="*60)
 print("BASELINE: Random Forest with enhanced features")
 print("="*60)
 
+# Compute 5-fold CV on FULL dataset for baseline comparison
+from sklearn.model_selection import StratifiedKFold as SKFold
+cv_splitter = SKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+baseline_cv_scores = []
+
+for train_idx, val_idx in cv_splitter.split(X, y):
+    X_cv_train, X_cv_val = X[train_idx], X[val_idx]
+    y_cv_train, y_cv_val = y[train_idx], y[val_idx]
+
+    base_rf_cv = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=None,
+        random_state=RANDOM_STATE,
+        class_weight="balanced",
+        n_jobs=1
+    )
+    base_rf_cv.fit(X_cv_train, y_cv_train)
+    fold_score = accuracy_score(y_cv_val, base_rf_cv.predict(X_cv_val))
+    baseline_cv_scores.append(fold_score)
+
+print(f"Baseline 5-fold CV accuracies: {[f'{s:.4f}' for s in baseline_cv_scores]}")
+print(f"Baseline CV accuracy (mean): {np.mean(baseline_cv_scores):.4f} ± {np.std(baseline_cv_scores):.4f}")
+
+# Train baseline on full training set
 base_rf = RandomForestClassifier(
     n_estimators=300,
     max_depth=None,
@@ -122,11 +143,12 @@ base_rf = RandomForestClassifier(
     n_jobs=1
 )
 
-base_scores = cross_val_score(base_rf, X, y, cv=cv, scoring='accuracy', n_jobs=1)
-print(f"Baseline CV accuracy: {base_scores.mean():.4f} ± {base_scores.std():.4f}")
-print(f"Fold scores: {[f'{s:.4f}' for s in base_scores]}")
+base_rf.fit(X_train, y_train)
+base_val_score = accuracy_score(y_val, base_rf.predict(X_val))
+base_test_score = accuracy_score(y_test, base_rf.predict(X_test))
+print(f"Baseline Test accuracy: {base_test_score:.4f}")
 
-best_overall_score = base_scores.mean()
+best_overall_score = base_val_score
 best_overall_model = "baseline_rf"
 best_overall_params = {"n_estimators": 300, "class_weight": "balanced"}
 
@@ -143,9 +165,20 @@ def objective_rf(trial):
         'n_jobs': 1
     }
 
-    clf = RandomForestClassifier(**params)
-    scores = cross_val_score(clf, X, y, cv=cv, scoring='accuracy', n_jobs=1)
-    return scores.mean()
+    # Use 5-fold CV on FULL dataset for robust evaluation
+    cv_splitter = SKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = []
+
+    for train_idx, val_idx in cv_splitter.split(X, y):
+        X_cv_train, X_cv_val = X[train_idx], X[val_idx]
+        y_cv_train, y_cv_val = y[train_idx], y[val_idx]
+
+        clf = RandomForestClassifier(**params)
+        clf.fit(X_cv_train, y_cv_train)
+        fold_score = accuracy_score(y_cv_val, clf.predict(X_cv_val))
+        cv_scores.append(fold_score)
+
+    return np.mean(cv_scores)  # Return mean CV score across all 5 folds
 
 print("\n" + "="*60)
 print("OPTIMIZING: Random Forest")
@@ -161,8 +194,15 @@ study_rf = optuna.create_study(
 print(f"Study: rf_randomforest | Completed trials: {len(study_rf.trials)}")
 study_rf.optimize(objective_rf, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest RF CV accuracy: {study_rf.best_value:.4f}")
+print(f"\nBest RF Val accuracy: {study_rf.best_value:.4f}")
 print(f"Best RF params: {study_rf.best_params}")
+
+# Evaluate on test set
+best_rf_params_clean = {k[3:]: v for k, v in study_rf.best_params.items()}
+best_rf_test_model = RandomForestClassifier(**best_rf_params_clean)
+best_rf_test_model.fit(X_train, y_train)
+best_rf_test_score = accuracy_score(y_test, best_rf_test_model.predict(X_test))
+print(f"Best RF Test accuracy: {best_rf_test_score:.4f}")
 
 if study_rf.best_value > best_overall_score:
     best_overall_score = study_rf.best_value
@@ -182,9 +222,20 @@ def objective_et(trial):
         'n_jobs': 1
     }
 
-    clf = ExtraTreesClassifier(**params)
-    scores = cross_val_score(clf, X, y, cv=cv, scoring='accuracy', n_jobs=1)
-    return scores.mean()
+    # Use 5-fold CV on FULL dataset for robust evaluation
+    cv_splitter = SKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = []
+
+    for train_idx, val_idx in cv_splitter.split(X, y):
+        X_cv_train, X_cv_val = X[train_idx], X[val_idx]
+        y_cv_train, y_cv_val = y[train_idx], y[val_idx]
+
+        clf = ExtraTreesClassifier(**params)
+        clf.fit(X_cv_train, y_cv_train)
+        fold_score = accuracy_score(y_cv_val, clf.predict(X_cv_val))
+        cv_scores.append(fold_score)
+
+    return np.mean(cv_scores)  # Return mean CV score across all 5 folds
 
 print("\n" + "="*60)
 print("OPTIMIZING: ExtraTrees")
@@ -200,8 +251,15 @@ study_et = optuna.create_study(
 print(f"Study: rf_extratrees | Completed trials: {len(study_et.trials)}")
 study_et.optimize(objective_et, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest ExtraTrees CV accuracy: {study_et.best_value:.4f}")
+print(f"\nBest ExtraTrees Val accuracy: {study_et.best_value:.4f}")
 print(f"Best ExtraTrees params: {study_et.best_params}")
+
+# Evaluate on test set
+best_et_params_clean = {k[3:]: v for k, v in study_et.best_params.items()}
+best_et_test_model = ExtraTreesClassifier(**best_et_params_clean)
+best_et_test_model.fit(X_train, y_train)
+best_et_test_score = accuracy_score(y_test, best_et_test_model.predict(X_test))
+print(f"Best ExtraTrees Test accuracy: {best_et_test_score:.4f}")
 
 if study_et.best_value > best_overall_score:
     best_overall_score = study_et.best_value
@@ -224,9 +282,20 @@ def objective_lgb(trial):
         'verbose': -1
     }
 
-    clf = lgb.LGBMClassifier(**params)
-    scores = cross_val_score(clf, X, y, cv=cv, scoring='accuracy', n_jobs=1)
-    return scores.mean()
+    # Use 5-fold CV on FULL dataset for robust evaluation
+    cv_splitter = SKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = []
+
+    for train_idx, val_idx in cv_splitter.split(X, y):
+        X_cv_train, X_cv_val = X[train_idx], X[val_idx]
+        y_cv_train, y_cv_val = y[train_idx], y[val_idx]
+
+        clf = lgb.LGBMClassifier(**params)
+        clf.fit(X_cv_train, y_cv_train)
+        fold_score = accuracy_score(y_cv_val, clf.predict(X_cv_val))
+        cv_scores.append(fold_score)
+
+    return np.mean(cv_scores)  # Return mean CV score across all 5 folds
 
 print("\n" + "="*60)
 print("OPTIMIZING: LightGBM")
@@ -242,8 +311,15 @@ study_lgb = optuna.create_study(
 print(f"Study: rf_lightgbm | Completed trials: {len(study_lgb.trials)}")
 study_lgb.optimize(objective_lgb, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest LightGBM CV accuracy: {study_lgb.best_value:.4f}")
+print(f"\nBest LightGBM Val accuracy: {study_lgb.best_value:.4f}")
 print(f"Best LightGBM params: {study_lgb.best_params}")
+
+# Evaluate on test set
+best_lgb_params_clean = {k[4:]: v for k, v in study_lgb.best_params.items()}
+best_lgb_test_model = lgb.LGBMClassifier(**best_lgb_params_clean)
+best_lgb_test_model.fit(X_train, y_train)
+best_lgb_test_score = accuracy_score(y_test, best_lgb_test_model.predict(X_test))
+print(f"Best LightGBM Test accuracy: {best_lgb_test_score:.4f}")
 
 if study_lgb.best_value > best_overall_score:
     best_overall_score = study_lgb.best_value
@@ -267,9 +343,20 @@ def objective_xgb(trial):
         'eval_metric': 'mlogloss'
     }
 
-    clf = xgb.XGBClassifier(**params)
-    scores = cross_val_score(clf, X, y, cv=cv, scoring='accuracy', n_jobs=1)
-    return scores.mean()
+    # Use 5-fold CV on FULL dataset for robust evaluation
+    cv_splitter = SKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = []
+
+    for train_idx, val_idx in cv_splitter.split(X, y):
+        X_cv_train, X_cv_val = X[train_idx], X[val_idx]
+        y_cv_train, y_cv_val = y[train_idx], y[val_idx]
+
+        clf = xgb.XGBClassifier(**params)
+        clf.fit(X_cv_train, y_cv_train)
+        fold_score = accuracy_score(y_cv_val, clf.predict(X_cv_val))
+        cv_scores.append(fold_score)
+
+    return np.mean(cv_scores)  # Return mean CV score across all 5 folds
 
 print("\n" + "="*60)
 print("OPTIMIZING: XGBoost")
@@ -285,8 +372,15 @@ study_xgb = optuna.create_study(
 print(f"Study: rf_xgboost | Completed trials: {len(study_xgb.trials)}")
 study_xgb.optimize(objective_xgb, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest XGBoost CV accuracy: {study_xgb.best_value:.4f}")
+print(f"\nBest XGBoost Val accuracy: {study_xgb.best_value:.4f}")
 print(f"Best XGBoost params: {study_xgb.best_params}")
+
+# Evaluate on test set
+best_xgb_params_clean = {k[4:]: v for k, v in study_xgb.best_params.items()}
+best_xgb_test_model = xgb.XGBClassifier(**best_xgb_params_clean)
+best_xgb_test_model.fit(X_train, y_train)
+best_xgb_test_score = accuracy_score(y_test, best_xgb_test_model.predict(X_test))
+print(f"Best XGBoost Test accuracy: {best_xgb_test_score:.4f}")
 
 if study_xgb.best_value > best_overall_score:
     best_overall_score = study_xgb.best_value
@@ -298,18 +392,24 @@ print("\n" + "="*60)
 print("FINAL RESULTS")
 print("="*60)
 print(f"\nBest model: {best_overall_model}")
-print(f"Best CV accuracy: {best_overall_score:.4f}")
+print(f"Best Val accuracy: {best_overall_score:.4f}")
 print(f"Best params: {best_overall_params}")
-print(f"\nImprovement over baseline: {(best_overall_score - base_scores.mean())*100:.2f}%")
+print(f"\nImprovement over baseline: {(best_overall_score - base_val_score)*100:.2f}%")
 
 # Export results to JSON
 results_dict = {
-    "baseline_cv_accuracy": float(base_scores.mean()),
-    "baseline_fold_scores": [float(s) for s in base_scores],
+    "baseline_cv_fold_scores": [float(s) for s in baseline_cv_scores],
+    "baseline_val_accuracy_mean": float(np.mean(baseline_cv_scores)),
+    "baseline_val_accuracy_std": float(np.std(baseline_cv_scores)),
+    "baseline_test_accuracy": float(base_test_score),
     "best_model": best_overall_model,
-    "best_cv_accuracy": float(best_overall_score),
+    "best_val_accuracy": float(best_overall_score),
     "best_params": {k: (float(v) if isinstance(v, (np.floating, np.integer)) else v) for k, v in best_overall_params.items()},
-    "improvement_percentage": float((best_overall_score - base_scores.mean()) * 100)
+    "improvement_percentage": float((best_overall_score - np.mean(baseline_cv_scores)) * 100),
+    "rf_test_accuracy": float(best_rf_test_score) if best_overall_model == "optimized_rf" else None,
+    "et_test_accuracy": float(best_et_test_score) if best_overall_model == "optimized_extratrees" else None,
+    "lgb_test_accuracy": float(best_lgb_test_score) if best_overall_model == "optimized_lightgbm" else None,
+    "xgb_test_accuracy": float(best_xgb_test_score) if best_overall_model == "optimized_xgboost" else None
 }
 
 with open("./optimization_results.json", 'w') as f:
@@ -353,13 +453,15 @@ elif best_overall_model == "optimized_xgboost":
 else:
     final_model = RandomForestClassifier(**cleaned_params)
 
-final_model.fit(X, y)
+final_model.fit(X_train, y_train)
+final_test_score = accuracy_score(y_test, final_model.predict(X_test))
 
 bundle = {
     "model": final_model,
     "feature_names": list(X_features.columns),
     "model_type": best_overall_model,
-    "cv_accuracy": best_overall_score,
+    "val_accuracy": best_overall_score,
+    "test_accuracy": final_test_score,
     "params": best_overall_params,
     "label_encoder": label_encoder
 }
@@ -370,6 +472,7 @@ print(f"Saved optimized model to ./randomforest_final.pkl")
 print("\n" + "="*60)
 print("SUMMARY")
 print("="*60)
-print(f"Final CV accuracy: {best_overall_score:.4f}")
-print(f"Improvement: {(best_overall_score - base_scores.mean())*100:.2f}%")
+print(f"Final Val accuracy: {best_overall_score:.4f}")
+print(f"Final Test accuracy: {final_test_score:.4f}")
+print(f"Improvement: {(best_overall_score - base_val_score)*100:.2f}%")
 print("\nDone!")
