@@ -56,13 +56,6 @@ export const useAuthStore = create(
                 name: 'auth-storage',
                 partialize: (state) => ({
                     jwt: state.jwt,
-                    userId: state.userId,
-                    username: state.username,
-                    role: state.role,
-                    first_name: state.first_name,
-                    last_name: state.last_name,
-                    job_title: state.job_title,
-                    isAuthenticated: state.isAuthenticated,
                 }),
             }
         ),
