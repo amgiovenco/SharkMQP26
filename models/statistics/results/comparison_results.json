@@ -1,7 +1,7 @@
 {
   "experiment": "Compare Real vs Real+Synthetic using 5-fold stratified CV (seed 8)",
   "evaluation_protocol": "5-fold CV: ~80% train (real + synth for scenario 2), ~20% test (real)",
-  "timestamp": "2025-11-11T16:28:55.332730",
+  "timestamp": "2025-11-11T19:20:05.958526",
   "random_state": 8,
   "model_type": "ExtraTreesClassifier",
   "model_parameters": {

@@ -26,19 +26,29 @@ def load_results():
     return results
 
 
-def plot_confusion_matrix_unweighted(cm_data, scenario_name):
+def plot_confusion_matrix_unweighted(cm_data, scenario_name, cmap='Blues'):
     """Plot unweighted confusion matrix with colors only (no annotations)"""
     classes = cm_data["classes"]
     cm = np.array(cm_data["matrix_unweighted"])
 
-    figsize = (14, 12) if len(classes) <= 30 else (18, 16)
+    # Dynamically size based on number of classes
+    n_classes = len(classes)
+    if n_classes <= 10:
+        figsize = (12, 10)
+        label_size = 10
+    elif n_classes <= 20:
+        figsize = (16, 14)
+        label_size = 9
+    else:
+        figsize = (20, 18)
+        label_size = 8
 
     fig, ax = plt.subplots(figsize=figsize)
 
     # Plot heatmap with no annotations
     sns.heatmap(
         cm,
-        cmap='Blues',
+        cmap=cmap,
         cbar=True,
         xticklabels=classes,
         yticklabels=classes,
@@ -54,9 +64,9 @@ def plot_confusion_matrix_unweighted(cm_data, scenario_name):
     ax.set_ylabel('True Label', fontsize=11)
     ax.set_xlabel('Predicted Label', fontsize=11)
 
-    # Rotate labels for readability
-    plt.xticks(rotation=45, ha='right', fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
+    # Rotate labels for readability - use 90 for x-axis (vertical), 0 for y-axis
+    ax.set_xticklabels(classes, rotation=90, ha='right', fontsize=label_size)
+    ax.set_yticklabels(classes, rotation=0, fontsize=label_size)
 
     plt.tight_layout()
 
@@ -69,7 +79,7 @@ def plot_confusion_matrix_unweighted(cm_data, scenario_name):
     return filepath
 
 
-def plot_confusion_matrix_weighted(cm_data, scenario_name):
+def plot_confusion_matrix_weighted(cm_data, scenario_name, cmap='Blues'):
     """Plot weighted (normalized by true class) confusion matrix with colors only"""
     classes = cm_data["classes"]
 
@@ -82,14 +92,24 @@ def plot_confusion_matrix_weighted(cm_data, scenario_name):
         cm_weighted = cm.astype(np.float64) / cm.sum(axis=1, keepdims=True)
         cm_weighted = np.nan_to_num(cm_weighted)
 
-    figsize = (14, 12) if len(classes) <= 30 else (18, 16)
+    # Dynamically size based on number of classes
+    n_classes = len(classes)
+    if n_classes <= 10:
+        figsize = (12, 10)
+        label_size = 10
+    elif n_classes <= 20:
+        figsize = (16, 14)
+        label_size = 9
+    else:
+        figsize = (20, 18)
+        label_size = 8
 
     fig, ax = plt.subplots(figsize=figsize)
 
     # Plot heatmap with no annotations
     sns.heatmap(
         cm_weighted,
-        cmap='Greens',
+        cmap=cmap,
         cbar=True,
         xticklabels=classes,
         yticklabels=classes,
@@ -107,9 +127,9 @@ def plot_confusion_matrix_weighted(cm_data, scenario_name):
     ax.set_ylabel('True Label', fontsize=11)
     ax.set_xlabel('Predicted Label', fontsize=11)
 
-    # Rotate labels for readability
-    plt.xticks(rotation=45, ha='right', fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
+    # Rotate labels for readability - use 90 for x-axis (vertical), 0 for y-axis
+    ax.set_xticklabels(classes, rotation=90, ha='right', fontsize=label_size)
+    ax.set_yticklabels(classes, rotation=0, fontsize=label_size)
 
     plt.tight_layout()
 
@@ -142,17 +162,17 @@ if __name__ == "__main__":
 
     cm_data = results["confusion_matrices"]
 
-    # Scenario 1: Real Data Only
+    # Scenario 1: Real Data Only (Blue)
     print("\nScenario 1: Real Data Only (Baseline)")
     print("-" * 70)
-    plot_confusion_matrix_unweighted(cm_data["real_only"], "Real Data Only")
-    plot_confusion_matrix_weighted(cm_data["real_only"], "Real Data Only")
+    plot_confusion_matrix_unweighted(cm_data["real_only"], "Real Data Only", cmap='Blues')
+    plot_confusion_matrix_weighted(cm_data["real_only"], "Real Data Only", cmap='Blues')
 
-    # Scenario 2: Real + Synthetic Training
+    # Scenario 2: Real + Synthetic Training (Green)
     print("\nScenario 2: Real + Synthetic in Training")
     print("-" * 70)
-    plot_confusion_matrix_unweighted(cm_data["real_synthetic"], "Real+Synthetic Training")
-    plot_confusion_matrix_weighted(cm_data["real_synthetic"], "Real+Synthetic Training")
+    plot_confusion_matrix_unweighted(cm_data["real_synthetic"], "Real+Synthetic Training", cmap='Greens')
+    plot_confusion_matrix_weighted(cm_data["real_synthetic"], "Real+Synthetic Training", cmap='Greens')
 
     print("\n" + "="*70)
     print("Output Files Generated:")

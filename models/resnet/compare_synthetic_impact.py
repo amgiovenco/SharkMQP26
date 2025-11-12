@@ -316,7 +316,7 @@ def evaluate_model(model, X_test, y_test):
     f1 = f1_score(y_test, y_pred, average='macro', zero_division=0)
     precision = precision_score(y_test, y_pred, average='macro', zero_division=0)
     recall = recall_score(y_test, y_pred, average='macro', zero_division=0)
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred, labels=np.arange(len(le.classes_)))
 
     return {
         'accuracy': acc,
@@ -778,6 +778,50 @@ if MATPLOTLIB_AVAILABLE:
         plt.close()
 
     print(f"[OK] Individual fold confusion matrices saved to {results_dir}/")
+
+    # ========================================================================
+    # AVERAGE CONFUSION MATRICES
+    # ========================================================================
+    print("\nGenerating average confusion matrices across all folds...")
+
+    # Calculate average confusion matrices
+    avg_baseline_cm = np.mean(baseline_cms, axis=0)
+    avg_enhanced_cm = np.mean(enhanced_cms, axis=0)
+
+    # Normalize by row for weighted display
+    avg_baseline_cm_weighted = normalize_confusion_matrix(avg_baseline_cm)
+    avg_enhanced_cm_weighted = normalize_confusion_matrix(avg_enhanced_cm)
+
+    # Create figure with both average confusion matrices
+    fig, axes = plt.subplots(1, 2, figsize=(18, 8))
+
+    # Baseline average (Blue)
+    sns.heatmap(avg_baseline_cm_weighted, annot=False, cmap='Blues', ax=axes[0],
+                cbar=True, cbar_kws={'label': 'Proportion'},
+                xticklabels=le.classes_, yticklabels=le.classes_, vmin=0, vmax=1)
+    axes[0].set_title('Real Data Only - Average Confusion Matrix\n(5-Fold Average, Normalized)',
+                      fontsize=13, fontweight='bold')
+    axes[0].set_ylabel('True Label', fontsize=11)
+    axes[0].set_xlabel('Predicted Label', fontsize=11)
+    axes[0].set_xticklabels(le.classes_, rotation=45, ha='right', fontsize=8)
+    axes[0].set_yticklabels(le.classes_, rotation=0, fontsize=8)
+
+    # Enhanced average (Green)
+    sns.heatmap(avg_enhanced_cm_weighted, annot=False, cmap='Greens', ax=axes[1],
+                cbar=True, cbar_kws={'label': 'Proportion'},
+                xticklabels=le.classes_, yticklabels=le.classes_, vmin=0, vmax=1)
+    axes[1].set_title('Real + Synthetic - Average Confusion Matrix\n(5-Fold Average, Normalized)',
+                      fontsize=13, fontweight='bold')
+    axes[1].set_ylabel('True Label', fontsize=11)
+    axes[1].set_xlabel('Predicted Label', fontsize=11)
+    axes[1].set_xticklabels(le.classes_, rotation=45, ha='right', fontsize=8)
+    axes[1].set_yticklabels(le.classes_, rotation=0, fontsize=8)
+
+    plt.tight_layout()
+    avg_cm_fig = results_dir / "average_confusion_matrices.png"
+    plt.savefig(avg_cm_fig, dpi=300, bbox_inches='tight')
+    print(f"[OK] Average confusion matrices saved to {avg_cm_fig}")
+    plt.close()
 
 else:
     print("Matplotlib not available - skipping visualization")

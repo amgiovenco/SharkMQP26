@@ -582,11 +582,24 @@ def plot_confusion_matrices(y_true, y_pred, dataset_name, weighted=False):
     else:
         cm_normalized = cm
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Determine figure size and label size based on number of classes
+    n_classes = len(class_names)
+    if n_classes <= 10:
+        figsize = (12, 10)
+        label_size = 10
+    elif n_classes <= 20:
+        figsize = (16, 14)
+        label_size = 9
+    else:
+        figsize = (20, 18)
+        label_size = 8
+
+    fig, ax = plt.subplots(figsize=figsize)
 
     # Generate heatmap without annotations
-    sns.heatmap(cm_normalized, cmap='Blues', xticklabels=class_names,
-                yticklabels=class_names, ax=ax, cbar_kws={'label': 'Count' if not weighted else 'Normalized'},
+    sns.heatmap(cm_normalized, cmap='Blues' if 'Normal' in dataset_name else 'Greens',
+                xticklabels=class_names, yticklabels=class_names, ax=ax,
+                cbar_kws={'label': 'Count' if not weighted else 'Normalized'},
                 annot=False, fmt='d')
 
     matrix_type = "Normalized (Weighted)" if weighted else "Unweighted (Raw Counts)"
@@ -594,6 +607,10 @@ def plot_confusion_matrices(y_true, y_pred, dataset_name, weighted=False):
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Predicted Label', fontsize=12)
     ax.set_ylabel('True Label', fontsize=12)
+
+    # Rotate labels for readability
+    ax.set_xticklabels(class_names, rotation=90, ha='right', fontsize=label_size)
+    ax.set_yticklabels(class_names, rotation=0, fontsize=label_size)
 
     plt.tight_layout()
     return fig, ax
@@ -630,8 +647,8 @@ fig, ax = plt.subplots(figsize=(10, 6))
 folds = list(range(1, N_SPLITS + 1))
 x = np.arange(len(folds))
 width = 0.35
-bars1 = ax.bar(x - width/2, results_normal['fold_accuracies'], width, label='Normal Data Only', alpha=0.8, color='steelblue')
-bars2 = ax.bar(x + width/2, results_synthetic['fold_accuracies'], width, label='Real + Synthetic', alpha=0.8, color='coral')
+bars1 = ax.bar(x - width/2, results_normal['fold_accuracies'], width, label='Normal Data Only', alpha=0.8, color='#3498db')
+bars2 = ax.bar(x + width/2, results_synthetic['fold_accuracies'], width, label='Real + Synthetic', alpha=0.8, color='#2ecc71')
 
 ax.set_xlabel('Fold', fontsize=12)
 ax.set_ylabel('Accuracy', fontsize=12)
@@ -656,8 +673,8 @@ print("    Saved: accuracy_comparison.png")
 # 4. F1 Score Comparison Chart
 print("  Generating F1 score comparison chart...")
 fig, ax = plt.subplots(figsize=(10, 6))
-bars1 = ax.bar(x - width/2, results_normal['fold_f1_scores'], width, label='Normal Data Only', alpha=0.8, color='steelblue')
-bars2 = ax.bar(x + width/2, results_synthetic['fold_f1_scores'], width, label='Real + Synthetic', alpha=0.8, color='coral')
+bars1 = ax.bar(x - width/2, results_normal['fold_f1_scores'], width, label='Normal Data Only', alpha=0.8, color='#3498db')
+bars2 = ax.bar(x + width/2, results_synthetic['fold_f1_scores'], width, label='Real + Synthetic', alpha=0.8, color='#2ecc71')
 
 ax.set_xlabel('Fold', fontsize=12)
 ax.set_ylabel('F1 Score (Macro)', fontsize=12)
@@ -713,7 +730,7 @@ x_pos = [0, 1]
 for idx, (metric, ax) in enumerate(zip(metrics, axes)):
     ax.bar(x_pos, [normal_means[idx], synthetic_means[idx]],
            yerr=[normal_stds[idx], synthetic_stds[idx]],
-           capsize=10, alpha=0.8, color=['steelblue', 'coral'],
+           capsize=10, alpha=0.8, color=['#3498db', '#2ecc71'],
            edgecolor='black', linewidth=1.5)
     ax.set_ylabel(metric, fontsize=12, fontweight='bold')
     ax.set_xticks(x_pos)
@@ -749,35 +766,35 @@ x = np.arange(num_classes)
 width = 0.35
 
 # Precision
-axes[0].bar(x - width/2, prec_normal, width, label='Normal', alpha=0.8, color='steelblue')
-axes[0].bar(x + width/2, prec_synthetic, width, label='Real+Synthetic', alpha=0.8, color='coral')
+axes[0].bar(x - width/2, prec_normal, width, label='Normal', alpha=0.8, color='#3498db')
+axes[0].bar(x + width/2, prec_synthetic, width, label='Real+Synthetic', alpha=0.8, color='#2ecc71')
 axes[0].set_xlabel('Class', fontsize=12)
 axes[0].set_ylabel('Precision', fontsize=12)
 axes[0].set_title('Per-Class Precision', fontsize=12, fontweight='bold')
 axes[0].set_xticks(x)
-axes[0].set_xticklabels(class_names, rotation=45)
+axes[0].set_xticklabels(class_names, rotation=90, ha='right')
 axes[0].legend()
 axes[0].grid(axis='y', alpha=0.3)
 
 # Recall
-axes[1].bar(x - width/2, rec_normal, width, label='Normal', alpha=0.8, color='steelblue')
-axes[1].bar(x + width/2, rec_synthetic, width, label='Real+Synthetic', alpha=0.8, color='coral')
+axes[1].bar(x - width/2, rec_normal, width, label='Normal', alpha=0.8, color='#3498db')
+axes[1].bar(x + width/2, rec_synthetic, width, label='Real+Synthetic', alpha=0.8, color='#2ecc71')
 axes[1].set_xlabel('Class', fontsize=12)
 axes[1].set_ylabel('Recall', fontsize=12)
 axes[1].set_title('Per-Class Recall', fontsize=12, fontweight='bold')
 axes[1].set_xticks(x)
-axes[1].set_xticklabels(class_names, rotation=45)
+axes[1].set_xticklabels(class_names, rotation=90, ha='right')
 axes[1].legend()
 axes[1].grid(axis='y', alpha=0.3)
 
 # F1 Score
-axes[2].bar(x - width/2, f1_normal, width, label='Normal', alpha=0.8, color='steelblue')
-axes[2].bar(x + width/2, f1_synthetic, width, label='Real+Synthetic', alpha=0.8, color='coral')
+axes[2].bar(x - width/2, f1_normal, width, label='Normal', alpha=0.8, color='#3498db')
+axes[2].bar(x + width/2, f1_synthetic, width, label='Real+Synthetic', alpha=0.8, color='#2ecc71')
 axes[2].set_xlabel('Class', fontsize=12)
 axes[2].set_ylabel('F1 Score', fontsize=12)
 axes[2].set_title('Per-Class F1 Score', fontsize=12, fontweight='bold')
 axes[2].set_xticks(x)
-axes[2].set_xticklabels(class_names, rotation=45)
+axes[2].set_xticklabels(class_names, rotation=90, ha='right')
 axes[2].legend()
 axes[2].grid(axis='y', alpha=0.3)
 
@@ -792,7 +809,7 @@ fig, ax = plt.subplots(figsize=(10, 6))
 data_to_plot = [results_normal['fold_accuracies'], results_synthetic['fold_accuracies']]
 bp = ax.boxplot(data_to_plot, labels=['Normal Data Only', 'Real + Synthetic'], patch_artist=True)
 
-colors = ['steelblue', 'coral']
+colors = ['#3498db', '#2ecc71']
 for patch, color in zip(bp['boxes'], colors):
     patch.set_facecolor(color)
     patch.set_alpha(0.7)
