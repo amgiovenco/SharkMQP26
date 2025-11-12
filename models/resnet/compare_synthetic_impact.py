@@ -14,7 +14,7 @@ import json
 import copy
 from pathlib import Path
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, classification_report
 import warnings
 warnings.filterwarnings('ignore')
@@ -46,8 +46,17 @@ except ImportError:
 
 
 def normalize_confusion_matrix(cm):
-    """Normalize confusion matrix by row (True label distribution)."""
-    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    """Normalize confusion matrix by row (True label distribution).
+    Handles rows with zero samples by setting them to zero."""
+    cm = cm.astype('float')
+    row_sums = cm.sum(axis=1)
+    # Avoid division by zero for classes with no samples in test set
+    cm_normalized = np.zeros_like(cm)
+    for i, row_sum in enumerate(row_sums):
+        if row_sum > 0:
+            cm_normalized[i] = cm[i] / row_sum
+        else:
+            cm_normalized[i] = 0
     return cm_normalized
 
 # ============================================================================
@@ -59,6 +68,7 @@ SPECIES_COL = "Species"
 NUM_EPOCHS = 200
 RANDOM_STATE = 8
 N_SPLITS = 5
+VAL_SPLIT = 0.2  # Fraction of train_full to use as validation for early stopping
 
 # Best hyperparameters from Trial 67
 BEST_PARAMS = {
@@ -353,57 +363,83 @@ baseline_precisions = []
 baseline_recalls = []
 baseline_cms = []
 
-for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
-    X_train, X_val = X_normal[train_idx], X_normal[val_idx]
-    y_train, y_val = y_normal_encoded[train_idx], y_normal_encoded[val_idx]
+# Print table header for per-fold results
+print("\n  " + "-"*90)
+print(f"  {'Fold':<5} {'Test Acc':<10} {'Test F1':<10} {'Precision':<10} {'Recall':<10} {'Data Note'}")
+print("  " + "-"*90)
+
+for fold_idx, (train_full_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
+    # Get train_full and test sets
+    X_train_full, y_train_full = X_normal[train_full_idx], y_normal_encoded[train_full_idx]
+    X_test, y_test = X_normal[test_idx], y_normal_encoded[test_idx]
+
+    # Split train_full into train and val for early stopping
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full, y_train_full,
+        test_size=VAL_SPLIT,
+        stratify=y_train_full,
+        random_state=RANDOM_STATE
+    )
 
     print(f"\n  Fold {fold_idx}/{N_SPLITS}")
     print(f"    Training size: {len(X_train)} samples (normal only)")
-    print(f"    Val size: {len(X_val)} samples")
+    print(f"    Validation size: {len(X_val)} samples (for early stopping)")
+    print(f"    Test size: {len(X_test)} samples")
 
     # Train with val monitoring
     model = train_model(X_train, y_train, X_val, y_val, len(le.classes_))
 
-    # Evaluate (now on best model)
-    fold_metrics = evaluate_model(model, X_val, y_val)
+    # Evaluate on test set
+    fold_metrics = evaluate_model(model, X_test, y_test)
 
-    baseline_accuracies.append(fold_metrics['accuracy'])
-    baseline_f1_scores.append(fold_metrics['f1'])
-    baseline_precisions.append(fold_metrics['precision'])
-    baseline_recalls.append(fold_metrics['recall'])
+    test_acc = fold_metrics['accuracy']
+    test_f1 = fold_metrics['f1']
+    precision = fold_metrics['precision']
+    recall = fold_metrics['recall']
+
+    baseline_accuracies.append(test_acc)
+    baseline_f1_scores.append(test_f1)
+    baseline_precisions.append(precision)
+    baseline_recalls.append(recall)
     baseline_cms.append(fold_metrics['confusion_matrix'])
+
+    # Data note for table
+    data_note = f"Real: {len(X_train)} | Train: {len(X_train)}"
+
+    # Print per-fold row in table
+    print(f"  {fold_idx:<5} {test_acc:<10.4f} {test_f1:<10.4f} {precision:<10.4f} {recall:<10.4f} {data_note}")
 
     baseline_results["folds"].append({
         "fold": fold_idx,
-        "accuracy": float(fold_metrics['accuracy']),
-        "f1": float(fold_metrics['f1']),
-        "precision": float(fold_metrics['precision']),
-        "recall": float(fold_metrics['recall']),
-        "val_size": len(y_val),
-        "train_size": len(X_train)
+        "test_accuracy": float(test_acc),
+        "test_f1": float(test_f1),
+        "test_precision": float(precision),
+        "test_recall": float(recall),
+        "train_size": len(X_train),
+        "val_size": len(X_val),
+        "test_size": len(X_test),
+        "data_note": data_note
     })
-
-    print(f"    Accuracy: {fold_metrics['accuracy']:.4f} | F1: {fold_metrics['f1']:.4f} | Precision: {fold_metrics['precision']:.4f} | Recall: {fold_metrics['recall']:.4f}")
 
     del model
 
 # Summary for baseline
-baseline_results["mean_accuracy"] = float(np.mean(baseline_accuracies))
-baseline_results["std_accuracy"] = float(np.std(baseline_accuracies))
-baseline_results["mean_f1"] = float(np.mean(baseline_f1_scores))
-baseline_results["std_f1"] = float(np.std(baseline_f1_scores))
-baseline_results["mean_precision"] = float(np.mean(baseline_precisions))
-baseline_results["std_precision"] = float(np.std(baseline_precisions))
-baseline_results["mean_recall"] = float(np.mean(baseline_recalls))
-baseline_results["std_recall"] = float(np.std(baseline_recalls))
+baseline_results["mean_test_accuracy"] = float(np.mean(baseline_accuracies))
+baseline_results["std_test_accuracy"] = float(np.std(baseline_accuracies))
+baseline_results["mean_test_f1"] = float(np.mean(baseline_f1_scores))
+baseline_results["std_test_f1"] = float(np.std(baseline_f1_scores))
+baseline_results["mean_test_precision"] = float(np.mean(baseline_precisions))
+baseline_results["std_test_precision"] = float(np.std(baseline_precisions))
+baseline_results["mean_test_recall"] = float(np.mean(baseline_recalls))
+baseline_results["std_test_recall"] = float(np.std(baseline_recalls))
 
 print("\n" + "-"*80)
-print("BASELINE SUMMARY")
+print("BASELINE SUMMARY - TEST METRICS (5-Fold Stratified CV)")
 print("-"*80)
-print(f"Mean Accuracy:  {np.mean(baseline_accuracies):.4f} ± {np.std(baseline_accuracies):.4f}")
-print(f"Mean F1:        {np.mean(baseline_f1_scores):.4f} ± {np.std(baseline_f1_scores):.4f}")
-print(f"Mean Precision: {np.mean(baseline_precisions):.4f} ± {np.std(baseline_precisions):.4f}")
-print(f"Mean Recall:    {np.mean(baseline_recalls):.4f} ± {np.std(baseline_recalls):.4f}")
+print(f"TEST Mean Accuracy:  {np.mean(baseline_accuracies):.4f} ± {np.std(baseline_accuracies):.4f}")
+print(f"TEST Mean F1:        {np.mean(baseline_f1_scores):.4f} ± {np.std(baseline_f1_scores):.4f}")
+print(f"TEST Mean Precision: {np.mean(baseline_precisions):.4f} ± {np.std(baseline_precisions):.4f}")
+print(f"TEST Mean Recall:    {np.mean(baseline_recalls):.4f} ± {np.std(baseline_recalls):.4f}")
 
 
 # ============================================================================
@@ -428,63 +464,89 @@ enhanced_precisions = []
 enhanced_recalls = []
 enhanced_cms = []
 
-for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
-    X_train_real, X_val = X_normal[train_idx], X_normal[val_idx]
-    y_train_real, y_val = y_normal_encoded[train_idx], y_normal_encoded[val_idx]
+# Print table header for per-fold results
+print("\n  " + "-"*110)
+print(f"  {'Fold':<5} {'Test Acc':<10} {'Test F1':<10} {'Precision':<10} {'Recall':<10} {'Data Note'}")
+print("  " + "-"*110)
 
-    # Add synthetic to training only
-    X_train_combined = np.concatenate([X_train_real, X_synthetic], axis=0)
-    y_train_combined = np.concatenate([y_train_real, y_synthetic_encoded], axis=0)
+for fold_idx, (train_full_idx, test_idx) in enumerate(skf.split(X_normal, y_normal_encoded), 1):
+    # Get train_full and test sets
+    X_train_full, y_train_full = X_normal[train_full_idx], y_normal_encoded[train_full_idx]
+    X_test, y_test = X_normal[test_idx], y_normal_encoded[test_idx]
+
+    # Split train_full into train and val for early stopping
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full, y_train_full,
+        test_size=VAL_SPLIT,
+        stratify=y_train_full,
+        random_state=RANDOM_STATE
+    )
+
+    # Add synthetic only to train set (not to val or test)
+    X_train_combined = np.concatenate([X_train, X_synthetic], axis=0)
+    y_train_combined = np.concatenate([y_train, y_synthetic_encoded], axis=0)
 
     print(f"\n  Fold {fold_idx}/{N_SPLITS}")
-    print(f"    Training size: {len(X_train_real)} real + {len(X_synthetic)} synthetic = {len(X_train_combined)} total")
-    print(f"    Val size: {len(X_val)} samples (normal only)")
+    print(f"    Training size: {len(X_train)} real + {len(X_synthetic)} synthetic = {len(X_train_combined)} total")
+    print(f"    Validation size: {len(X_val)} samples (for early stopping)")
+    print(f"    Test size: {len(X_test)} samples")
 
     # Train with val monitoring
     model = train_model(X_train_combined, y_train_combined, X_val, y_val, len(le.classes_))
 
-    # Evaluate (now on best model)
-    fold_metrics = evaluate_model(model, X_val, y_val)
+    # Evaluate on test set
+    fold_metrics = evaluate_model(model, X_test, y_test)
 
-    enhanced_accuracies.append(fold_metrics['accuracy'])
-    enhanced_f1_scores.append(fold_metrics['f1'])
-    enhanced_precisions.append(fold_metrics['precision'])
-    enhanced_recalls.append(fold_metrics['recall'])
+    test_acc = fold_metrics['accuracy']
+    test_f1 = fold_metrics['f1']
+    precision = fold_metrics['precision']
+    recall = fold_metrics['recall']
+
+    enhanced_accuracies.append(test_acc)
+    enhanced_f1_scores.append(test_f1)
+    enhanced_precisions.append(precision)
+    enhanced_recalls.append(recall)
     enhanced_cms.append(fold_metrics['confusion_matrix'])
+
+    # Data note for table
+    data_note = f"Real: {len(X_train)} | Synth: {len(X_synthetic)} | Train: {len(X_train_combined)}"
+
+    # Print per-fold row in table
+    print(f"  {fold_idx:<5} {test_acc:<10.4f} {test_f1:<10.4f} {precision:<10.4f} {recall:<10.4f} {data_note}")
 
     enhanced_results["folds"].append({
         "fold": fold_idx,
-        "accuracy": float(fold_metrics['accuracy']),
-        "f1": float(fold_metrics['f1']),
-        "precision": float(fold_metrics['precision']),
-        "recall": float(fold_metrics['recall']),
-        "val_size": len(y_val),
-        "train_size_real": len(X_train_real),
+        "test_accuracy": float(test_acc),
+        "test_f1": float(test_f1),
+        "test_precision": float(precision),
+        "test_recall": float(recall),
+        "train_size_real": len(X_train),
         "train_size_synthetic": len(X_synthetic),
-        "train_size_total": len(X_train_combined)
+        "train_size_total": len(X_train_combined),
+        "val_size": len(X_val),
+        "test_size": len(X_test),
+        "data_note": data_note
     })
-
-    print(f"    Accuracy: {fold_metrics['accuracy']:.4f} | F1: {fold_metrics['f1']:.4f} | Precision: {fold_metrics['precision']:.4f} | Recall: {fold_metrics['recall']:.4f}")
 
     del model
 
 # Summary for enhanced
-enhanced_results["mean_accuracy"] = float(np.mean(enhanced_accuracies))
-enhanced_results["std_accuracy"] = float(np.std(enhanced_accuracies))
-enhanced_results["mean_f1"] = float(np.mean(enhanced_f1_scores))
-enhanced_results["std_f1"] = float(np.std(enhanced_f1_scores))
-enhanced_results["mean_precision"] = float(np.mean(enhanced_precisions))
-enhanced_results["std_precision"] = float(np.std(enhanced_precisions))
-enhanced_results["mean_recall"] = float(np.mean(enhanced_recalls))
-enhanced_results["std_recall"] = float(np.std(enhanced_recalls))
+enhanced_results["mean_test_accuracy"] = float(np.mean(enhanced_accuracies))
+enhanced_results["std_test_accuracy"] = float(np.std(enhanced_accuracies))
+enhanced_results["mean_test_f1"] = float(np.mean(enhanced_f1_scores))
+enhanced_results["std_test_f1"] = float(np.std(enhanced_f1_scores))
+enhanced_results["mean_test_precision"] = float(np.mean(enhanced_precisions))
+enhanced_results["std_test_precision"] = float(np.std(enhanced_precisions))
+enhanced_results["mean_test_recall"] = float(np.mean(enhanced_recalls))
+enhanced_results["std_test_recall"] = float(np.std(enhanced_recalls))
 
 print("\n" + "-"*80)
-print("ENHANCED SUMMARY")
+print("ENHANCED SUMMARY - TEST METRICS (5-Fold Stratified CV)")
 print("-"*80)
-print(f"Mean Accuracy:  {np.mean(enhanced_accuracies):.4f} ± {np.std(enhanced_accuracies):.4f}")
-print(f"Mean F1:        {np.mean(enhanced_f1_scores):.4f} ± {np.std(enhanced_f1_scores):.4f}")
-print(f"Mean Precision: {np.mean(enhanced_precisions):.4f} ± {np.std(enhanced_precisions):.4f}")
-print(f"Mean Recall:    {np.mean(enhanced_recalls):.4f} ± {np.std(enhanced_recalls):.4f}")
+print(f"TEST Mean Accuracy:  {np.mean(enhanced_accuracies):.4f} ± {np.std(enhanced_accuracies):.4f}")
+print(f"TEST Mean F1:        {np.mean(enhanced_f1_scores):.4f} ± {np.std(enhanced_f1_scores):.4f}")
+print(f"TEST Mean Precision: {np.mean(enhanced_precisions):.4f} ± {np.std(enhanced_precisions):.4f}")
+print(f"TEST Mean Recall:    {np.mean(enhanced_recalls):.4f} ± {np.std(enhanced_recalls):.4f}")
 
 
 # ============================================================================
@@ -515,6 +577,7 @@ comparison_summary = {
     "experiment": "synthetic_data_impact_analysis",
     "seed": RANDOM_STATE,
     "n_splits": N_SPLITS,
+    "evaluation_type": "5-fold stratified cross-validation (test metrics only)",
     "classes": list(le.classes_),
     "data_paths": {
         "normal": NORMAL_DATA_PATH,
@@ -523,8 +586,12 @@ comparison_summary = {
     "baseline": baseline_results,
     "enhanced": enhanced_results,
     "confusion_matrices": {
-        "baseline": [cm.tolist() for cm in baseline_cms],
-        "enhanced": [cm.tolist() for cm in enhanced_cms]
+        "baseline_per_fold": [cm.tolist() for cm in baseline_cms],
+        "enhanced_per_fold": [cm.tolist() for cm in enhanced_cms],
+        "baseline_averaged_normalized": normalize_confusion_matrix(np.mean(baseline_cms, axis=0)).tolist(),
+        "enhanced_averaged_normalized": normalize_confusion_matrix(np.mean(enhanced_cms, axis=0)).tolist(),
+        "baseline_pooled": np.sum(baseline_cms, axis=0).tolist(),
+        "enhanced_pooled": np.sum(enhanced_cms, axis=0).tolist()
     },
     "comparison": {
         "accuracy_improvement_percent": float(accuracy_improvement),
@@ -532,13 +599,21 @@ comparison_summary = {
         "precision_improvement_percent": float(precision_improvement),
         "recall_improvement_percent": float(recall_improvement),
         "baseline_mean_accuracy": float(np.mean(baseline_accuracies)),
+        "baseline_std_accuracy": float(np.std(baseline_accuracies)),
         "enhanced_mean_accuracy": float(np.mean(enhanced_accuracies)),
+        "enhanced_std_accuracy": float(np.std(enhanced_accuracies)),
         "baseline_mean_f1": float(np.mean(baseline_f1_scores)),
+        "baseline_std_f1": float(np.std(baseline_f1_scores)),
         "enhanced_mean_f1": float(np.mean(enhanced_f1_scores)),
+        "enhanced_std_f1": float(np.std(enhanced_f1_scores)),
         "baseline_mean_precision": float(np.mean(baseline_precisions)),
+        "baseline_std_precision": float(np.std(baseline_precisions)),
         "enhanced_mean_precision": float(np.mean(enhanced_precisions)),
+        "enhanced_std_precision": float(np.std(enhanced_precisions)),
         "baseline_mean_recall": float(np.mean(baseline_recalls)),
-        "enhanced_mean_recall": float(np.mean(enhanced_recalls))
+        "baseline_std_recall": float(np.std(baseline_recalls)),
+        "enhanced_mean_recall": float(np.mean(enhanced_recalls)),
+        "enhanced_std_recall": float(np.std(enhanced_recalls))
     }
 }
 
@@ -839,15 +914,17 @@ print(f"  - comparison_metrics.png (comparison charts)")
 print(f"  - confusion_matrices_fold_*.png (detailed fold matrices)")
 
 print("\n" + "="*80)
-print("KEY FINDINGS")
+print("KEY FINDINGS - TEST METRICS (5-Fold Stratified CV)")
 print("="*80)
 print(f"\nBaseline (Normal Data Only):")
-print(f"  Mean Accuracy: {np.mean(baseline_accuracies):.4f} ± {np.std(baseline_accuracies):.4f}")
-print(f"  Mean F1:       {np.mean(baseline_f1_scores):.4f} ± {np.std(baseline_f1_scores):.4f}")
+print(f"  TEST Mean Accuracy: {np.mean(baseline_accuracies):.4f} ± {np.std(baseline_accuracies):.4f}")
+print(f"  TEST Mean F1:       {np.mean(baseline_f1_scores):.4f} ± {np.std(baseline_f1_scores):.4f}")
 
 print(f"\nEnhanced (Normal + Synthetic Training):")
-print(f"  Mean Accuracy: {np.mean(enhanced_accuracies):.4f} ± {np.std(enhanced_accuracies):.4f}")
-print(f"  Mean F1:       {np.mean(enhanced_f1_scores):.4f} ± {np.std(enhanced_f1_scores):.4f}")
+print(f"  TEST Mean Accuracy: {np.mean(enhanced_accuracies):.4f} ± {np.std(enhanced_accuracies):.4f}")
+print(f"  TEST Mean F1:       {np.mean(enhanced_f1_scores):.4f} ± {np.std(enhanced_f1_scores):.4f}")
+
+print(f"\nPer-fold TEST accuracies saved to JSON (see fold_results in baseline and enhanced sections)")
 
 print(f"\nSynthetic Data Impact:")
 if accuracy_improvement > 0:

@@ -140,27 +140,22 @@ def compute_comprehensive_metrics(y_true, y_pred, fold_idx, scenario_name, class
 # CROSS-VALIDATION FUNCTIONS
 # =============================================================================
 def run_cv_60_20_20(X_real, y_real, X_synth=None, y_synth=None, le=None, class_names=None, scenario_name="real_only"):
-    """5-fold CV with 60/20/20 split inside each fold."""
+    """5-fold CV with standard 80/20 split (no validation split)."""
     print(f"\n{'='*70}")
-    print(f"SCENARIO: 5-FOLD CV (60/20/20) - {scenario_name.upper()}")
+    print(f"SCENARIO: 5-FOLD CV - {scenario_name.upper()}")
     print(f"{'='*70}")
 
     skf = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     fold_results = []
     all_predictions = []
 
-    for fold_idx, (train_val_idx, test_idx) in enumerate(skf.split(X_real, y_real), 1):
+    for fold_idx, (train_idx, test_idx) in enumerate(skf.split(X_real, y_real), 1):
         print(f"\nFold {fold_idx}/{N_SPLITS}:")
 
-        X_tv = X_real[train_val_idx]
-        y_tv = y_real[train_val_idx]
+        X_train = X_real[train_idx]
+        y_train = y_real[train_idx]
         X_test = X_real[test_idx]
         y_test = y_real[test_idx]
-
-        # 60/20 split: test_size=0.25 of 80% = 20% of total
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_tv, y_tv, test_size=0.25, random_state=RANDOM_STATE, stratify=y_tv
-        )
 
         # Optional: add synthetic to train only
         if X_synth is not None:
@@ -170,24 +165,19 @@ def run_cv_60_20_20(X_real, y_real, X_synth=None, y_synth=None, le=None, class_n
         # Scale
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
-        X_val_scaled = scaler.transform(X_val)
         X_test_scaled = scaler.transform(X_test)
 
         # Model
         clf = ExtraTreesClassifier(**MODEL_PARAMS)
         clf.fit(X_train_scaled, y_train)
 
-        # Predict
-        y_val_pred = clf.predict(X_val_scaled)
+        # Predict only on test
         y_test_pred = clf.predict(X_test_scaled)
 
-        val_acc = accuracy_score(y_val, y_val_pred)
         test_acc = accuracy_score(y_test, y_test_pred)
 
         print(f"  Train size: {len(X_train)}")
-        print(f"  Val size: {len(X_val)}")
         print(f"  Test size: {len(X_test)}")
-        print(f"  Val Acc: {val_acc:.4f}")
         print(f"  Test Acc: {test_acc:.4f}")
 
         # Full metrics on test
@@ -195,9 +185,7 @@ def run_cv_60_20_20(X_real, y_real, X_synth=None, y_synth=None, le=None, class_n
             y_test, y_test_pred, fold_idx, scenario_name, class_names, len(class_names)
         )
         metrics.update({
-            'val_accuracy': float(val_acc),
             'train_size': int(len(X_train)),
-            'val_size': int(len(X_val)),
         })
         fold_results.append(metrics)
         all_predictions.append((y_test, y_test_pred))
@@ -209,70 +197,40 @@ def run_cv_60_20_20(X_real, y_real, X_synth=None, y_synth=None, le=None, class_n
 # VISUALIZATION FUNCTIONS
 # =============================================================================
 def plot_confusion_matrices(real_results, synth_results, class_names, save_dir):
-    """Plot unweighted and weighted (normalized) confusion matrices for both scenarios (separate PNGs)."""
-    # Aggregate confusion matrices across all folds
+    """Plot aggregated weighted (normalized) confusion matrices for test sets."""
+    # Aggregate confusion matrices across all test folds
     cm_real = np.sum([np.array(r['confusion_matrix']) for r in real_results], axis=0)
     cm_synth = np.sum([np.array(r['confusion_matrix']) for r in synth_results], axis=0)
 
-    # Normalize by row (divide by sum of each row)
+    # Save raw aggregated CMs as CSV
+    pd.DataFrame(cm_real, index=class_names, columns=class_names).to_csv(save_dir / 'aggregated_test_cm_real_only.csv')
+    pd.DataFrame(cm_synth, index=class_names, columns=class_names).to_csv(save_dir / 'aggregated_test_cm_real_synthetic.csv')
+    print(f"  Saved: aggregated_test_cm_real_only.csv")
+    print(f"  Saved: aggregated_test_cm_real_synthetic.csv")
+
+    # Normalize by row (divide by sum of each row) for weighted representation
     cm_real_normalized = cm_real.astype('float') / cm_real.sum(axis=1, keepdims=True)
     cm_synth_normalized = cm_synth.astype('float') / cm_synth.sum(axis=1, keepdims=True)
 
-    # Figure 1: Unweighted CM - Real Data Only
-    fig, ax = plt.subplots(figsize=(14, 12))
-    sns.heatmap(cm_real, annot=False, cmap='Blues', ax=ax,
-                xticklabels=class_names, yticklabels=class_names, cbar_kws={'label': 'Count'})
-    ax.set_title('Confusion Matrix (Unweighted): Real Data Only', fontsize=14, fontweight='bold')
-    ax.set_ylabel('True Species', fontsize=12)
-    ax.set_xlabel('Predicted Species', fontsize=12)
-    plt.xticks(rotation=90, fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
-    plt.tight_layout()
-    plt.savefig(save_dir / 'cm_unweighted_real_only.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"  Saved: cm_unweighted_real_only.png")
+    def plot_annotated_cm(cm, title, filename, cmap='Blues'):
+        fig, ax = plt.subplots(figsize=(14, 12))
+        sns.heatmap(cm, annot=False, cmap=cmap, ax=ax, vmin=0, vmax=1,
+                    xticklabels=class_names, yticklabels=class_names, cbar_kws={'label': 'Proportion'})
 
-    # Figure 2: Unweighted CM - Real + Synthetic
-    fig, ax = plt.subplots(figsize=(14, 12))
-    sns.heatmap(cm_synth, annot=False, cmap='Greens', ax=ax,
-                xticklabels=class_names, yticklabels=class_names, cbar_kws={'label': 'Count'})
-    ax.set_title('Confusion Matrix (Unweighted): Real + Synthetic Data', fontsize=14, fontweight='bold')
-    ax.set_ylabel('True Species', fontsize=12)
-    ax.set_xlabel('Predicted Species', fontsize=12)
-    plt.xticks(rotation=90, fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
-    plt.tight_layout()
-    plt.savefig(save_dir / 'cm_unweighted_real_synthetic.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"  Saved: cm_unweighted_real_synthetic.png")
+        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_ylabel('True Species', fontsize=12)
+        ax.set_xlabel('Predicted Species', fontsize=12)
+        plt.xticks(rotation=90, fontsize=9)
+        plt.yticks(rotation=0, fontsize=9)
+        plt.tight_layout()
+        plt.savefig(save_dir / filename, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved: {filename}")
 
-    # Figure 3: Weighted CM - Real Data Only
-    fig, ax = plt.subplots(figsize=(14, 12))
-    sns.heatmap(cm_real_normalized, annot=False, cmap='Blues', ax=ax,
-                xticklabels=class_names, yticklabels=class_names, cbar_kws={'label': 'Normalized'}, vmin=0, vmax=1)
-    ax.set_title('Confusion Matrix (Weighted/Normalized): Real Data Only', fontsize=14, fontweight='bold')
-    ax.set_ylabel('True Species', fontsize=12)
-    ax.set_xlabel('Predicted Species', fontsize=12)
-    plt.xticks(rotation=90, fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
-    plt.tight_layout()
-    plt.savefig(save_dir / 'cm_weighted_real_only.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"  Saved: cm_weighted_real_only.png")
-
-    # Figure 4: Weighted CM - Real + Synthetic
-    fig, ax = plt.subplots(figsize=(14, 12))
-    sns.heatmap(cm_synth_normalized, annot=False, cmap='Greens', ax=ax,
-                xticklabels=class_names, yticklabels=class_names, cbar_kws={'label': 'Normalized'}, vmin=0, vmax=1)
-    ax.set_title('Confusion Matrix (Weighted/Normalized): Real + Synthetic Data', fontsize=14, fontweight='bold')
-    ax.set_ylabel('True Species', fontsize=12)
-    ax.set_xlabel('Predicted Species', fontsize=12)
-    plt.xticks(rotation=90, fontsize=9)
-    plt.yticks(rotation=0, fontsize=9)
-    plt.tight_layout()
-    plt.savefig(save_dir / 'cm_weighted_real_synthetic.png', dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"  Saved: cm_weighted_real_synthetic.png")
+    plot_annotated_cm(cm_real_normalized, 'Aggregated Test Confusion Matrix (Normalized): Real Data Only',
+                      'cm_aggregated_test_real_only.png', cmap='Blues')
+    plot_annotated_cm(cm_synth_normalized, 'Aggregated Test Confusion Matrix (Normalized): Real + Synthetic Data',
+                      'cm_aggregated_test_real_synthetic.png', cmap='Greens')
 
 
 def plot_metric_comparison(real_results, synth_results, save_dir):
@@ -474,6 +432,28 @@ def main():
         X_real, y_real, X_synth, y_synth, le=le, class_names=class_names, scenario_name="real_synthetic"
     )
 
+    # New: Report test accuracies per fold in a table
+    print("\n" + "="*70)
+    print("TEST ACCURACIES PER FOLD")
+    print("="*70)
+
+    real_test_accs = [r['accuracy'] for r in real_results]
+    synth_test_accs = [r['accuracy'] for r in synth_results]
+
+    df_acc = pd.DataFrame({
+        'Fold': range(1, N_SPLITS + 1),
+        'Real Only Test Acc': real_test_accs,
+        'Real + Synth Test Acc': synth_test_accs,
+        'Improvement': np.array(synth_test_accs) - np.array(real_test_accs)
+    })
+    df_acc.loc['Average'] = df_acc.mean(numeric_only=True)
+    print(df_acc.to_string(index=True, float_format='%.4f'))
+
+    # Save to CSV
+    acc_csv_path = RESULTS_DIR / 'test_accuracies_per_fold.csv'
+    df_acc.to_csv(acc_csv_path, index=True, float_format='%.4f')
+    print(f"  ✅ Saved: {acc_csv_path.name}")
+
     # Compute summary statistics
     print("\n" + "="*70)
     print("SUMMARY STATISTICS")
@@ -481,12 +461,12 @@ def main():
 
     metrics_to_compare = ['accuracy', 'f1_macro', 'f1_weighted', 'precision_macro', 'recall_macro']
 
-    print("\nReal Data Only:")
+    print("\nReal Data Only (Test Metrics):")
     for metric in metrics_to_compare:
         vals = [r[metric] for r in real_results]
         print(f"  {metric:20s}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
 
-    print("\nReal + Synthetic Data:")
+    print("\nReal + Synthetic Data (Test Metrics):")
     for metric in metrics_to_compare:
         vals = [r[metric] for r in synth_results]
         print(f"  {metric:20s}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
@@ -580,16 +560,17 @@ def main():
     print("="*70)
     print(f"\nAll results saved to: {RESULTS_DIR.absolute()}")
     print(f"  - JSON data: synthetic_augmentation_comparison.json")
-    print(f"  - Confusion matrices (4 files):")
-    print(f"    * cm_unweighted_real_only.png")
-    print(f"    * cm_unweighted_real_synthetic.png")
-    print(f"    * cm_weighted_real_only.png")
-    print(f"    * cm_weighted_real_synthetic.png")
+    print(f"  - Test accuracies per fold: test_accuracies_per_fold.csv")
+    print(f"  - Confusion matrices (annotated, with CSV exports):")
+    print(f"    * cm_aggregated_test_real_only.png")
+    print(f"    * cm_aggregated_test_real_synthetic.png")
+    print(f"    * aggregated_test_cm_real_only.csv")
+    print(f"    * aggregated_test_cm_real_synthetic.csv")
     print(f"  - Metrics by fold: metrics_by_fold_comparison.png")
     print(f"  - Box plots: metrics_boxplot_comparison.png")
     print(f"  - Per-class F1: per_class_f1_comparison.png")
     print(f"  - Summary table: summary_table.png")
-    print("\nTo regenerate confusion matrices from JSON: python visualize_from_json.py")
+    print("\nTo regenerate visualizations from JSON: python visualize_from_json.py")
     print("\nDone! You can now review the comparison results.")
 
 

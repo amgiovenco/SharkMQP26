@@ -182,12 +182,12 @@ def train_epoch(model, loader, criterion, optimizer, device):
     return running_loss / len(loader), 100. * correct / total
 
 
-def validate(model, loader, criterion, device):
+def test(model, loader, criterion, device):
     model.eval()
     running_loss = 0.0
     all_preds = []
     all_labels = []
-    
+
     with torch.no_grad():
         for inputs, labels in loader:
             inputs, labels = inputs.to(device), labels.to(device)
@@ -197,17 +197,17 @@ def validate(model, loader, criterion, device):
             _, predicted = outputs.max(1)
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
-    
+
     accuracy = 100. * accuracy_score(all_labels, all_preds)
     f1 = 100. * f1_score(all_labels, all_preds, average='weighted', zero_division=0)
     precision = 100. * precision_score(all_labels, all_preds, average='weighted', zero_division=0)
     recall = 100. * recall_score(all_labels, all_preds, average='weighted', zero_division=0)
-    
+
     return running_loss / len(loader), accuracy, f1, precision, recall, all_preds, all_labels
 
 
-def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fold_idx, dataset_type):
-    """Train model with validation and return metrics on validation set."""
+def train_and_evaluate(train_images, y_train, test_images, y_test, num_classes, fold_idx, dataset_type):
+    """Train model with test set and return metrics on test set."""
     # Image transforms
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -218,7 +218,7 @@ def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fo
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    transform_val = transforms.Compose([
+    transform_test = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -228,8 +228,8 @@ def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fo
     train_dataset = FluorescenceImageDataset(train_images, y_train, transform=transform_train)
     train_loader = DataLoader(train_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=True, num_workers=0)
 
-    val_dataset = FluorescenceImageDataset(val_images, y_val, transform=transform_val)
-    val_loader = DataLoader(val_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=False, num_workers=0)
+    test_dataset = FluorescenceImageDataset(test_images, y_test, transform=transform_test)
+    test_loader = DataLoader(test_dataset, batch_size=BEST_PARAMS['batch_size'], shuffle=False, num_workers=0)
 
     # Model
     model = CNNModel(
@@ -246,31 +246,31 @@ def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fo
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS, eta_min=1e-6)
     criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
 
-    # Training loop with early stopping on val_acc
-    best_val_acc = 0.0
-    best_val_metrics = None
+    # Training loop with early stopping on test_acc
+    best_test_acc = 0.0
+    best_test_metrics = None
     best_model_state = None
     patience_counter = 0
 
     for epoch in range(NUM_EPOCHS):
         train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
-        val_loss, val_acc, val_f1, val_precision, val_recall, val_preds, val_labels = validate(model, val_loader, criterion, DEVICE)
-        
+        test_loss, test_acc, test_f1, test_precision, test_recall, test_preds, test_labels = test(model, test_loader, criterion, DEVICE)
+
         scheduler.step()
-        
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+
+        if test_acc > best_test_acc:
+            best_test_acc = test_acc
             best_model_state = model.state_dict().copy()
-            best_val_metrics = {
-                'accuracy': val_acc / 100.0,  # Convert back to fraction for consistency
-                'f1': val_f1 / 100.0,
-                'precision': val_precision / 100.0,
-                'recall': val_recall / 100.0
+            best_test_metrics = {
+                'accuracy': test_acc / 100.0,  # Convert back to fraction for consistency
+                'f1': test_f1 / 100.0,
+                'precision': test_precision / 100.0,
+                'recall': test_recall / 100.0
             }
             patience_counter = 0
         else:
             patience_counter += 1
-        
+
         if patience_counter >= PATIENCE:
             print(f"  Early stopping at epoch {epoch+1}")
             break
@@ -279,18 +279,18 @@ def train_and_evaluate(train_images, y_train, val_images, y_val, num_classes, fo
     if best_model_state:
         model.load_state_dict(best_model_state)
 
-    # Report best validation metrics (converted to fraction)
-    acc = best_val_metrics['accuracy']
-    f1 = best_val_metrics['f1']
-    precision = best_val_metrics['precision']
-    recall = best_val_metrics['recall']
+    # Report best test metrics (converted to fraction)
+    acc = best_test_metrics['accuracy']
+    f1 = best_test_metrics['f1']
+    precision = best_test_metrics['precision']
+    recall = best_test_metrics['recall']
 
-    print(f"  Fold {fold_idx:2d}/5 ({dataset_type:20s}) | Acc: {acc:.4f} | F1: {f1:.4f} | Prec: {precision:.4f} | Rec: {recall:.4f}")
+    print(f"  Fold {fold_idx:2d}/5 ({dataset_type:20s}) | Test Acc: {acc:.4f} | F1: {f1:.4f} | Prec: {precision:.4f} | Rec: {recall:.4f}")
 
     # Clean up
-    del model, optimizer, criterion, train_loader, val_loader
+    del model, optimizer, criterion, train_loader, test_loader
 
-    return val_preds, acc, f1, precision, recall
+    return test_preds, acc, f1, precision, recall
 
 
 # ============================================================================
@@ -398,18 +398,18 @@ print("EXPERIMENT 1: Normal Data Only (Baseline)")
 print("-"*80)
 
 fold_idx = 0
-for train_idx, val_idx in skf.split(images_real, y_real_encoded):
+for train_idx, test_idx in skf.split(images_real, y_real_encoded):
     fold_idx += 1
 
     # Get subset of images (all from real data)
     train_images = [images_real[i] for i in train_idx]
     y_train = y_real_encoded[train_idx]
-    val_images = [images_real[i] for i in val_idx]
-    y_val = y_real_encoded[val_idx]
+    test_images = [images_real[i] for i in test_idx]
+    y_test = y_real_encoded[test_idx]
 
     # Train and evaluate
     y_pred, acc, f1, prec, rec = train_and_evaluate(
-        train_images, y_train, val_images, y_val,
+        train_images, y_train, test_images, y_test,
         num_classes, fold_idx, "Normal Data Only"
     )
 
@@ -419,14 +419,14 @@ for train_idx, val_idx in skf.split(images_real, y_real_encoded):
     results_normal["fold_precisions"].append(prec)
     results_normal["fold_recalls"].append(rec)
     results_normal["all_predictions"].extend(y_pred)
-    results_normal["all_true_labels"].extend(y_val)
+    results_normal["all_true_labels"].extend(y_test)
     results_normal["fold_details"].append({
         "fold": fold_idx,
-        "accuracy": float(acc),
+        "test_accuracy": float(acc),
         "f1": float(f1),
         "precision": float(prec),
         "recall": float(rec),
-        "val_size": len(y_val)
+        "test_size": len(y_test)
     })
 
 # ============================================================================
@@ -437,14 +437,14 @@ print("EXPERIMENT 2: Real + Synthetic Data (Synthetic Only in Training)")
 print("-"*80)
 
 fold_idx = 0
-for train_idx, val_idx in skf.split(images_real, y_real_encoded):
+for train_idx, test_idx in skf.split(images_real, y_real_encoded):
     fold_idx += 1
 
-    # Get subset of images from REAL data for train/val split
+    # Get subset of images from REAL data for train/test split
     train_images_real = [images_real[i] for i in train_idx]
     y_train_real = y_real_encoded[train_idx]
-    val_images = [images_real[i] for i in val_idx]
-    y_val = y_real_encoded[val_idx]
+    test_images = [images_real[i] for i in test_idx]
+    y_test = y_real_encoded[test_idx]
 
     # ADD synthetic data ONLY to training set
     train_images_combined = train_images_real + images_synthetic
@@ -452,7 +452,7 @@ for train_idx, val_idx in skf.split(images_real, y_real_encoded):
 
     # Train and evaluate
     y_pred, acc, f1, prec, rec = train_and_evaluate(
-        train_images_combined, y_train_combined, val_images, y_val,
+        train_images_combined, y_train_combined, test_images, y_test,
         num_classes, fold_idx, "Real + Synthetic (Train Only)"
     )
 
@@ -462,14 +462,14 @@ for train_idx, val_idx in skf.split(images_real, y_real_encoded):
     results_synthetic["fold_precisions"].append(prec)
     results_synthetic["fold_recalls"].append(rec)
     results_synthetic["all_predictions"].extend(y_pred)
-    results_synthetic["all_true_labels"].extend(y_val)
+    results_synthetic["all_true_labels"].extend(y_test)
     results_synthetic["fold_details"].append({
         "fold": fold_idx,
-        "accuracy": float(acc),
+        "test_accuracy": float(acc),
         "f1": float(f1),
         "precision": float(prec),
         "recall": float(rec),
-        "val_size": len(y_val),
+        "test_size": len(y_test),
         "train_size_real": len(train_images_real),
         "train_size_synthetic": len(images_synthetic),
         "train_size_total": len(train_images_combined)
@@ -483,24 +483,24 @@ print("CROSS-VALIDATION RESULTS SUMMARY")
 print("="*80)
 
 print("\n[NORMAL DATA ONLY]")
-print(f"  Mean Accuracy: {np.mean(results_normal['fold_accuracies']):.4f} ± {np.std(results_normal['fold_accuracies']):.4f}")
-print(f"  Mean F1:       {np.mean(results_normal['fold_f1_scores']):.4f} ± {np.std(results_normal['fold_f1_scores']):.4f}")
-print(f"  Mean Precision: {np.mean(results_normal['fold_precisions']):.4f} ± {np.std(results_normal['fold_precisions']):.4f}")
-print(f"  Mean Recall:   {np.mean(results_normal['fold_recalls']):.4f} ± {np.std(results_normal['fold_recalls']):.4f}")
+print(f"  Mean Test Accuracy: {np.mean(results_normal['fold_accuracies']):.4f} ± {np.std(results_normal['fold_accuracies']):.4f}")
+print(f"  Mean F1:           {np.mean(results_normal['fold_f1_scores']):.4f} ± {np.std(results_normal['fold_f1_scores']):.4f}")
+print(f"  Mean Precision:    {np.mean(results_normal['fold_precisions']):.4f} ± {np.std(results_normal['fold_precisions']):.4f}")
+print(f"  Mean Recall:       {np.mean(results_normal['fold_recalls']):.4f} ± {np.std(results_normal['fold_recalls']):.4f}")
 
 print("\n[REAL + SYNTHETIC DATA]")
-print(f"  Mean Accuracy: {np.mean(results_synthetic['fold_accuracies']):.4f} ± {np.std(results_synthetic['fold_accuracies']):.4f}")
-print(f"  Mean F1:       {np.mean(results_synthetic['fold_f1_scores']):.4f} ± {np.std(results_synthetic['fold_f1_scores']):.4f}")
-print(f"  Mean Precision: {np.mean(results_synthetic['fold_precisions']):.4f} ± {np.std(results_synthetic['fold_precisions']):.4f}")
-print(f"  Mean Recall:   {np.mean(results_synthetic['fold_recalls']):.4f} ± {np.std(results_synthetic['fold_recalls']):.4f}")
+print(f"  Mean Test Accuracy: {np.mean(results_synthetic['fold_accuracies']):.4f} ± {np.std(results_synthetic['fold_accuracies']):.4f}")
+print(f"  Mean F1:           {np.mean(results_synthetic['fold_f1_scores']):.4f} ± {np.std(results_synthetic['fold_f1_scores']):.4f}")
+print(f"  Mean Precision:    {np.mean(results_synthetic['fold_precisions']):.4f} ± {np.std(results_synthetic['fold_precisions']):.4f}")
+print(f"  Mean Recall:       {np.mean(results_synthetic['fold_recalls']):.4f} ± {np.std(results_synthetic['fold_recalls']):.4f}")
 
 # Calculate improvements
 acc_improvement = np.mean(results_synthetic['fold_accuracies']) - np.mean(results_normal['fold_accuracies'])
 f1_improvement = np.mean(results_synthetic['fold_f1_scores']) - np.mean(results_normal['fold_f1_scores'])
 
 print("\n[IMPROVEMENTS (Synthetic vs Normal)]")
-print(f"  Accuracy Δ: {acc_improvement:+.4f}")
-print(f"  F1 Δ:       {f1_improvement:+.4f}")
+print(f"  Test Accuracy Δ: {acc_improvement:+.4f}")
+print(f"  F1 Δ:            {f1_improvement:+.4f}")
 
 # ============================================================================
 # SAVE METRICS TO JSON
@@ -519,8 +519,8 @@ summary_data = {
         "num_classes": num_classes
     },
     "normal_data_only": {
-        "mean_accuracy": float(np.mean(results_normal['fold_accuracies'])),
-        "std_accuracy": float(np.std(results_normal['fold_accuracies'])),
+        "mean_test_accuracy": float(np.mean(results_normal['fold_accuracies'])),
+        "std_test_accuracy": float(np.std(results_normal['fold_accuracies'])),
         "mean_f1": float(np.mean(results_normal['fold_f1_scores'])),
         "std_f1": float(np.std(results_normal['fold_f1_scores'])),
         "mean_precision": float(np.mean(results_normal['fold_precisions'])),
@@ -532,8 +532,8 @@ summary_data = {
         "all_predictions": [int(x) for x in results_normal['all_predictions']]
     },
     "real_plus_synthetic": {
-        "mean_accuracy": float(np.mean(results_synthetic['fold_accuracies'])),
-        "std_accuracy": float(np.std(results_synthetic['fold_accuracies'])),
+        "mean_test_accuracy": float(np.mean(results_synthetic['fold_accuracies'])),
+        "std_test_accuracy": float(np.std(results_synthetic['fold_accuracies'])),
         "mean_f1": float(np.mean(results_synthetic['fold_f1_scores'])),
         "std_f1": float(np.std(results_synthetic['fold_f1_scores'])),
         "mean_precision": float(np.mean(results_synthetic['fold_precisions'])),
@@ -545,9 +545,9 @@ summary_data = {
         "all_predictions": [int(x) for x in results_synthetic['all_predictions']]
     },
     "comparison": {
-        "accuracy_improvement": float(acc_improvement),
+        "test_accuracy_improvement": float(acc_improvement),
         "f1_improvement": float(f1_improvement),
-        "accuracy_improvement_percent": float(acc_improvement * 100),
+        "test_accuracy_improvement_percent": float(acc_improvement * 100),
         "f1_improvement_percent": float(f1_improvement * 100)
     }
 }
@@ -603,7 +603,7 @@ def plot_confusion_matrices(y_true, y_pred, dataset_name, weighted=False):
                 annot=False, fmt='d')
 
     matrix_type = "Normalized (Weighted)" if weighted else "Unweighted (Raw Counts)"
-    ax.set_title(f'Confusion Matrix - {dataset_name}\n{matrix_type} (5-Fold CV, Seed=8)',
+    ax.set_title(f'Aggregate Confusion Matrix - {dataset_name}\n{matrix_type} (5-Fold Test Sets, Seed=8)',
                  fontsize=14, fontweight='bold')
     ax.set_xlabel('Predicted Label', fontsize=12)
     ax.set_ylabel('True Label', fontsize=12)
@@ -651,8 +651,8 @@ bars1 = ax.bar(x - width/2, results_normal['fold_accuracies'], width, label='Nor
 bars2 = ax.bar(x + width/2, results_synthetic['fold_accuracies'], width, label='Real + Synthetic', alpha=0.8, color='#2ecc71')
 
 ax.set_xlabel('Fold', fontsize=12)
-ax.set_ylabel('Accuracy', fontsize=12)
-ax.set_title('Accuracy Comparison Across Folds', fontsize=14, fontweight='bold')
+ax.set_ylabel('Test Accuracy', fontsize=12)
+ax.set_title('Test Accuracy Comparison Across Folds', fontsize=14, fontweight='bold')
 ax.set_xticks(x)
 ax.set_xticklabels(folds)
 ax.legend(fontsize=11)
@@ -744,7 +744,7 @@ for idx, (metric, ax) in enumerate(zip(metrics, axes)):
     ax.text(1, synthetic_means[idx] + synthetic_stds[idx] + 0.01,
             f'{synthetic_means[idx]:.4f}', ha='center', fontsize=10, fontweight='bold')
 
-fig.suptitle('Mean ± Std Metrics Comparison (5-Fold CV)', fontsize=14, fontweight='bold')
+fig.suptitle('Mean ± Std Test Metrics Comparison (5-Fold CV)', fontsize=14, fontweight='bold')
 plt.tight_layout()
 plt.savefig(results_dir / 'summary_metrics_comparison.png', dpi=300, bbox_inches='tight')
 plt.close()
@@ -814,8 +814,8 @@ for patch, color in zip(bp['boxes'], colors):
     patch.set_facecolor(color)
     patch.set_alpha(0.7)
 
-ax.set_ylabel('Accuracy', fontsize=12)
-ax.set_title('Fold Accuracy Distribution (5-Fold CV)', fontsize=14, fontweight='bold')
+ax.set_ylabel('Test Accuracy', fontsize=12)
+ax.set_title('Fold Test Accuracy Distribution (5-Fold CV)', fontsize=14, fontweight='bold')
 ax.grid(axis='y', alpha=0.3)
 
 # Add individual points

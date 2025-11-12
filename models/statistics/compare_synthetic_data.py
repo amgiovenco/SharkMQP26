@@ -207,6 +207,11 @@ def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None):
     all_y_pred = []
     all_y_proba = []
 
+    # Print table header for per-fold results
+    print("\n  " + "-"*100)
+    print(f"  {'Fold':<5} {'Test Acc':<10} {'Test F1':<10} {'Precision':<10} {'Recall':<10} {'Data Note'}")
+    print("  " + "-"*100)
+
     for fold, (train_idx, test_idx) in enumerate(skf.split(X, y), 1):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
@@ -226,51 +231,50 @@ def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None):
         calibrated_model = CalibratedClassifierCV(model, cv=3, method="isotonic")
         calibrated_model.fit(X_train, y_train)
 
-        # Evaluate on VAL (fold's holdout)
-        y_val_pred = calibrated_model.predict(X_test)
-        y_val_proba = calibrated_model.predict_proba(X_test)
+        # Evaluate on TEST (fold's holdout)
+        y_pred = calibrated_model.predict(X_test)
+        y_proba = calibrated_model.predict_proba(X_test)
 
-        val_acc = accuracy_score(y_test, y_val_pred)
-        val_f1 = f1_score(y_test, y_val_pred, average='macro', zero_division=0)
-        precision = precision_score(y_test, y_val_pred, average='macro', zero_division=0)
-        recall = recall_score(y_test, y_val_pred, average='macro', zero_division=0)
+        test_acc = accuracy_score(y_test, y_pred)
+        test_f1 = f1_score(y_test, y_pred, average='macro', zero_division=0)
+        precision = precision_score(y_test, y_pred, average='macro', zero_division=0)
+        recall = recall_score(y_test, y_pred, average='macro', zero_division=0)
+
+        # Print per-fold row in table
+        print(f"  {fold:<5} {test_acc:<10.4f} {test_f1:<10.4f} {precision:<10.4f} {recall:<10.4f} {data_note}")
 
         fold_results.append({
             "fold": fold,
             "seed": RANDOM_STATE,
-            "val_accuracy": float(val_acc),
-            "val_f1": float(val_f1),
-            "val_precision": float(precision),
-            "val_recall": float(recall),
+            "test_accuracy": float(test_acc),
+            "test_f1": float(test_f1),
+            "test_precision": float(precision),
+            "test_recall": float(recall),
             "train_size": len(X_train),
-            "val_size": len(X_test),
+            "test_size": len(X_test),
             "data_note": data_note
         })
 
         all_y_true.extend(y_test)
-        all_y_pred.extend(y_val_pred)
-        all_y_proba.append(y_val_proba)
+        all_y_pred.extend(y_pred)
+        all_y_proba.append(y_proba)
 
-        print(f"  Fold {fold}/5 | "
-              f"Val: {val_acc:.4f} (F1: {val_f1:.4f}) | "
-              f"{data_note}")
-
-    # Aggregate VAL metrics
-    val_accs = [r["val_accuracy"] for r in fold_results]
-    val_f1s = [r["val_f1"] for r in fold_results]
-    precisions = [r["val_precision"] for r in fold_results]
-    recalls = [r["val_recall"] for r in fold_results]
+    # Aggregate TEST metrics
+    test_accs = [r["test_accuracy"] for r in fold_results]
+    test_f1s = [r["test_f1"] for r in fold_results]
+    precisions = [r["test_precision"] for r in fold_results]
+    recalls = [r["test_recall"] for r in fold_results]
 
     summary = {
         "scenario": scenario_name,
-        "evaluation": "5-fold stratified CV",
+        "evaluation": "5-fold stratified CV (test metrics only)",
         "n_folds": 5,
         "seed": RANDOM_STATE,
         "accuracy": {
-            "mean": float(np.mean(val_accs)),
-            "std": float(np.std(val_accs)),
-            "min": float(np.min(val_accs)),
-            "max": float(np.max(val_accs))
+            "mean": float(np.mean(test_accs)),
+            "std": float(np.std(test_accs)),
+            "min": float(np.min(test_accs)),
+            "max": float(np.max(test_accs))
         },
         "precision": {
             "mean": float(np.mean(precisions)),
@@ -281,14 +285,14 @@ def run_cv_experiment(X, y, scenario_name, synthetic_X=None, synthetic_y=None):
             "std": float(np.std(recalls))
         },
         "f1": {
-            "mean": float(np.mean(val_f1s)),
-            "std": float(np.std(val_f1s))
+            "mean": float(np.mean(test_f1s)),
+            "std": float(np.std(test_f1s))
         },
         "fold_results": fold_results
     }
 
-    print(f"\n  VAL Mean Accuracy: {np.mean(val_accs):.4f} ± {np.std(val_accs):.4f}")
-    print(f"  VAL Mean F1: {np.mean(val_f1s):.4f} ± {np.std(val_f1s):.4f}")
+    print(f"\n  TEST Mean Accuracy: {np.mean(test_accs):.4f} ± {np.std(test_accs):.4f}")
+    print(f"  TEST Mean F1: {np.mean(test_f1s):.4f} ± {np.std(test_f1s):.4f}")
     return summary, all_y_true, all_y_pred
 
 def save_confusion_matrix_data(y_true, y_pred):
@@ -310,6 +314,11 @@ def save_confusion_matrix_data(y_true, y_pred):
     return cm_dict
 
 
+def normalize_confusion_matrix(cm):
+    """Normalize confusion matrix by row (for averaging)"""
+    return cm.astype(np.float64) / cm.sum(axis=1, keepdims=True)
+
+
 def plot_comparison_metrics(results_normal, results_synthetic):
     """Create comparison bar charts"""
     scenarios = [results_normal["scenario"], results_synthetic["scenario"]]
@@ -319,7 +328,7 @@ def plot_comparison_metrics(results_normal, results_synthetic):
     recalls = [results_normal["recall"]["mean"], results_synthetic["recall"]["mean"]]
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle('Model Performance (VAL): Real vs Real+Synthetic\n(5-fold Stratified CV)', fontsize=14, fontweight='bold')
+    fig.suptitle('Model Performance (TEST): Real vs Real+Synthetic\n(5-fold Stratified CV)', fontsize=14, fontweight='bold')
 
     # Accuracy
     axes[0, 0].bar(scenarios, accuracies, color=['#3498db', '#2ecc71'], alpha=0.8)
@@ -362,11 +371,11 @@ def plot_comparison_metrics(results_normal, results_synthetic):
     return filepath
 
 
-def plot_fold_val_accuracy(results_normal, results_synthetic):
-    """Compare validation accuracy across all folds"""
+def plot_fold_test_accuracy(results_normal, results_synthetic):
+    """Compare test accuracy across all folds"""
     folds = list(range(1, 6))
-    acc_normal = [r["val_accuracy"] for r in results_normal["fold_results"]]
-    acc_synthetic = [r["val_accuracy"] for r in results_synthetic["fold_results"]]
+    acc_normal = [r["test_accuracy"] for r in results_normal["fold_results"]]
+    acc_synthetic = [r["test_accuracy"] for r in results_synthetic["fold_results"]]
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -380,7 +389,7 @@ def plot_fold_val_accuracy(results_normal, results_synthetic):
 
     ax.set_ylabel('Accuracy', fontsize=12)
     ax.set_xlabel('Fold', fontsize=12)
-    ax.set_title('Validation Accuracy per Fold (5-fold CV)', fontsize=13, fontweight='bold')
+    ax.set_title('Test Accuracy per Fold (5-fold CV)', fontsize=13, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels([f'Fold {i}' for i in folds])
     ax.legend(fontsize=11)
@@ -449,7 +458,7 @@ if __name__ == "__main__":
     print(f"{'='*70}")
 
     plot_comparison_metrics(results_real, results_synthetic)
-    plot_fold_val_accuracy(results_real, results_synthetic)
+    plot_fold_test_accuracy(results_real, results_synthetic)
 
     # ====================================================================
     # SAVE JSON RESULTS
@@ -468,10 +477,11 @@ if __name__ == "__main__":
     # Combined results
     combined_results = {
         "experiment": "Compare Real vs Real+Synthetic using 5-fold stratified CV (seed 8)",
-        "evaluation_protocol": "5-fold CV: ~80% train (real + synth for scenario 2), ~20% test (real)",
+        "evaluation_protocol": "5-fold stratified CV: ~80% train (real + synth for scenario 2), ~20% test (real only)",
+        "evaluation_type": "TEST metrics only (hold-out test sets from each fold)",
         "timestamp": pd.Timestamp.now().isoformat(),
         "random_state": RANDOM_STATE,
-        "model_type": "ExtraTreesClassifier",
+        "model_type": "ExtraTreesClassifier with Isotonic Calibration",
         "model_parameters": BEST_PARAMS,
         "n_splits": 5,
         "top_features_used": TOP_18_FEATURES,
@@ -487,7 +497,8 @@ if __name__ == "__main__":
         "scenario_2_real_synthetic": results_synthetic,
         "confusion_matrices": {
             "real_only": cm_real,
-            "real_synthetic": cm_synthetic
+            "real_synthetic": cm_synthetic,
+            "note": "Matrices are pooled (concatenated all test predictions across folds)"
         },
         "improvements": {
             "accuracy_absolute": float(improvement_accuracy),
@@ -512,12 +523,14 @@ if __name__ == "__main__":
     print(f"{'='*70}")
 
     print(f"\nScenario 1: Real Data Only (5-fold CV)")
-    print(f" VAL Accuracy: {results_real['accuracy']['mean']:.4f} ± {results_real['accuracy']['std']:.4f}")
-    print(f" VAL F1 Score: {results_real['f1']['mean']:.4f} ± {results_real['f1']['std']:.4f}")
+    print(f" TEST Mean Accuracy: {results_real['accuracy']['mean']:.4f} ± {results_real['accuracy']['std']:.4f}")
+    print(f" TEST Mean F1 Score: {results_real['f1']['mean']:.4f} ± {results_real['f1']['std']:.4f}")
 
     print(f"\nScenario 2: Real + Synthetic Training (5-fold CV)")
-    print(f" VAL Accuracy: {results_synthetic['accuracy']['mean']:.4f} ± {results_synthetic['accuracy']['std']:.4f}")
-    print(f" VAL F1 Score: {results_synthetic['f1']['mean']:.4f} ± {results_synthetic['f1']['std']:.4f}")
+    print(f" TEST Mean Accuracy: {results_synthetic['accuracy']['mean']:.4f} ± {results_synthetic['accuracy']['std']:.4f}")
+    print(f" TEST Mean F1 Score: {results_synthetic['f1']['mean']:.4f} ± {results_synthetic['f1']['std']:.4f}")
+
+    print(f"\nPer-fold TEST accuracies: See fold_results in JSON output")
 
     print(f"\nImprovement from Synthetic Data:")
     print(f"  Accuracy: {improvement_accuracy:+.4f} ({improvement_percent:+.2f}%)")

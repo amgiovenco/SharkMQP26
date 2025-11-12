@@ -439,6 +439,71 @@ print(f" Metrics by fold: {RESULTS_DIR / 'metrics_by_fold.png'}")
 print(f" Mean metrics: {RESULTS_DIR / 'mean_metrics_comparison.png'}")
 print(f" Improvement: {RESULTS_DIR / 'improvement_overview.png'}")
 print(f" Distribution: {RESULTS_DIR / 'metrics_distribution.png'}")
+print(f" Confusion matrix (Normal): {RESULTS_DIR / 'cm_normal_aggregated.png'}")
+print(f" Confusion matrix (Synthetic): {RESULTS_DIR / 'cm_synthetic_aggregated.png'}")
+
+# ============================================================================
+# PER-FOLD TEST ACCURACIES TABLE
+# ============================================================================
+print("\n" + "=" * 80)
+print("5-FOLD CROSS-VALIDATION TEST ACCURACIES")
+print("=" * 80)
+print(f"{'Fold':<6} {'Normal Data':<18} {'Real + Synthetic':<20} {'Improvement'}")
+print("-" * 80)
+
+improvements = []
+for i in range(5):
+    fold_normal = summary_normal['fold_results'][i]['accuracy']
+    fold_synth = summary_synthetic['fold_results'][i]['accuracy']
+    imp = fold_synth - fold_normal
+    improvements.append(imp)
+    print(f"{i+1:<6} {fold_normal:<18.4f} {fold_synth:<20.4f} {imp:+.4f}")
+
+mean_normal = np.mean([f['accuracy'] for f in summary_normal['fold_results']])
+std_normal = np.std([f['accuracy'] for f in summary_normal['fold_results']])
+mean_synth = np.mean([f['accuracy'] for f in summary_synthetic['fold_results']])
+std_synth = np.std([f['accuracy'] for f in summary_synthetic['fold_results']])
+mean_imp = np.mean(improvements)
+
+print("-" * 80)
+print(f"{'MEAN':<6} {mean_normal:.4f} ± {std_normal:.4f}{'':<6} {mean_synth:.4f} ± {std_synth:.4f}{'':<8} {mean_imp:+.4f}")
+print("=" * 80)
+
+# ============================================================================
+# AGGREGATED CONFUSION MATRICES
+# ============================================================================
+print("\n[Generating] Aggregated Confusion Matrices...")
+
+def plot_confusion_matrix(y_true, y_pred, title, filename):
+    """Generate aggregated confusion matrix from all test folds combined."""
+    cm = confusion_matrix(y_true, y_pred)
+
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                cbar_kws={'label': 'Count'}, cbar=True)
+    plt.title(title, fontsize=14, fontweight='bold', pad=20)
+    plt.ylabel('True Label', fontsize=12)
+    plt.xlabel('Predicted Label', fontsize=12)
+    plt.xticks(rotation=45, ha='right', fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    plt.savefig(RESULTS_DIR / filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f" Saved: {RESULTS_DIR / filename}")
+
+# Normal Data (All Test Folds Combined)
+y_true_normal = np.array(results_normal['all_y_true'])
+y_pred_normal = np.array(results_normal['all_y_pred'])
+plot_confusion_matrix(y_true_normal, y_pred_normal,
+                      "Confusion Matrix - Normal Data (All Test Folds Combined)",
+                      "cm_normal_aggregated.png")
+
+# Real + Synthetic (All Test Folds Combined)
+y_true_synth = np.array(results_synthetic['all_y_true'])
+y_pred_synth = np.array(results_synthetic['all_y_pred'])
+plot_confusion_matrix(y_true_synth, y_pred_synth,
+                      "Confusion Matrix - Real + Synthetic (All Test Folds Combined)",
+                      "cm_synthetic_aggregated.png")
 
 print("\n" + "=" * 80)
 print("EXTRA TREES COMPARISON COMPLETE!")
