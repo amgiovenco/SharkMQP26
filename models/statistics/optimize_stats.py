@@ -18,6 +18,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score
 import optuna
+from optuna.storages import RDBStorage
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -29,6 +30,12 @@ N_TRIALS = 100
 N_CV_FOLDS = 5
 results_dir = Path("results")
 results_dir.mkdir(exist_ok=True)
+
+# Optuna persistent storage
+STORAGE_PATH = Path("./optuna_studies")
+STORAGE_PATH.mkdir(exist_ok=True)
+STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
+storage = RDBStorage(STORAGE_URL)
 
 TOP_FEATURES = [
     'peak_max_x', 'max_slope', 'y_middle_std', 'mean_abs_curvature',
@@ -168,7 +175,7 @@ for train_idx, val_idx in cv.split(X_train_val, y_train_val):
     X_tr, X_va = X_train_val[train_idx], X_train_val[val_idx]
     y_tr, y_va = y_train_val[train_idx], y_train_val[val_idx]
     base_rf.fit(X_tr, y_tr)
-    fold_scores.append(f1_score(y_va, base_rf.predict(X_va)))
+    fold_scores.append(f1_score(y_va, base_rf.predict(X_va), average='macro'))
 
 base_cv_mean = np.mean(fold_scores)
 base_cv_std = np.std(fold_scores)
@@ -177,7 +184,7 @@ print(f"Mean CV macro F1: {base_cv_mean:.4f} ± {base_cv_std:.4f}")
 
 # Also fit on full train+val for final test eval
 base_rf.fit(X_train_val, y_train_val)
-base_test_score = f1_score(y_test, base_rf.predict(X_test))
+base_test_score = f1_score(y_test, base_rf.predict(X_test), average='macro')
 print(f"Test macro F1 (baseline): {base_test_score:.4f}")
 
 best_overall_score = base_cv_mean
@@ -253,7 +260,7 @@ def create_objective(model_cls, is_xgb=False):
             clf = model_cls(**params)
             clf.fit(X_tr, y_tr)
             pred = clf.predict(X_va)
-            val_scores.append(f1_score(y_va, pred))
+            val_scores.append(f1_score(y_va, pred, average='macro'))
 
         return np.mean(val_scores)
     return objective
@@ -272,8 +279,12 @@ for name, cls, is_xgb, prefix in models:
     objective = create_objective(cls, is_xgb)
     study = optuna.create_study(
         direction='maximize',
-        sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE)
+        sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE),
+        storage=storage,
+        study_name=f"statistics_{prefix}",
+        load_if_exists=True
     )
+    print(f"Study: statistics_{prefix} | Completed trials: {len(study.trials)}")
     study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
 
     print(f"Best {name} CV macro F1: {study.best_value:.4f}")
@@ -299,12 +310,12 @@ if best_overall_model == "optimized_rf":
     params = clean_params(best_overall_params, 'rf')
     final_model = RandomForestClassifier(**params, n_jobs=-1)
     final_model.fit(X_train_val, y_train_val)
-    test_score = f1_score(y_test, final_model.predict(X_test))
+    test_score = f1_score(y_test, final_model.predict(X_test), average='macro')
 elif best_overall_model == "optimized_extratrees":
     params = clean_params(best_overall_params, 'et')
     final_model = ExtraTreesClassifier(**params, n_jobs=-1)
     final_model.fit(X_train_val, y_train_val)
-    test_score = f1_score(y_test, final_model.predict(X_test))
+    test_score = f1_score(y_test, final_model.predict(X_test), average='macro')
 else:
     final_model = base_rf
     test_score = base_test_score
