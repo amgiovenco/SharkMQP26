@@ -12,11 +12,9 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 import optuna
 from optuna.storages import RDBStorage
-import lightgbm as lgb
-import xgboost as xgb
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -126,8 +124,8 @@ base_clf = make_pipeline(
     )
 )
 
-base_scores = cross_val_score(base_clf, X, y_encoded, cv=cv, scoring='accuracy', n_jobs=1)
-print(f"Baseline CV accuracy: {base_scores.mean():.4f} ± {base_scores.std():.4f}")
+base_scores = cross_val_score(base_clf, X, y_encoded, cv=cv, scoring='f1_macro', n_jobs=1)
+print(f"Baseline CV macro F1: {base_scores.mean():.4f} ± {base_scores.std():.4f}")
 print(f"Fold scores: {[f'{s:.4f}' for s in base_scores]}")
 
 best_overall_score = base_scores.mean()
@@ -141,7 +139,7 @@ best_overall_params = {
 
 # Objective function for optimization
 def objective(trial):
-    model_type = trial.suggest_categorical('model_type', ['rf', 'et', 'lr', 'lgb', 'xgb'])
+    model_type = trial.suggest_categorical('model_type', ['rf', 'et', 'lr'])
 
     if model_type == 'rf':
         n_estimators = trial.suggest_int('rf_n_estimators', 200, 800)
@@ -177,40 +175,6 @@ def objective(trial):
                 n_jobs=-1
             )
         )
-    elif model_type == 'lgb':
-        n_estimators = trial.suggest_int('lgb_n_estimators', 100, 500)
-        learning_rate = trial.suggest_float('lgb_learning_rate', 0.01, 0.3, log=True)
-        num_leaves = trial.suggest_int('lgb_num_leaves', 20, 150)
-        lgb_max_depth = trial.suggest_int('lgb_max_depth', 3, 12)
-
-        clf = lgb.LGBMClassifier(
-            n_estimators=n_estimators,
-            learning_rate=learning_rate,
-            num_leaves=num_leaves,
-            max_depth=lgb_max_depth,
-            random_state=RANDOM_STATE,
-            verbose=-1
-        )
-    elif model_type == 'xgb':
-        n_estimators = trial.suggest_int('xgb_n_estimators', 100, 500)
-        learning_rate = trial.suggest_float('xgb_learning_rate', 0.01, 0.3, log=True)
-        max_depth = trial.suggest_int('xgb_max_depth', 3, 12)
-        subsample = trial.suggest_float('xgb_subsample', 0.5, 1.0)
-        colsample_bytree = trial.suggest_float('xgb_colsample_bytree', 0.5, 1.0)
-        min_child_weight = trial.suggest_int('xgb_min_child_weight', 1, 5)
-
-        clf = xgb.XGBClassifier(
-            n_estimators=n_estimators,
-            learning_rate=learning_rate,
-            max_depth=max_depth,
-            subsample=subsample,
-            colsample_bytree=colsample_bytree,
-            min_child_weight=min_child_weight,
-            random_state=RANDOM_STATE,
-            verbosity=0,
-            use_label_encoder=False,
-            eval_metric='mlogloss'
-        )
     else:  # lr
         max_iter = trial.suggest_int('lr_max_iter', 1000, 5000)
         C = trial.suggest_float('lr_C', 0.001, 100.0, log=True)
@@ -227,7 +191,7 @@ def objective(trial):
             )
         )
 
-    scores = cross_val_score(clf, X, y_encoded, cv=cv, scoring='accuracy', n_jobs=1)
+    scores = cross_val_score(clf, X, y_encoded, cv=cv, scoring='f1_macro', n_jobs=1)
     return scores.mean()
 
 print("\n" + "="*60)
@@ -245,7 +209,7 @@ study = optuna.create_study(
 print(f"Study: {STUDY_NAME} | Completed trials: {len(study.trials)}")
 study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest CV accuracy: {study.best_value:.4f}")
+print(f"\nBest CV macro F1: {study.best_value:.4f}")
 print(f"Best params: {study.best_params}")
 
 if study.best_value > best_overall_score:
@@ -258,16 +222,16 @@ print("\n" + "="*60)
 print("FINAL RESULTS")
 print("="*60)
 print(f"\nBest model: {best_overall_model}")
-print(f"Best CV accuracy: {best_overall_score:.4f}")
+print(f"Best CV macro F1: {best_overall_score:.4f}")
 print(f"Best params: {best_overall_params}")
 print(f"Improvement over baseline: {(best_overall_score - base_scores.mean())*100:.2f}%")
 
 # Export results to JSON
 results_dict = {
-    "baseline_cv_accuracy": float(base_scores.mean()),
+    "baseline_cv_macro_f1": float(base_scores.mean()),
     "baseline_fold_scores": [float(s) for s in base_scores],
     "best_model": best_overall_model,
-    "best_cv_accuracy": float(best_overall_score),
+    "best_cv_macro_f1": float(best_overall_score),
     "best_params": {k: (float(v) if isinstance(v, (np.floating, np.integer)) else v) for k, v in best_overall_params.items()},
     "improvement_percentage": float((best_overall_score - base_scores.mean()) * 100)
 }
@@ -346,7 +310,7 @@ bundle = {
     "label_encoder": le,
     "feature_names": feature_names,
     "model_type": best_overall_model,
-    "cv_accuracy": best_overall_score,
+    "cv_macro_f1": best_overall_score,
     "params": best_overall_params
 }
 
@@ -356,6 +320,6 @@ print(f"Saved optimized model to ./rulebased_final.pkl")
 print("\n" + "="*60)
 print("SUMMARY")
 print("="*60)
-print(f"Final CV accuracy: {best_overall_score:.4f}")
+print(f"Final CV macro F1: {best_overall_score:.4f}")
 print(f"Improvement: {(best_overall_score - base_scores.mean())*100:.2f}%")
 print("\nDone!")
