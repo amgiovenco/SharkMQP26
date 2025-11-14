@@ -26,7 +26,7 @@ warnings.filterwarnings('ignore')
 CSV_PATH = "../../data/shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 100
+N_TRIALS = 300
 N_CV_FOLDS = 5
 results_dir = Path("results")
 results_dir.mkdir(exist_ok=True)

@@ -20,7 +20,7 @@ from pathlib import Path
 CSV_PATH = "../../data/shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 100
+N_TRIALS = 300
 
 # Optuna persistent storage
 STORAGE_PATH = Path("./optuna_studies")

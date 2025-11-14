@@ -26,7 +26,7 @@ SPECIES_COL = "Species"
 K_RANGE = (1, 6)
 DECIMATE_STEP = 6
 RANDOM_STATE = 8
-N_TRIALS = 100  # Optuna trials per model type
+N_TRIALS = 300  # Optuna trials per model type
 
 # Optuna persistent storage
 STORAGE_PATH = Path("./optuna_studies")

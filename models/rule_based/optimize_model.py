@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 CSV_PATH = "../../data/shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 100
+N_TRIALS = 300
 
 # Optuna persistent storage
 STUDY_NAME = "rule_based_ensemble"
