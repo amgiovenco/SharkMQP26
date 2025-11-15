@@ -1,15 +1,19 @@
 """
-Evaluate synthetic data quality using CNN embeddings and class centroid distances.
+Evaluate synthetic data quality using CNN embeddings and per-species nearest-neighbor distances.
 
 This script:
 1. Loads a trained EfficientNet-B0 CNN model
 2. Removes the classification head to extract 256-dim embeddings
-3. Extracts embeddings for real samples and computes class centroids
-4. Extracts embeddings for synthetic samples
-5. Computes distance to class centroid for each synthetic sample
-6. Generates a quality report (good/bad synthetic samples)
+3. Extracts embeddings for real samples per species
+4. Computes per-species nearest-neighbor (NN) distances from real-to-real samples
+5. Extracts embeddings for synthetic samples
+6. Computes per-species NN distance for each synthetic sample (to real samples of same species)
+7. Generates per-species quality thresholds and classifies synthetic samples
+8. Generates a detailed quality report (good/bad synthetic samples) per species
 
 Reference: MODEL_REPRODUCIBILITY_GUIDE.md (Model 1: CNN with EfficientNet-B0)
+Key improvement: Uses per-species thresholds instead of global thresholds to account for
+varying intra-class density across species with different sample counts.
 """
 
 import numpy as np
@@ -243,6 +247,78 @@ def compute_class_centroids(embeddings, species_list, unique_species):
 # DISTANCE COMPUTATION
 # ============================================================================
 
+def compute_per_species_real_nn_distances(embeddings, species_list, unique_species):
+    """
+    Compute per-species nearest-neighbor (NN) distances for real samples.
+    For each species, compute the distance from each real sample to its nearest
+    real neighbor within the same species (excluding itself).
+
+    Returns:
+        real_nn_dists_per_species (dict): {species_name: [list of NN distances]}
+        real_to_real_distances (np.array): Concatenated NN distances (for global stats)
+    """
+    from collections import defaultdict
+
+    real_nn_dists_per_species = defaultdict(list)
+    species_arr = np.array(species_list)
+
+    for species in unique_species:
+        mask = (species_arr == species)
+        embs_sp = embeddings[mask]
+
+        if len(embs_sp) > 1:
+            # For each sample in this species, find its nearest neighbor in the same species
+            for i in range(len(embs_sp)):
+                dists = np.linalg.norm(embs_sp - embs_sp[i], axis=1)
+                # Exclude self (distance ~ 0)
+                dists_excluding_self = dists[dists > 1e-6]
+                if len(dists_excluding_self) > 0:
+                    real_nn_dists_per_species[species].append(np.min(dists_excluding_self))
+        # If species has only 1 sample, we can't compute NN distance; skip it
+
+    # Concatenate all NN distances for global statistics
+    all_nn_distances = []
+    for dists in real_nn_dists_per_species.values():
+        all_nn_distances.extend(dists)
+    real_to_real_distances = np.array(all_nn_distances) if all_nn_distances else np.array([])
+
+    return real_nn_dists_per_species, real_to_real_distances
+
+
+def compute_per_species_thresholds(real_nn_dists_per_species, real_to_real_distances,
+                                    unique_species, percentile_good, percentile_bad):
+    """
+    Compute per-species quality thresholds based on per-species real NN distances.
+    Falls back to global percentiles for species with n=1.
+
+    Returns:
+        thresholds_per_species (dict): {species_name: {'good': threshold, 'bad': threshold}}
+    """
+    thresholds_per_species = {}
+
+    for species in unique_species:
+        dists = np.array(real_nn_dists_per_species.get(species, []))
+
+        if len(dists) > 0:
+            # Use per-species percentiles
+            thresholds_per_species[species] = {
+                'good': np.nanpercentile(dists, percentile_good),
+                'bad': np.nanpercentile(dists, percentile_bad),
+                'n_reals': len(dists) + 1,  # +1 because we're counting pairs
+                'source': 'per-species'
+            }
+        else:
+            # Fallback to global percentiles if species has too few reals
+            thresholds_per_species[species] = {
+                'good': np.nanpercentile(real_to_real_distances, percentile_good) if len(real_to_real_distances) > 0 else np.nan,
+                'bad': np.nanpercentile(real_to_real_distances, percentile_bad) if len(real_to_real_distances) > 0 else np.nan,
+                'n_reals': 0,
+                'source': 'fallback-global'
+            }
+
+    return thresholds_per_species
+
+
 def compute_distances_to_centroid(embeddings, species_list, centroids):
     """Compute L2 distance from each sample to its class centroid."""
     distances = []
@@ -323,27 +399,24 @@ def main():
     centroids = compute_class_centroids(embeddings_real, species_real, unique_species)
     print(f"  [OK] Computed {len(centroids)} class centroids")
 
-    # Compute nearest neighbor distances for real data (real-to-real)
-    # For each real sample, find distance to its nearest real neighbor (excluding itself)
-    from scipy.spatial.distance import cdist
+    # Compute per-species nearest neighbor distances for real data (real-to-real)
+    # For each species, find distances from each real sample to its nearest real neighbor within the same species
+    real_nn_dists_per_species, real_to_real_distances = compute_per_species_real_nn_distances(
+        embeddings_real, species_real, unique_species
+    )
 
-    real_to_real_distances = []
-    for i in range(len(embeddings_real)):
-        # Compute distances to all other real samples
-        dists = np.linalg.norm(embeddings_real - embeddings_real[i], axis=1)
-        # Get nearest neighbor (excluding self, which has distance 0)
-        dists_excluding_self = dists[dists > 1e-6]  # Exclude very small distances (self)
-        if len(dists_excluding_self) > 0:
-            real_to_real_distances.append(np.min(dists_excluding_self))
-
-    real_to_real_distances = np.array(real_to_real_distances)
-
-    print(f"\n  REAL DATA Nearest Neighbor distances (real-to-real):")
-    print(f"    Mean:   {np.nanmean(real_to_real_distances):.4f}")
-    print(f"    Median: {np.nanmedian(real_to_real_distances):.4f}")
-    print(f"    Std:    {np.nanstd(real_to_real_distances):.4f}")
-    print(f"    Min:    {np.nanmin(real_to_real_distances):.4f}")
-    print(f"    Max:    {np.nanmax(real_to_real_distances):.4f}")
+    print(f"\n  REAL DATA Nearest Neighbor distances (real-to-real, per-species):")
+    print(f"    Overall (pooled) statistics:")
+    print(f"      Mean:   {np.nanmean(real_to_real_distances):.4f}")
+    print(f"      Median: {np.nanmedian(real_to_real_distances):.4f}")
+    print(f"      Std:    {np.nanstd(real_to_real_distances):.4f}")
+    print(f"      Min:    {np.nanmin(real_to_real_distances):.4f}")
+    print(f"      Max:    {np.nanmax(real_to_real_distances):.4f}")
+    print(f"\n    Per-species statistics:")
+    for sp in sorted(unique_species):
+        dists_sp = np.array(real_nn_dists_per_species.get(sp, []))
+        if len(dists_sp) > 0:
+            print(f"      {sp} (n={len(dists_sp)+1}): mean={np.mean(dists_sp):.4f}, median={np.median(dists_sp):.4f}, std={np.std(dists_sp):.4f}")
 
     # ========================================================================
     # 3. LOAD SYNTHETIC DATA
@@ -416,24 +489,34 @@ def main():
     embeddings_synthetic, species_synthetic = extract_embeddings(model, loader_synthetic, DEVICE)
     print(f"  [OK] Extracted {embeddings_synthetic.shape[0]} synthetic embeddings")
 
-    # Compute nearest neighbor distances for synthetic data (synthetic-to-real)
-    # For each synthetic sample, find distance to its nearest real sample
+    # Compute per-species nearest neighbor distances for synthetic data (synthetic-to-real)
+    # For each synthetic sample, find distance to its nearest real sample of the SAME species
     synthetic_to_real_distances = []
+    species_real_arr = np.array(species_real)
+
     for i in range(len(embeddings_synthetic)):
-        # Compute distances to all real samples
-        dists = np.linalg.norm(embeddings_real - embeddings_synthetic[i], axis=1)
-        # Get nearest neighbor
-        if len(dists) > 0:
+        sp = species_synthetic[i]
+        # Get all real samples of the same species
+        mask = (species_real_arr == sp)
+        embs_real_sp = embeddings_real[mask]
+
+        if len(embs_real_sp) > 0:
+            # Compute distances to real samples of same species
+            dists = np.linalg.norm(embs_real_sp - embeddings_synthetic[i], axis=1)
             synthetic_to_real_distances.append(np.min(dists))
+        else:
+            # No real samples of this species found (shouldn't happen if data is consistent)
+            synthetic_to_real_distances.append(np.nan)
 
     synthetic_to_real_distances = np.array(synthetic_to_real_distances)
 
-    print(f"\n  SYNTHETIC DATA Nearest Neighbor distances (synthetic-to-real):")
-    print(f"    Mean:   {np.nanmean(synthetic_to_real_distances):.4f}")
-    print(f"    Median: {np.nanmedian(synthetic_to_real_distances):.4f}")
-    print(f"    Std:    {np.nanstd(synthetic_to_real_distances):.4f}")
-    print(f"    Min:    {np.nanmin(synthetic_to_real_distances):.4f}")
-    print(f"    Max:    {np.nanmax(synthetic_to_real_distances):.4f}")
+    print(f"\n  SYNTHETIC DATA Nearest Neighbor distances (synthetic-to-real, per-species):")
+    print(f"    Overall (pooled) statistics:")
+    print(f"      Mean:   {np.nanmean(synthetic_to_real_distances):.4f}")
+    print(f"      Median: {np.nanmedian(synthetic_to_real_distances):.4f}")
+    print(f"      Std:    {np.nanstd(synthetic_to_real_distances):.4f}")
+    print(f"      Min:    {np.nanmin(synthetic_to_real_distances):.4f}")
+    print(f"      Max:    {np.nanmax(synthetic_to_real_distances):.4f}")
 
     # Store for later use (renaming for consistency with rest of code)
     distances_synthetic = synthetic_to_real_distances
@@ -444,26 +527,40 @@ def main():
     # ========================================================================
     print("\n[5/5] Generating quality assessment report...")
 
-    # Define quality categories based on REAL data's nearest neighbor distribution
-    # If a synthetic sample is as close to a real sample as real samples typically are to each other, it's good
-    good_threshold = np.nanpercentile(distances_real, PERCENTILE_GOOD)
-    bad_threshold = np.nanpercentile(distances_real, PERCENTILE_BAD)
+    # Compute per-species quality thresholds
+    thresholds_per_species = compute_per_species_thresholds(
+        real_nn_dists_per_species,
+        real_to_real_distances,
+        unique_species,
+        PERCENTILE_GOOD,
+        PERCENTILE_BAD
+    )
 
-    print(f"\n  Quality thresholds (based on real-to-real nearest neighbor distances):")
-    print(f"    Good threshold (p{PERCENTILE_GOOD}): {good_threshold:.4f}")
-    print(f"    Bad threshold (p{PERCENTILE_BAD}):  {bad_threshold:.4f}")
+    print(f"\n  Quality thresholds (per-species based on real-to-real nearest neighbor distances):")
+    for sp in sorted(thresholds_per_species.keys()):
+        thresh = thresholds_per_species[sp]
+        print(f"    {sp} (n_real={thresh['n_reals']}, {thresh['source']}):")
+        print(f"      Good (p{PERCENTILE_GOOD}): {thresh['good']:.4f}, Bad (p{PERCENTILE_BAD}): {thresh['bad']:.4f}")
 
-    # Classify samples
+    # Classify samples using per-species thresholds
     quality = []
-    for dist in distances_synthetic:
-        if np.isnan(dist):
+    for i, dist in enumerate(distances_synthetic):
+        sp = species_synthetic[i]
+        if sp not in thresholds_per_species:
             quality.append("unknown")
-        elif dist <= good_threshold:
-            quality.append("good")
-        elif dist >= bad_threshold:
-            quality.append("bad")
+        elif np.isnan(dist):
+            quality.append("unknown")
         else:
-            quality.append("medium")
+            good_thresh = thresholds_per_species[sp]['good']
+            bad_thresh = thresholds_per_species[sp]['bad']
+            if np.isnan(good_thresh) or np.isnan(bad_thresh):
+                quality.append("unknown")
+            elif dist <= good_thresh:
+                quality.append("good")
+            elif dist >= bad_thresh:
+                quality.append("bad")
+            else:
+                quality.append("medium")
 
     # Create results dataframe
     results_df = pd.DataFrame({
@@ -512,16 +609,22 @@ def main():
                 'p95': float(np.nanpercentile(distances_synthetic, 95))
             }
         },
-        'thresholds': {
-            'good_threshold_p75': float(good_threshold),
-            'bad_threshold_p95': float(bad_threshold)
+        'thresholds_per_species': {
+            str(sp): {
+                'good': float(thresholds_per_species[sp]['good']),
+                'bad': float(thresholds_per_species[sp]['bad']),
+                'n_reals': int(thresholds_per_species[sp]['n_reals']),
+                'source': thresholds_per_species[sp]['source']
+            }
+            for sp in sorted(thresholds_per_species.keys())
         },
         'config': {
             'percentile_good': PERCENTILE_GOOD,
             'percentile_bad': PERCENTILE_BAD,
             'model_checkpoint': str(MODEL_CHECKPOINT),
             'embedding_dim': EMBEDDING_DIM,
-            'random_state': RANDOM_STATE
+            'random_state': RANDOM_STATE,
+            'evaluation_method': 'per-species nearest-neighbor distances'
         }
     }
 
@@ -563,13 +666,15 @@ def main():
     print(f"  75th percentile:     {summary_stats['synthetic_data']['distance_stats']['p75']:.4f}")
     print(f"  95th percentile:     {summary_stats['synthetic_data']['distance_stats']['p95']:.4f}")
 
-    print(f"\nQuality Assessment (based on real-to-real NN distances):")
-    print(f"  Good samples (≤ p{PERCENTILE_GOOD} of real NN): {summary_stats['synthetic_data']['good_count']} samples")
-    print(f"    -> These synthetic samples are close to at least one real sample")
+    print(f"\nQuality Assessment (based on per-species real-to-real NN distances):")
+    print(f"  Good samples (≤ p{PERCENTILE_GOOD} of species-specific real NN): {summary_stats['synthetic_data']['good_count']} samples")
+    print(f"    -> These synthetic samples are close to at least one real sample of their species")
     print(f"  Medium samples: {summary_stats['synthetic_data']['medium_count']} samples")
-    print(f"    -> Less common but still plausible")
-    print(f"  Bad samples (≥ p{PERCENTILE_BAD} of real NN): {summary_stats['synthetic_data']['bad_count']} samples")
-    print(f"    -> Too far from any real sample")
+    print(f"    -> Between good and bad thresholds; less common but still plausible")
+    print(f"  Bad samples (≥ p{PERCENTILE_BAD} of species-specific real NN): {summary_stats['synthetic_data']['bad_count']} samples")
+    print(f"    -> Too far from any real sample of their species")
+    print(f"  Unknown samples: {summary_stats['synthetic_data'].get('unknown_count', 0)} samples")
+    print(f"    -> Species not found in real data or distance could not be computed")
 
     # ========================================================================
     # VISUALIZATIONS
@@ -814,11 +919,18 @@ def main():
         real_species_distances = distances_real[real_species_mask]
 
         per_species_report[str(species)] = {
+            'thresholds': {
+                'good': float(thresholds_per_species[species]['good']) if species in thresholds_per_species else float('nan'),
+                'bad': float(thresholds_per_species[species]['bad']) if species in thresholds_per_species else float('nan'),
+                'n_reals': int(thresholds_per_species[species]['n_reals']) if species in thresholds_per_species else 0,
+                'source': thresholds_per_species[species]['source'] if species in thresholds_per_species else 'unknown'
+            },
             'synthetic': {
                 'total_samples': int(species_mask.sum()),
                 'good_samples': int((species_quality == 'good').sum()),
                 'medium_samples': int((species_quality == 'medium').sum()),
                 'bad_samples': int((species_quality == 'bad').sum()),
+                'unknown_samples': int((species_quality == 'unknown').sum()),
                 'distance_mean': float(np.nanmean(species_distances)) if len(species_distances) > 0 else float('nan'),
                 'distance_std': float(np.nanstd(species_distances)) if len(species_distances) > 0 else float('nan'),
                 'distance_min': float(np.nanmin(species_distances)) if len(species_distances) > 0 else float('nan'),
@@ -847,15 +959,21 @@ def main():
     for species in sorted(per_species_report.keys()):
         info = per_species_report[species]
         print(f"\n{species}:")
-        print(f"  REAL DATA (NN to other real samples):")
+        print(f"  QUALITY THRESHOLDS (based on real NN distances of this species):")
+        print(f"    Good threshold (p{PERCENTILE_GOOD}): {info['thresholds']['good']:.4f}")
+        print(f"    Bad threshold (p{PERCENTILE_BAD}):  {info['thresholds']['bad']:.4f}")
+        print(f"    Computed from n={info['thresholds']['n_reals']} real samples ({info['thresholds']['source']})")
+        print(f"  REAL DATA (NN to other real samples of same species):")
         print(f"    Total samples: {info['real']['total_samples']}")
         print(f"    Mean NN distance: {info['real']['distance_mean']:.4f} ± {info['real']['distance_std']:.4f}")
         print(f"    Median NN distance: {info['real']['distance_median']:.4f}")
-        print(f"  SYNTHETIC DATA (NN to real samples):")
+        print(f"  SYNTHETIC DATA (NN to real samples of same species):")
         print(f"    Total:  {info['synthetic']['total_samples']}")
         print(f"    Good:   {info['synthetic']['good_samples']} ({100*info['synthetic']['good_samples']/max(1, info['synthetic']['total_samples']):.1f}%)")
         print(f"    Medium: {info['synthetic']['medium_samples']} ({100*info['synthetic']['medium_samples']/max(1, info['synthetic']['total_samples']):.1f}%)")
         print(f"    Bad:    {info['synthetic']['bad_samples']} ({100*info['synthetic']['bad_samples']/max(1, info['synthetic']['total_samples']):.1f}%)")
+        if info['synthetic'].get('unknown_samples', 0) > 0:
+            print(f"    Unknown: {info['synthetic']['unknown_samples']} ({100*info['synthetic']['unknown_samples']/max(1, info['synthetic']['total_samples']):.1f}%)")
         print(f"    Mean NN distance: {info['synthetic']['distance_mean']:.4f} ± {info['synthetic']['distance_std']:.4f}")
         print(f"    Median NN distance: {info['synthetic']['distance_median']:.4f}")
 
@@ -865,32 +983,38 @@ def main():
     print("\n" + "="*80)
     print("RECOMMENDATIONS FOR SYNTHETIC DATA USAGE")
     print("="*80)
-    print(f"\nNote: Quality based on nearest-neighbor distance to real samples.")
-    print(f"Thresholds derived from how far apart real samples typically are from each other.\n")
+    print(f"\nNote: Quality based on per-species nearest-neighbor distances to real samples.")
+    print(f"Thresholds are computed per-species based on how far apart real samples are from each other")
+    print(f"within their respective species. This accounts for natural variation in intra-class density.\n")
 
     print(f"1. GOOD samples ({summary_stats['synthetic_data']['good_count']} samples):")
-    print(f"   -> Distance to nearest real sample ≤ p{PERCENTILE_GOOD} of real-to-real distances")
-    print(f"   -> These synthetic samples are close to at least one real sample")
-    print(f"   -> USE IN TRAINING: They look like real data")
+    print(f"   -> Distance to nearest real sample of same species ≤ p{PERCENTILE_GOOD} (per-species threshold)")
+    print(f"   -> These synthetic samples closely match the distribution of their species")
+    print(f"   -> USE IN TRAINING: They look like real data from their species")
     good_samples = results_df[results_df['quality'] == 'good']
     if len(good_samples) > 0:
         print(f"   -> Top species: {good_samples['species'].value_counts().head(3).to_dict()}")
 
     print(f"\n2. MEDIUM samples ({summary_stats['synthetic_data']['medium_count']} samples):")
-    print(f"   -> Distance between p{PERCENTILE_GOOD} and p{PERCENTILE_BAD} of real-to-real distances")
-    print(f"   -> Moderately plausible but less common in real data")
-    print(f"   -> USE WITH CAUTION: Can be included but consider filtering first")
+    print(f"   -> Distance between p{PERCENTILE_GOOD} and p{PERCENTILE_BAD} (per-species thresholds)")
+    print(f"   -> Moderately plausible but less common in real data of their species")
+    print(f"   -> USE WITH CAUTION: Can be included but consider filtering or weighting down")
     medium_samples = results_df[results_df['quality'] == 'medium']
     if len(medium_samples) > 0:
         print(f"   -> Count: {len(medium_samples)} samples")
 
     print(f"\n3. BAD samples ({summary_stats['synthetic_data']['bad_count']} samples):")
-    print(f"   -> Distance to nearest real sample ≥ p{PERCENTILE_BAD} of real-to-real distances")
-    print(f"   -> These don't match any real sample closely")
-    print(f"   -> EXCLUDE FROM TRAINING: These are likely artifacts")
+    print(f"   -> Distance to nearest real sample of same species ≥ p{PERCENTILE_BAD} (per-species threshold)")
+    print(f"   -> These don't match real samples of their species closely")
+    print(f"   -> EXCLUDE FROM TRAINING: These are likely artifacts or mode collapses")
     bad_samples = results_df[results_df['quality'] == 'bad']
     if len(bad_samples) > 0:
         print(f"   -> Top species: {bad_samples['species'].value_counts().head(3).to_dict()}")
+
+    if summary_stats['synthetic_data'].get('unknown_count', 0) > 0:
+        print(f"\n4. UNKNOWN samples ({summary_stats['synthetic_data'].get('unknown_count', 0)} samples):")
+        print(f"   -> Species not found in real data or distance computation failed")
+        print(f"   -> REVIEW AND HANDLE: Check if species should be included in training data")
 
     # ========================================================================
     # FILTERED DATASETS

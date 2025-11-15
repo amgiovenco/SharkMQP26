@@ -1,10 +1,17 @@
 {
   "Arabian smooth-hound": {
+    "thresholds": {
+      "good": 4.608527183532715,
+      "bad": 6.946357250213623,
+      "n_reals": 7,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 44,
-      "medium_samples": 3,
+      "good_samples": 47,
+      "medium_samples": 0,
       "bad_samples": 3,
+      "unknown_samples": 0,
       "distance_mean": 2.777698278427124,
       "distance_std": 2.7847065925598145,
       "distance_min": 1.030251145362854,
@@ -21,15 +28,22 @@
     }
   },
   "Blacknose shark": {
+    "thresholds": {
+      "good": 4.803168296813965,
+      "bad": 5.382793426513672,
+      "n_reals": 8,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 28,
-      "medium_samples": 22,
-      "bad_samples": 0,
-      "distance_mean": 3.3906443119049072,
-      "distance_std": 1.1596251726150513,
+      "good_samples": 42,
+      "medium_samples": 3,
+      "bad_samples": 5,
+      "unknown_samples": 0,
+      "distance_mean": 3.4918830394744873,
+      "distance_std": 1.3162001371383667,
       "distance_min": 1.2667797803878784,
-      "distance_max": 6.539936065673828,
+      "distance_max": 6.566980838775635,
       "distance_median": 3.421557903289795
     },
     "real": {
@@ -42,11 +56,18 @@
     }
   },
   "Blackspotted smooth-hound": {
+    "thresholds": {
+      "good": 6.087947368621826,
+      "bad": 6.799468994140625,
+      "n_reals": 7,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 41,
-      "medium_samples": 6,
-      "bad_samples": 3,
+      "good_samples": 45,
+      "medium_samples": 1,
+      "bad_samples": 4,
+      "unknown_samples": 0,
       "distance_mean": 2.8763539791107178,
       "distance_std": 2.787109613418579,
       "distance_min": 0.8655642867088318,
@@ -63,32 +84,46 @@
     }
   },
   "Bonnethead shark": {
+    "thresholds": {
+      "good": 7.213634490966797,
+      "bad": 12.133285522460938,
+      "n_reals": 8,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 11,
-      "medium_samples": 29,
-      "bad_samples": 10,
-      "distance_mean": 5.725651741027832,
-      "distance_std": 2.7096636295318604,
+      "good_samples": 39,
+      "medium_samples": 9,
+      "bad_samples": 2,
+      "unknown_samples": 0,
+      "distance_mean": 5.78373908996582,
+      "distance_std": 2.922013759613037,
       "distance_min": 2.2481942176818848,
-      "distance_max": 14.596449851989746,
+      "distance_max": 17.500802993774414,
       "distance_median": 5.0468549728393555
     },
     "real": {
       "total_samples": 7,
-      "distance_mean": 6.969214916229248,
-      "distance_std": 2.2581114768981934,
+      "distance_mean": 7.262922763824463,
+      "distance_std": 2.946341037750244,
       "distance_min": 5.3063225746154785,
-      "distance_max": 12.185758590698242,
+      "distance_max": 14.24170970916748,
       "distance_median": 5.779416561126709
     }
   },
   "Common thresher shark": {
+    "thresholds": {
+      "good": 4.864675045013428,
+      "bad": 5.982182502746582,
+      "n_reals": 10,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 19,
-      "medium_samples": 25,
-      "bad_samples": 6,
+      "good_samples": 27,
+      "medium_samples": 6,
+      "bad_samples": 17,
+      "unknown_samples": 0,
       "distance_mean": 5.019430637359619,
       "distance_std": 2.407050609588623,
       "distance_min": 2.0044174194335938,
@@ -105,11 +140,18 @@
     }
   },
   "Great white shark": {
+    "thresholds": {
+      "good": 3.747976541519165,
+      "bad": 5.482617378234863,
+      "n_reals": 9,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 37,
-      "medium_samples": 10,
-      "bad_samples": 3,
+      "good_samples": 39,
+      "medium_samples": 7,
+      "bad_samples": 4,
+      "unknown_samples": 0,
       "distance_mean": 2.9351208209991455,
       "distance_std": 1.9004665613174438,
       "distance_min": 0.6153332591056824,
@@ -126,16 +168,23 @@
     }
   },
   "Gummy shark": {
+    "thresholds": {
+      "good": 2.2289795875549316,
+      "bad": 2.8181071281433105,
+      "n_reals": 7,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 50,
-      "medium_samples": 0,
-      "bad_samples": 0,
-      "distance_mean": 1.508418321609497,
-      "distance_std": 0.45365622639656067,
+      "good_samples": 48,
+      "medium_samples": 1,
+      "bad_samples": 1,
+      "unknown_samples": 0,
+      "distance_mean": 1.546661376953125,
+      "distance_std": 0.45287808775901794,
       "distance_min": 0.5534288287162781,
       "distance_max": 3.1791224479675293,
-      "distance_median": 1.532209038734436
+      "distance_median": 1.551255226135254
     },
     "real": {
       "total_samples": 6,
@@ -147,11 +196,18 @@
     }
   },
   "Halavi guitarfish": {
+    "thresholds": {
+      "good": 3.535661220550537,
+      "bad": 4.705622673034668,
+      "n_reals": 9,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 43,
-      "medium_samples": 7,
-      "bad_samples": 0,
+      "good_samples": 42,
+      "medium_samples": 4,
+      "bad_samples": 4,
+      "unknown_samples": 0,
       "distance_mean": 2.560835361480713,
       "distance_std": 1.1202365159988403,
       "distance_min": 1.0605443716049194,
@@ -168,15 +224,22 @@
     }
   },
   "Hooktooth shark": {
+    "thresholds": {
+      "good": 2.4321534633636475,
+      "bad": 3.1664161682128906,
+      "n_reals": 8,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 41,
-      "medium_samples": 5,
-      "bad_samples": 4,
-      "distance_mean": 2.3999075889587402,
-      "distance_std": 2.6290595531463623,
+      "good_samples": 39,
+      "medium_samples": 2,
+      "bad_samples": 9,
+      "unknown_samples": 0,
+      "distance_mean": 2.482938289642334,
+      "distance_std": 2.9088337421417236,
       "distance_min": 0.5713174939155579,
-      "distance_max": 10.897605895996094,
+      "distance_max": 13.471208572387695,
       "distance_median": 1.2789149284362793
     },
     "real": {
@@ -189,11 +252,18 @@
     }
   },
   "Longtail stingray": {
+    "thresholds": {
+      "good": 2.004970073699951,
+      "bad": 3.430049419403076,
+      "n_reals": 13,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 49,
-      "medium_samples": 1,
-      "bad_samples": 0,
+      "good_samples": 40,
+      "medium_samples": 9,
+      "bad_samples": 1,
+      "unknown_samples": 0,
       "distance_mean": 1.6854488849639893,
       "distance_std": 0.8936343193054199,
       "distance_min": 0.811862587928772,
@@ -210,11 +280,18 @@
     }
   },
   "Nurse shark": {
+    "thresholds": {
+      "good": 10.144231796264648,
+      "bad": 12.510257720947266,
+      "n_reals": 5,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 17,
-      "medium_samples": 27,
-      "bad_samples": 6,
+      "good_samples": 49,
+      "medium_samples": 1,
+      "bad_samples": 0,
+      "unknown_samples": 0,
       "distance_mean": 4.835713863372803,
       "distance_std": 2.970975160598755,
       "distance_min": 0.003122680587694049,
@@ -231,11 +308,18 @@
     }
   },
   "Pelagic thresher shark": {
+    "thresholds": {
+      "good": 3.7714505195617676,
+      "bad": 6.321081638336182,
+      "n_reals": 8,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 22,
-      "medium_samples": 24,
-      "bad_samples": 4,
+      "good_samples": 23,
+      "medium_samples": 20,
+      "bad_samples": 7,
+      "unknown_samples": 0,
       "distance_mean": 4.148038864135742,
       "distance_std": 2.3282673358917236,
       "distance_min": 0.89510577917099,
@@ -252,23 +336,30 @@
     }
   },
   "Sandbar shark": {
+    "thresholds": {
+      "good": 4.743655204772949,
+      "bad": 18.9399471282959,
+      "n_reals": 8,
+      "source": "per-species"
+    },
     "synthetic": {
       "total_samples": 50,
-      "good_samples": 19,
-      "medium_samples": 22,
-      "bad_samples": 9,
-      "distance_mean": 5.136226654052734,
-      "distance_std": 2.763476848602295,
+      "good_samples": 26,
+      "medium_samples": 24,
+      "bad_samples": 0,
+      "unknown_samples": 0,
+      "distance_mean": 5.169562816619873,
+      "distance_std": 2.7684972286224365,
       "distance_min": 1.2063864469528198,
       "distance_max": 13.065977096557617,
       "distance_median": 4.637338161468506
     },
     "real": {
       "total_samples": 7,
-      "distance_mean": 3.88616943359375,
-      "distance_std": 2.1609418392181396,
+      "distance_mean": 6.2220258712768555,
+      "distance_std": 7.629288673400879,
       "distance_min": 1.937179684638977,
-      "distance_max": 8.338290214538574,
+      "distance_max": 24.68928337097168,
       "distance_median": 2.794487237930298
     }
   }
