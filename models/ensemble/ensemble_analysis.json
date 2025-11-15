@@ -1,10 +1,10 @@
 {
   "selected_models": [
     "cnn",
-    "rulebased",
     "resnet1d",
     "statistics",
-    "extratrees"
+    "extratrees",
+    "rulebased"
   ],
   "coverage_required_models": [
     "cnn"
