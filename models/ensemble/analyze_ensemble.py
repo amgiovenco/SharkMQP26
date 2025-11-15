@@ -12,7 +12,10 @@ from pathlib import Path
 from scipy.spatial.distance import jensenshannon, pdist, squareform
 from scipy.stats import pearsonr
 from scipy.cluster import hierarchy
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import (
+    brier_score_loss, accuracy_score, precision_score,
+    recall_score, f1_score, classification_report
+)
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
@@ -131,7 +134,7 @@ def compute_error_correlation(models, true_labels):
     for i in range(n_models):
         for j in range(i+1, n_models):
             corr = correlation_matrix[i, j]
-            status = "✓ GOOD" if corr < 0.5 else "⚠ MODERATE" if corr < 0.7 else "✗ REDUNDANT"
+            status = "[GOOD]" if corr < 0.5 else "[MODERATE]" if corr < 0.7 else "[REDUNDANT]"
             print(f"  {model_names[i]:15} + {model_names[j]:15}: {corr:6.3f} {status}")
             if corr < 0.5:
                 good_pairs.append((model_names[i], model_names[j], corr))
@@ -182,7 +185,7 @@ def compute_js_divergence(models):
     for i in range(n_models):
         for j in range(i+1, n_models):
             js = js_matrix[i, j]
-            status = "✓ DIVERSE" if js > 0.15 else "⚠ SIMILAR" if js > 0.08 else "✗ VERY SIMILAR"
+            status = "[DIVERSE]" if js > 0.15 else "[SIMILAR]" if js > 0.08 else "[VERY SIMILAR]"
             print(f"  {model_names[i]:15} + {model_names[j]:15}: {js:6.3f} {status}")
 
     return js_matrix, model_names
@@ -233,6 +236,39 @@ def compute_calibration(models, true_labels, species_list):
         print(f"  {model_name:15}: Brier={scores['brier']:.4f}, ECE={scores['ece']:.4f}")
 
     return calibration_scores
+
+# ============================================================================
+# 3.5. COMPREHENSIVE METRICS (Accuracy, Precision, Recall, F1 - weighted & macro)
+# ============================================================================
+
+def compute_comprehensive_metrics(predictions, true_labels):
+    """
+    Compute comprehensive classification metrics.
+
+    Returns dict with:
+    - accuracy
+    - precision_macro, precision_weighted
+    - recall_macro, recall_weighted
+    - f1_macro, f1_weighted
+    """
+    metrics = {
+        'accuracy': float(accuracy_score(true_labels, predictions)),
+        'precision_macro': float(precision_score(true_labels, predictions, average='macro', zero_division=0)),
+        'precision_weighted': float(precision_score(true_labels, predictions, average='weighted', zero_division=0)),
+        'recall_macro': float(recall_score(true_labels, predictions, average='macro', zero_division=0)),
+        'recall_weighted': float(recall_score(true_labels, predictions, average='weighted', zero_division=0)),
+        'f1_macro': float(f1_score(true_labels, predictions, average='macro', zero_division=0)),
+        'f1_weighted': float(f1_score(true_labels, predictions, average='weighted', zero_division=0)),
+    }
+    return metrics
+
+def format_metrics_table(metrics_dict, model_names):
+    """Format metrics into a nice table for display."""
+    df = pd.DataFrame(metrics_dict).T
+    df = df[['accuracy', 'precision_macro', 'precision_weighted',
+             'recall_macro', 'recall_weighted', 'f1_macro', 'f1_weighted']]
+    df.columns = ['Accuracy', 'Prec(M)', 'Prec(W)', 'Recall(M)', 'Recall(W)', 'F1(M)', 'F1(W)']
+    return df
 
 # ============================================================================
 # 4. PER-CLASS SPECIALIZATION
@@ -339,6 +375,8 @@ def greedy_forward_selection(models, true_labels, val_indices=None):
     selected = []
     remaining = set(model_names)
 
+    all_metrics = {}
+
     # Find best single model
     best_model = None
     best_acc = 0
@@ -352,13 +390,20 @@ def greedy_forward_selection(models, true_labels, val_indices=None):
     selected.append(best_model)
     remaining.remove(best_model)
 
-    print(f"Step 1: Selected {best_model} (accuracy: {best_acc:.4f})")
+    # Compute detailed metrics for first model
+    preds = np.argmax(models[best_model][val_indices], axis=1)
+    metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
+    all_metrics[best_model] = metrics
+
+    print(f"Step 1: Selected {best_model}")
+    print(f"        Accuracy: {metrics['accuracy']:.4f}, F1(M): {metrics['f1_macro']:.4f}")
 
     # Greedy addition
     step = 2
     while remaining and step <= len(model_names):
         best_new_model = None
         best_new_acc = 0
+        best_new_metrics = None
 
         for candidate in remaining:
             # Ensemble: average probabilities
@@ -373,17 +418,22 @@ def greedy_forward_selection(models, true_labels, val_indices=None):
             if acc > best_new_acc:
                 best_new_acc = acc
                 best_new_model = candidate
+                best_new_metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
 
         if best_new_model:
             selected.append(best_new_model)
             remaining.remove(best_new_model)
-            print(f"Step {step}: Added {best_new_model} (ensemble accuracy: {best_new_acc:.4f})")
+            ensemble_name = f"{'+'.join(selected)}"
+            all_metrics[ensemble_name] = best_new_metrics
+            print(f"Step {step}: Added {best_new_model}")
+            print(f"        Ensemble: {'+'.join(selected)}")
+            print(f"        Accuracy: {best_new_metrics['accuracy']:.4f}, F1(M): {best_new_metrics['f1_macro']:.4f}")
             step += 1
         else:
             break
 
-    print(f"\n✓ Final ensemble: {selected}")
-    return selected
+    print(f"\n[SUCCESS] Final ensemble: {selected}")
+    return selected, all_metrics
 
 # ============================================================================
 # 6.5. JACCARD SIMILARITY (correctness overlap)
@@ -435,15 +485,15 @@ def compute_jaccard_correctness(models, true_labels):
         for j in range(i+1, n_models):
             j_score = jaccard_matrix[i, j]
             if j_score < 0.3:
-                status = "✓✓ EXCELLENT"
+                status = "[EXCELLENT]"
                 complementary_pairs.append((model_names[i], model_names[j], j_score))
             elif j_score < 0.5:
-                status = "✓ GOOD"
+                status = "[GOOD]"
                 complementary_pairs.append((model_names[i], model_names[j], j_score))
             elif j_score < 0.7:
-                status = "⚠ MODERATE"
+                status = "[MODERATE]"
             else:
-                status = "✗ REDUNDANT"
+                status = "[REDUNDANT]"
 
             print(f"  {model_names[i]:15} + {model_names[j]:15}: {j_score:6.3f} {status}")
 
@@ -509,18 +559,104 @@ def compute_species_coverage(models, true_labels, species_list):
 
         selected_models.append(best_model)
         uncovered -= model_coverage[best_model]
-        print(f"  Step {len(selected_models)}: Added {best_model:15} → covers {best_new_covered} more species")
+        print(f"  Step {len(selected_models)}: Added {best_model:15} > covers {best_new_covered} more species")
 
     if not uncovered:
-        print(f"\n✓ FULL COVERAGE POSSIBLE with {len(selected_models)} models:")
+        print(f"\n[SUCCESS] FULL COVERAGE POSSIBLE with {len(selected_models)} models:")
         for model in selected_models:
             print(f"  - {model}")
     else:
-        print(f"\n✗ Cannot achieve full coverage. Missing {len(uncovered)} species:")
+        print(f"\n[ALERT] Cannot achieve full coverage. Missing {len(uncovered)} species:")
         missing_species = [species_list[i] for i in uncovered]
         print(f"  {missing_species}")
 
     return model_coverage, selected_models
+
+# ============================================================================
+# 6.9. COMPREHENSIVE COMBINATION ANALYSIS
+# ============================================================================
+
+def analyze_all_combinations(models, true_labels, val_indices=None):
+    """Analyze performance metrics for different model combinations."""
+    print("\n" + "="*70)
+    print("6.9. COMPREHENSIVE COMBINATION ANALYSIS")
+    print("="*70)
+
+    if val_indices is None:
+        val_indices = np.arange(len(true_labels))
+
+    model_names = list(models.keys())
+    combination_metrics = {}
+
+    # Test all single models
+    print("\n--- INDIVIDUAL MODELS ---")
+    single_model_metrics = {}
+    for model_name in sorted(model_names):
+        preds = np.argmax(models[model_name][val_indices], axis=1)
+        metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
+        single_model_metrics[model_name] = metrics
+        combination_metrics[model_name] = metrics
+
+    df_single = format_metrics_table(single_model_metrics, model_names)
+    print(df_single.to_string())
+
+    # Test all pairs
+    print("\n--- ALL PAIRS ---")
+    pair_metrics = {}
+    for m1, m2 in combinations(sorted(model_names), 2):
+        ensemble_probs = (models[m1][val_indices] + models[m2][val_indices]) / 2
+        preds = np.argmax(ensemble_probs, axis=1)
+        metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
+        pair_name = f"{m1}+{m2}"
+        pair_metrics[pair_name] = metrics
+        combination_metrics[pair_name] = metrics
+
+    df_pairs = format_metrics_table(pair_metrics, model_names)
+    print(df_pairs.to_string())
+
+    # Test triples (if not too many)
+    if len(model_names) <= 6:
+        print("\n--- TRIPLES ---")
+        triple_metrics = {}
+        for m1, m2, m3 in combinations(sorted(model_names), 3):
+            ensemble_probs = (models[m1][val_indices] + models[m2][val_indices] + models[m3][val_indices]) / 3
+            preds = np.argmax(ensemble_probs, axis=1)
+            metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
+            triple_name = f"{m1}+{m2}+{m3}"
+            triple_metrics[triple_name] = metrics
+            combination_metrics[triple_name] = metrics
+
+        df_triples = format_metrics_table(triple_metrics, model_names)
+        print(df_triples.to_string())
+
+    # Test all models
+    print("\n--- ALL MODELS ---")
+    ensemble_probs = np.zeros_like(models[model_names[0]][val_indices])
+    for model_name in model_names:
+        ensemble_probs += models[model_name][val_indices]
+    ensemble_probs /= len(model_names)
+    preds = np.argmax(ensemble_probs, axis=1)
+    metrics = compute_comprehensive_metrics(preds, true_labels[val_indices])
+    all_models_name = '+'.join(sorted(model_names))
+    combination_metrics[all_models_name] = metrics
+    print(f"{all_models_name}")
+    for key, val in metrics.items():
+        print(f"  {key}: {val:.4f}")
+
+    # Find and show top 5 by different metrics
+    print("\n--- TOP 5 BY METRIC ---")
+    sorted_by_acc = sorted(combination_metrics.items(), key=lambda x: x[1]['accuracy'], reverse=True)
+    sorted_by_f1m = sorted(combination_metrics.items(), key=lambda x: x[1]['f1_macro'], reverse=True)
+
+    print("\nTop 5 by Accuracy:")
+    for i, (name, metrics) in enumerate(sorted_by_acc[:5], 1):
+        print(f"  {i}. {name}: {metrics['accuracy']:.4f} (F1-M: {metrics['f1_macro']:.4f})")
+
+    print("\nTop 5 by F1-Macro (handles class imbalance):")
+    for i, (name, metrics) in enumerate(sorted_by_f1m[:5], 1):
+        print(f"  {i}. {name}: {metrics['f1_macro']:.4f} (Acc: {metrics['accuracy']:.4f})")
+
+    return combination_metrics
 
 # ============================================================================
 # 7. MODEL CLUSTERING
@@ -590,7 +726,8 @@ def main():
     calibration = compute_calibration(models, true_labels, species_list)
     per_class_acc = compute_class_specialization(models, true_labels, species_list)
     entropy = compute_entropy(models)
-    selected = greedy_forward_selection(models, true_labels)
+    selected, greedy_metrics = greedy_forward_selection(models, true_labels)
+    combination_metrics = analyze_all_combinations(models, true_labels)
     jaccard_matrix, model_names_65, jaccard_pairs = compute_jaccard_correctness(models, true_labels)
     model_coverage, coverage_selected = compute_species_coverage(models, true_labels, species_list)
     clusters, model_names_7 = cluster_models(models)
@@ -602,26 +739,26 @@ def main():
     print("ENSEMBLE RECOMMENDATIONS")
     print("="*70)
 
-    print(f"\n✓ Recommended base models to use:")
+    print(f"\n[REC] Recommended base models to use:")
     for model in selected:
         print(f"  - {model}")
 
-    print(f"\n✓ Best complementary pairs (by error correlation):")
+    print(f"\n[REC] Best complementary pairs (by error correlation):")
     for m1, m2, corr in good_pairs[:3]:
         print(f"  - {m1} + {m2} (error correlation: {corr:.3f})")
 
-    print(f"\n✓ Best complementary pairs (by Jaccard correctness):")
+    print(f"\n[REC] Best complementary pairs (by Jaccard correctness):")
     if jaccard_pairs:
         for m1, m2, j_score in jaccard_pairs[:3]:
             print(f"  - {m1} + {m2} (Jaccard: {j_score:.3f})")
     else:
         print("  - None found with low Jaccard")
 
-    print(f"\n✓ Most confident/stable model:")
+    print(f"\n[REC] Most confident/stable model:")
     best_calib = min(calibration.keys(), key=lambda m: calibration[m]['ece'])
     print(f"  - {best_calib} (ECE: {calibration[best_calib]['ece']:.4f})")
 
-    print(f"\n✓ Best pair by multiple metrics (low error corr + low Jaccard + high JSD):")
+    print(f"\n[REC] Best pair by multiple metrics (low error corr + low Jaccard + high JSD):")
     # Find pairs that score well on multiple metrics
     js_dict = {(model_names_2[i], model_names_2[j]): js_matrix[i][j]
                for i in range(len(model_names_2)) for j in range(i+1, len(model_names_2))}
@@ -640,7 +777,7 @@ def main():
         print(f"  - {m1} + {m2}")
         print(f"    Jaccard: {j_score:.3f} (low = good), JSD: {j_div:.3f} (high = good)")
 
-    print(f"\n✓ For full species coverage (≥1 correct per species):")
+    print(f"\n[REC] For full species coverage (>=1 correct per species):")
     if not coverage_selected:
         print("  - All models together do NOT cover all 57 species")
     else:
@@ -658,11 +795,12 @@ def main():
         'good_pairs_by_jaccard': [(m1, m2, float(j_score)) for m1, m2, j_score in jaccard_pairs],
         'calibration': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in calibration.items()},
         'entropy': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in entropy.items()},
+        'combination_metrics': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in combination_metrics.items()},
     }
 
     with open('ensemble_analysis.json', 'w') as f:
         json.dump(results, f, indent=2)
-    print(f"\n✓ Results saved to ensemble_analysis.json")
+    print(f"\n[SUCCESS] Results saved to ensemble_analysis.json")
 
 if __name__ == '__main__':
     main()
