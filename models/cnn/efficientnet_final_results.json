@@ -1,26 +1,20 @@
 {
   "model": "EfficientNet-B0",
   "hyperparameters": {
-    "n_layers": 3,
-    "input_dropout": 0.2,
-    "units_l0": 320,
-    "bn_l0": true,
-    "dropout_l0": 0.30000000000000004,
-    "units_l1": 160,
-    "bn_l1": false,
-    "dropout_l1": 0.2,
-    "units_l2": 160,
-    "bn_l2": true,
-    "dropout_l2": 0.5,
-    "learning_rate": 0.0015409200606305512
+    "cnn_dropout1": 0.7,
+    "cnn_dropout2": 0.5,
+    "cnn_learning_rate": 0.0020594007612475913,
+    "cnn_batch_size": 32,
+    "cnn_weight_decay": 1.0083970230770894e-05,
+    "cnn_focal_gamma": 1.5
   },
   "configuration": {
     "batch_size": 32,
     "epochs": 150,
-    "learning_rate": 0.0015409200606305512,
-    "weight_decay": 0.01,
+    "learning_rate": 0.0020594007612475913,
+    "weight_decay": 1.0083970230770894e-05,
     "focal_alpha": 1.0,
-    "focal_gamma": 2.0,
+    "focal_gamma": 1.5,
     "mixup_alpha": 0.4,
     "use_mixup": true,
     "patience": 25,
@@ -29,114 +23,98 @@
   },
   "cross_validation": {
     "fold_accuracies": [
-      98.7012987012987,
-      98.7012987012987,
-      96.1038961038961,
-      98.7012987012987,
-      98.7012987012987
+      98.0,
+      99.0,
+      97.0,
+      99.0,
+      96.96969696969697
     ],
     "fold_f1_scores": [
-      98.26839826839826,
-      98.7012987012987,
-      94.8051948051948,
-      98.26839826839827,
-      98.7012987012987
+      97.6,
+      99.0,
+      97.04444444444445,
+      98.6,
+      96.398326701357
     ],
     "fold_precisions": [
-      98.05194805194806,
-      98.7012987012987,
-      94.15584415584416,
-      98.05194805194806,
-      99.35064935064936
+      97.33333333333334,
+      99.5,
+      97.83333333333333,
+      98.33333333333333,
+      96.32996632996634
     ],
     "fold_recalls": [
-      98.7012987012987,
-      98.7012987012987,
-      96.1038961038961,
-      98.7012987012987,
-      98.7012987012987
+      98.0,
+      99.0,
+      97.0,
+      99.0,
+      96.96969696969697
     ],
-    "mean_accuracy": 98.18181818181817,
-    "std_accuracy": 1.0389610389610369,
-    "mean_f1": 97.74891774891773,
-    "mean_precision": 97.66233766233765,
-    "mean_recall": 98.18181818181817
+    "mean_accuracy": 97.9939393939394,
+    "std_accuracy": 0.9012591946296581,
+    "mean_f1": 97.72855422916028,
+    "mean_precision": 97.86599326599327,
+    "mean_recall": 97.9939393939394
   },
   "test_results": {
     "individual_fold_accuracies": [
-      89.14728682170544,
-      92.24806201550388,
-      79.06976744186046,
-      87.59689922480621,
-      89.92248062015504
+      94.73684210526315,
+      95.39473684210526,
+      96.05263157894737,
+      96.05263157894737,
+      94.73684210526315
     ],
     "individual_fold_f1_scores": [
-      87.66992051875772,
-      90.85439108694922,
-      76.54284131028317,
-      85.51202635333962,
-      88.31636279310699
+      94.58904614477369,
+      95.09085213032581,
+      95.75187969924812,
+      95.41979949874687,
+      94.38885675727781
     ],
     "individual_fold_precisions": [
-      89.21496247077643,
-      91.66666666666666,
-      81.8420081210779,
-      86.92814076535007,
-      89.52503999015626
+      96.65570175438599,
+      97.20394736842105,
+      97.25877192982455,
+      96.2171052631579,
+      95.94298245614036
     ],
     "individual_fold_recalls": [
-      89.14728682170544,
-      92.24806201550388,
-      79.06976744186046,
-      87.59689922480621,
-      89.92248062015504
+      94.73684210526315,
+      95.39473684210526,
+      96.05263157894737,
+      96.05263157894737,
+      94.73684210526315
     ],
-    "best_fold": 2,
-    "best_test_accuracy": 92.24806201550388,
-    "best_test_f1": 90.85439108694922,
-    "best_test_precision": 91.66666666666666,
-    "best_test_recall": 92.24806201550388
+    "best_fold": 3,
+    "best_test_accuracy": 96.05263157894737,
+    "best_test_f1": 95.75187969924812,
+    "best_test_precision": 97.25877192982455,
+    "best_test_recall": 96.05263157894737
   },
   "misclassified_samples": [
     {
-      "true": "Bonnethead_shark",
-      "predicted": "Pacific_bonnethead_shark"
+      "true": "Common_thresher_shark",
+      "predicted": "Pelagic_thresher_shark"
     },
     {
-      "true": "Milk_shark",
-      "predicted": "Sandbar_shark"
+      "true": "Oceanic_whitetip_shark",
+      "predicted": "Dusky_shark"
     },
     {
-      "true": "Porbeagle_shark",
-      "predicted": "Great_white_shark"
+      "true": "Pacific_guitarfish",
+      "predicted": "Spadenose_stingray"
     },
     {
-      "true": "Scalloped_hammerhead_shark",
-      "predicted": "Blacktip_shark"
-    },
-    {
-      "true": "Scalloped_hammerhead_shark",
-      "predicted": "Blacktip_shark"
-    },
-    {
-      "true": "Silky_shark",
-      "predicted": "Oceanic_whitetip_shark"
-    },
-    {
-      "true": "Silvertip_shark",
-      "predicted": "Tope_shark"
-    },
-    {
-      "true": "Silvertip_shark",
-      "predicted": "Bonnethead_shark"
-    },
-    {
-      "true": "Silvertip_shark",
-      "predicted": "Sandbar_shark"
+      "true": "Sandbar_shark",
+      "predicted": "Silvertip_shark"
     },
     {
       "true": "Smooth_hammerhead_shark",
       "predicted": "Scalloped_bonnethead_shark"
+    },
+    {
+      "true": "Spinner_shark",
+      "predicted": "Blacktip_reef_shark"
     }
   ]
 }

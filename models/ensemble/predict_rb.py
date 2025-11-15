@@ -1,13 +1,14 @@
-"""rule-based model prediction."""
+"""Rule-based model prediction from local models directory."""
 
 import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from sklearn.ensemble import ExtraTreesClassifier
 
 
 def engineer_features_rulebased(X_raw: pd.DataFrame) -> pd.DataFrame:
-    """engineer features for rule-based model."""
+    """Engineer features for rule-based model."""
     features_list = []
     temps = X_raw.columns.astype(float).values
 
@@ -58,26 +59,23 @@ def engineer_features_rulebased(X_raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_rb_predictions(X_raw: pd.DataFrame, models_dir: str = "./models") -> np.ndarray:
-    """get rule-based predictions."""
+    """Get rule-based predictions from ensemble/models directory."""
     try:
-        model_path = f"{models_dir}/rulebased_9519.pkl"
-        if not Path(model_path).exists():
-            print("  rule-based...[FAIL] not found")
+        model_path = Path(models_dir) / "RULEBASED_rulebased_final.pkl"
+        if not model_path.exists():
+            print("  rule-based...[FAIL] RULEBASED_rulebased_final.pkl not found in ./models/")
             return None
-        bundle = joblib.load(model_path)
 
+        bundle = joblib.load(model_path)
         X_eng = engineer_features_rulebased(X_raw)
 
         # Extract components from bundle
         if isinstance(bundle, dict) and 'model' in bundle:
             model_obj = bundle['model']
             scaler = bundle.get('scaler', None)
-            feature_names = bundle.get('feature_names', None)
         else:
-            # Old format - model is not a bundle
             model_obj = bundle
             scaler = None
-            feature_names = None
 
         # Apply scaler if available
         if scaler is not None:

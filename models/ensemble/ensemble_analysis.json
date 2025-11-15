@@ -1,0 +1,136 @@
+{
+  "selected_models": [
+    "cnn",
+    "rulebased",
+    "resnet1d",
+    "statistics",
+    "extratrees"
+  ],
+  "coverage_required_models": [
+    "cnn"
+  ],
+  "model_species_coverage": {
+    "cnn": 57,
+    "resnet1d": 57,
+    "extratrees": 56,
+    "statistics": 57,
+    "rulebased": 57
+  },
+  "good_pairs_by_error_correlation": [
+    [
+      "cnn",
+      "resnet1d",
+      0.17564728106715322
+    ],
+    [
+      "cnn",
+      "extratrees",
+      0.2839137699267047
+    ],
+    [
+      "cnn",
+      "statistics",
+      0.3422101033940166
+    ],
+    [
+      "cnn",
+      "rulebased",
+      0.320069823337584
+    ],
+    [
+      "resnet1d",
+      "extratrees",
+      0.33700420499620193
+    ],
+    [
+      "resnet1d",
+      "statistics",
+      0.3330299471786673
+    ],
+    [
+      "resnet1d",
+      "rulebased",
+      0.4166708541252298
+    ],
+    [
+      "extratrees",
+      "statistics",
+      0.23354968324845693
+    ],
+    [
+      "extratrees",
+      "rulebased",
+      0.34088357081072085
+    ],
+    [
+      "statistics",
+      "rulebased",
+      0.25550298833180585
+    ]
+  ],
+  "good_pairs_by_jaccard": [],
+  "calibration": {
+    "cnn": {
+      "brier": 0.0010809847352556815,
+      "ece": 0.01889815345154742
+    },
+    "resnet1d": {
+      "brier": 0.0028356712961993074,
+      "ece": 0.03344960526753499
+    },
+    "extratrees": {
+      "brier": 0.004750019847681582,
+      "ece": 0.20611722316426978
+    },
+    "statistics": {
+      "brier": 0.0016734813812709043,
+      "ece": 0.04854875381824243
+    },
+    "rulebased": {
+      "brier": 0.0024860340412064977,
+      "ece": 0.16524426069127798
+    }
+  },
+  "entropy": {
+    "cnn": {
+      "mean_entropy": 0.09247996658086777,
+      "std_entropy": 0.23929429054260254,
+      "mean_confidence": 0.973900556564331,
+      "std_confidence": 0.08199147880077362,
+      "min_confidence": 0.2771676182746887,
+      "max_confidence": 1.0
+    },
+    "resnet1d": {
+      "mean_entropy": 0.49264878034591675,
+      "std_entropy": 0.5455000996589661,
+      "mean_confidence": 0.8688010573387146,
+      "std_confidence": 0.17674772441387177,
+      "min_confidence": 0.18258178234100342,
+      "max_confidence": 0.9992243051528931
+    },
+    "extratrees": {
+      "mean_entropy": 1.222113013267517,
+      "std_entropy": 0.6394689083099365,
+      "mean_confidence": 0.651025652885437,
+      "std_confidence": 0.2227291464805603,
+      "min_confidence": 0.17654156684875488,
+      "max_confidence": 0.9984265565872192
+    },
+    "statistics": {
+      "mean_entropy": 0.29000288248062134,
+      "std_entropy": 0.39900439977645874,
+      "mean_confidence": 0.8992239236831665,
+      "std_confidence": 0.15368519723415375,
+      "min_confidence": 0.33118411898612976,
+      "max_confidence": 1.0
+    },
+    "rulebased": {
+      "mean_entropy": 0.8845512270927429,
+      "std_entropy": 0.7117263078689575,
+      "mean_confidence": 0.7748479843139648,
+      "std_confidence": 0.2151472419500351,
+      "min_confidence": 0.14810127019882202,
+      "max_confidence": 1.0
+    }
+  }
+}

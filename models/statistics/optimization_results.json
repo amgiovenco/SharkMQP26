@@ -1,21 +1,29 @@
 {
-  "baseline_val_accuracy": 0.9461538461538461,
-  "baseline_test_accuracy": 0.9236641221374046,
-  "best_model": "optimized_extratrees",
-  "best_val_accuracy": 0.9769230769230769,
-  "best_test_accuracy": 0.9541984732824428,
+  "baseline_cv_mean": 0.8579711094623376,
+  "baseline_cv_std": 0.05544155411275139,
+  "baseline_cv_folds": [
+    0.8622053872053873,
+    0.8627325890483785,
+    0.9403937193410878,
+    0.8589314194577353,
+    0.7655924322590987
+  ],
+  "baseline_test_accuracy": 0.8988673607094659,
+  "best_model": "optimized_et",
+  "best_cv_accuracy": 0.9214216972111708,
+  "best_test_accuracy": 0.8988673607094659,
   "best_params": {
-    "et_n_estimators": 1700,
-    "et_max_depth": 50,
-    "et_min_samples_split": 7,
+    "et_n_estimators": 1400,
+    "et_max_depth": 20,
+    "et_min_samples_split": 4,
     "et_min_samples_leaf": 1,
-    "et_max_features": "sqrt",
+    "et_max_features": 0.5,
     "et_class_weight": "balanced"
   },
-  "improvement_percentage": 3.076923076923077,
-  "train_test_split": {
-    "train_samples": 390,
-    "val_samples": 130,
+  "cv_improvement_pct": 6.345058774883327,
+  "test_improvement_pct": 0.0,
+  "data_split": {
+    "train_val_samples": 520,
     "test_samples": 131
   }
 }

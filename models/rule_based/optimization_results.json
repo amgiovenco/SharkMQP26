@@ -1,20 +1,20 @@
 {
-  "baseline_cv_accuracy": 0.9185907222548444,
+  "baseline_cv_macro_f1": 0.8648241120355229,
   "baseline_fold_scores": [
-    0.916030534351145,
-    0.9,
-    0.9076923076923077,
-    0.9230769230769231,
-    0.9461538461538461
+    0.8433542647828361,
+    0.8246785550191122,
+    0.8327704946125999,
+    0.8999800566364033,
+    0.9233371891266628
   ],
   "best_model": "optimized_rb",
-  "best_cv_accuracy": 0.9508279506752789,
+  "best_cv_macro_f1": 0.9269545718585966,
   "best_params": {
     "model_type": "et",
-    "et_n_estimators": 790,
+    "et_n_estimators": 601,
     "et_min_samples_leaf": 1,
     "et_max_depth": 15,
     "et_max_features": null
   },
-  "improvement_percentage": 3.2237228420434527
+  "improvement_percentage": 6.213045982307374
 }
