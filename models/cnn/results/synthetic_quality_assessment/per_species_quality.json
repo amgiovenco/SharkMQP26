@@ -1,0 +1,275 @@
+{
+  "Arabian smooth-hound": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 44,
+      "medium_samples": 3,
+      "bad_samples": 3,
+      "distance_mean": 2.777698278427124,
+      "distance_std": 2.7847065925598145,
+      "distance_min": 1.030251145362854,
+      "distance_max": 15.17019271850586,
+      "distance_median": 1.912628412246704
+    },
+    "real": {
+      "total_samples": 6,
+      "distance_mean": 3.7095470428466797,
+      "distance_std": 2.101844310760498,
+      "distance_min": 1.6112736463546753,
+      "distance_max": 7.631638526916504,
+      "distance_median": 3.2562918663024902
+    }
+  },
+  "Blacknose shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 28,
+      "medium_samples": 22,
+      "bad_samples": 0,
+      "distance_mean": 3.3906443119049072,
+      "distance_std": 1.1596251726150513,
+      "distance_min": 1.2667797803878784,
+      "distance_max": 6.539936065673828,
+      "distance_median": 3.421557903289795
+    },
+    "real": {
+      "total_samples": 7,
+      "distance_mean": 3.2589313983917236,
+      "distance_std": 1.5895326137542725,
+      "distance_min": 1.49521005153656,
+      "distance_max": 5.451042175292969,
+      "distance_median": 2.3823609352111816
+    }
+  },
+  "Blackspotted smooth-hound": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 41,
+      "medium_samples": 6,
+      "bad_samples": 3,
+      "distance_mean": 2.8763539791107178,
+      "distance_std": 2.787109613418579,
+      "distance_min": 0.8655642867088318,
+      "distance_max": 13.971965789794922,
+      "distance_median": 1.9219413995742798
+    },
+    "real": {
+      "total_samples": 6,
+      "distance_mean": 4.501643657684326,
+      "distance_std": 1.664555549621582,
+      "distance_min": 2.9276340007781982,
+      "distance_max": 6.799468994140625,
+      "distance_median": 3.777827739715576
+    }
+  },
+  "Bonnethead shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 11,
+      "medium_samples": 29,
+      "bad_samples": 10,
+      "distance_mean": 5.725651741027832,
+      "distance_std": 2.7096636295318604,
+      "distance_min": 2.2481942176818848,
+      "distance_max": 14.596449851989746,
+      "distance_median": 5.0468549728393555
+    },
+    "real": {
+      "total_samples": 7,
+      "distance_mean": 6.969214916229248,
+      "distance_std": 2.2581114768981934,
+      "distance_min": 5.3063225746154785,
+      "distance_max": 12.185758590698242,
+      "distance_median": 5.779416561126709
+    }
+  },
+  "Common thresher shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 19,
+      "medium_samples": 25,
+      "bad_samples": 6,
+      "distance_mean": 5.019430637359619,
+      "distance_std": 2.407050609588623,
+      "distance_min": 2.0044174194335938,
+      "distance_max": 13.128767013549805,
+      "distance_median": 4.205759048461914
+    },
+    "real": {
+      "total_samples": 9,
+      "distance_mean": 4.529048919677734,
+      "distance_std": 0.948403000831604,
+      "distance_min": 3.5087995529174805,
+      "distance_max": 5.982182502746582,
+      "distance_median": 4.800312042236328
+    }
+  },
+  "Great white shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 37,
+      "medium_samples": 10,
+      "bad_samples": 3,
+      "distance_mean": 2.9351208209991455,
+      "distance_std": 1.9004665613174438,
+      "distance_min": 0.6153332591056824,
+      "distance_max": 9.54973316192627,
+      "distance_median": 2.4204328060150146
+    },
+    "real": {
+      "total_samples": 8,
+      "distance_mean": 3.34255313873291,
+      "distance_std": 1.2535200119018555,
+      "distance_min": 2.1847832202911377,
+      "distance_max": 6.217047691345215,
+      "distance_median": 2.9143428802490234
+    }
+  },
+  "Gummy shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 50,
+      "medium_samples": 0,
+      "bad_samples": 0,
+      "distance_mean": 1.508418321609497,
+      "distance_std": 0.45365622639656067,
+      "distance_min": 0.5534288287162781,
+      "distance_max": 3.1791224479675293,
+      "distance_median": 1.532209038734436
+    },
+    "real": {
+      "total_samples": 6,
+      "distance_mean": 1.993098258972168,
+      "distance_std": 0.5118871927261353,
+      "distance_min": 1.6134843826293945,
+      "distance_max": 2.9624152183532715,
+      "distance_median": 1.6920115947723389
+    }
+  },
+  "Halavi guitarfish": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 43,
+      "medium_samples": 7,
+      "bad_samples": 0,
+      "distance_mean": 2.560835361480713,
+      "distance_std": 1.1202365159988403,
+      "distance_min": 1.0605443716049194,
+      "distance_max": 6.017611026763916,
+      "distance_median": 2.3448235988616943
+    },
+    "real": {
+      "total_samples": 8,
+      "distance_mean": 2.9745473861694336,
+      "distance_std": 1.1583400964736938,
+      "distance_min": 1.3933130502700806,
+      "distance_max": 4.963663578033447,
+      "distance_median": 2.881077766418457
+    }
+  },
+  "Hooktooth shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 41,
+      "medium_samples": 5,
+      "bad_samples": 4,
+      "distance_mean": 2.3999075889587402,
+      "distance_std": 2.6290595531463623,
+      "distance_min": 0.5713174939155579,
+      "distance_max": 10.897605895996094,
+      "distance_median": 1.2789149284362793
+    },
+    "real": {
+      "total_samples": 7,
+      "distance_mean": 1.8919727802276611,
+      "distance_std": 0.8197490572929382,
+      "distance_min": 1.1578502655029297,
+      "distance_max": 3.18291974067688,
+      "distance_median": 1.4418361186981201
+    }
+  },
+  "Longtail stingray": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 49,
+      "medium_samples": 1,
+      "bad_samples": 0,
+      "distance_mean": 1.6854488849639893,
+      "distance_std": 0.8936343193054199,
+      "distance_min": 0.811862587928772,
+      "distance_max": 6.558166980743408,
+      "distance_median": 1.4729371070861816
+    },
+    "real": {
+      "total_samples": 12,
+      "distance_mean": 1.798071026802063,
+      "distance_std": 1.0895730257034302,
+      "distance_min": 0.8497256636619568,
+      "distance_max": 5.023952484130859,
+      "distance_median": 1.7187929153442383
+    }
+  },
+  "Nurse shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 17,
+      "medium_samples": 27,
+      "bad_samples": 6,
+      "distance_mean": 4.835713863372803,
+      "distance_std": 2.970975160598755,
+      "distance_min": 0.003122680587694049,
+      "distance_max": 11.319719314575195,
+      "distance_median": 5.629563331604004
+    },
+    "real": {
+      "total_samples": 4,
+      "distance_mean": 7.432169437408447,
+      "distance_std": 3.951998472213745,
+      "distance_min": 3.734262466430664,
+      "distance_max": 13.101764678955078,
+      "distance_median": 6.446324825286865
+    }
+  },
+  "Pelagic thresher shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 22,
+      "medium_samples": 24,
+      "bad_samples": 4,
+      "distance_mean": 4.148038864135742,
+      "distance_std": 2.3282673358917236,
+      "distance_min": 0.89510577917099,
+      "distance_max": 11.418992042541504,
+      "distance_median": 3.919776439666748
+    },
+    "real": {
+      "total_samples": 7,
+      "distance_mean": 3.9979259967803955,
+      "distance_std": 1.3919228315353394,
+      "distance_min": 3.094893455505371,
+      "distance_max": 7.3421630859375,
+      "distance_median": 3.455314874649048
+    }
+  },
+  "Sandbar shark": {
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 19,
+      "medium_samples": 22,
+      "bad_samples": 9,
+      "distance_mean": 5.136226654052734,
+      "distance_std": 2.763476848602295,
+      "distance_min": 1.2063864469528198,
+      "distance_max": 13.065977096557617,
+      "distance_median": 4.637338161468506
+    },
+    "real": {
+      "total_samples": 7,
+      "distance_mean": 3.88616943359375,
+      "distance_std": 2.1609418392181396,
+      "distance_min": 1.937179684638977,
+      "distance_max": 8.338290214538574,
+      "distance_median": 2.794487237930298
+    }
+  }
+}

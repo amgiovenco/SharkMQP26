@@ -1,0 +1,45 @@
+{
+  "real_data": {
+    "total_samples": 651,
+    "distance_stats": {
+      "mean": 2.9018430709838867,
+      "median": 2.280682325363159,
+      "std": 2.185899496078491,
+      "min": 0.15990927815437317,
+      "max": 14.822382926940918,
+      "p25": 1.4440795183181763,
+      "p50": 2.280682325363159,
+      "p75": 3.6246509552001953,
+      "p95": 7.605322360992432
+    }
+  },
+  "synthetic_data": {
+    "total_samples": 650,
+    "good_count": 421,
+    "medium_count": 181,
+    "bad_count": 48,
+    "unknown_count": 0,
+    "distance_stats": {
+      "mean": 3.4614994525909424,
+      "median": 2.593522071838379,
+      "std": 2.592712163925171,
+      "min": 0.003122680587694049,
+      "max": 15.17019271850586,
+      "p25": 1.5991922616958618,
+      "p50": 2.593522071838379,
+      "p75": 4.600790500640869,
+      "p95": 8.658398628234863
+    }
+  },
+  "thresholds": {
+    "good_threshold_p75": 3.6246509552001953,
+    "bad_threshold_p95": 7.605322360992432
+  },
+  "config": {
+    "percentile_good": 75,
+    "percentile_bad": 95,
+    "model_checkpoint": "C:\\Users\\conno\\Documents\\vscodeprojects\\SharkMQP26\\models\\cnn\\efficientnet_b0_fold3_9700.pth",
+    "embedding_dim": 256,
+    "random_state": 8
+  }
+}

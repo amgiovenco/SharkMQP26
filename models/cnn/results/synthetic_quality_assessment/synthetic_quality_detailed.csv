@@ -1,0 +1,651 @@
+species,distance_to_centroid,quality,sample_index
+Arabian smooth-hound,2.3671162,good,0
+Arabian smooth-hound,1.209181,good,1
+Arabian smooth-hound,2.9964385,good,2
+Arabian smooth-hound,1.8312246,good,3
+Arabian smooth-hound,2.7218707,good,4
+Arabian smooth-hound,1.6531323,good,5
+Arabian smooth-hound,1.5837871,good,6
+Arabian smooth-hound,3.0696554,good,7
+Arabian smooth-hound,1.3278298,good,8
+Arabian smooth-hound,2.2030582,good,9
+Arabian smooth-hound,1.5101923,good,10
+Arabian smooth-hound,3.672619,medium,11
+Arabian smooth-hound,1.9944773,good,12
+Arabian smooth-hound,1.8455098,good,13
+Arabian smooth-hound,3.0999742,good,14
+Arabian smooth-hound,3.0753236,good,15
+Arabian smooth-hound,2.9400918,good,16
+Arabian smooth-hound,1.6214442,good,17
+Arabian smooth-hound,1.1319257,good,18
+Arabian smooth-hound,1.6804451,good,19
+Arabian smooth-hound,2.5922859,good,20
+Arabian smooth-hound,2.6017091,good,21
+Arabian smooth-hound,12.810447,bad,22
+Arabian smooth-hound,2.3197334,good,23
+Arabian smooth-hound,1.7185289,good,24
+Arabian smooth-hound,12.02313,bad,25
+Arabian smooth-hound,1.8908439,good,26
+Arabian smooth-hound,2.6682708,good,27
+Arabian smooth-hound,1.5147729,good,28
+Arabian smooth-hound,1.6350688,good,29
+Arabian smooth-hound,2.7772357,good,30
+Arabian smooth-hound,3.83056,medium,31
+Arabian smooth-hound,1.4967186,good,32
+Arabian smooth-hound,1.3250426,good,33
+Arabian smooth-hound,1.1979505,good,34
+Arabian smooth-hound,1.9740694,good,35
+Arabian smooth-hound,1.7541687,good,36
+Arabian smooth-hound,1.2806876,good,37
+Arabian smooth-hound,1.5201583,good,38
+Arabian smooth-hound,1.7110147,good,39
+Arabian smooth-hound,1.7153604,good,40
+Arabian smooth-hound,2.401563,good,41
+Arabian smooth-hound,1.9344131,good,42
+Arabian smooth-hound,3.9424899,medium,43
+Arabian smooth-hound,3.4835508,good,44
+Arabian smooth-hound,1.9511694,good,45
+Arabian smooth-hound,1.0302511,good,46
+Arabian smooth-hound,1.7981999,good,47
+Arabian smooth-hound,1.2800306,good,48
+Arabian smooth-hound,15.170193,bad,49
+Blacknose shark,4.775272,medium,50
+Blacknose shark,3.8067894,medium,51
+Blacknose shark,4.1153326,medium,52
+Blacknose shark,4.3373957,medium,53
+Blacknose shark,3.431645,good,54
+Blacknose shark,1.738045,good,55
+Blacknose shark,3.3228498,good,56
+Blacknose shark,5.791242,medium,57
+Blacknose shark,2.6518698,good,58
+Blacknose shark,2.081843,good,59
+Blacknose shark,3.44336,good,60
+Blacknose shark,3.4606557,good,61
+Blacknose shark,1.6685661,good,62
+Blacknose shark,4.541563,medium,63
+Blacknose shark,2.1339781,good,64
+Blacknose shark,3.7708843,medium,65
+Blacknose shark,3.2295375,good,66
+Blacknose shark,4.1810894,medium,67
+Blacknose shark,6.539936,medium,68
+Blacknose shark,4.699548,medium,69
+Blacknose shark,2.1439734,good,70
+Blacknose shark,2.1837196,good,71
+Blacknose shark,2.0676646,good,72
+Blacknose shark,4.8312287,medium,73
+Blacknose shark,2.3926048,good,74
+Blacknose shark,2.34332,good,75
+Blacknose shark,1.925939,good,76
+Blacknose shark,3.373569,good,77
+Blacknose shark,4.65924,medium,78
+Blacknose shark,3.4114707,good,79
+Blacknose shark,2.8844824,good,80
+Blacknose shark,3.1691675,good,81
+Blacknose shark,2.326522,good,82
+Blacknose shark,3.974905,medium,83
+Blacknose shark,4.9780545,medium,84
+Blacknose shark,3.2833357,good,85
+Blacknose shark,4.4583383,medium,86
+Blacknose shark,3.6354322,medium,87
+Blacknose shark,3.679775,medium,88
+Blacknose shark,2.4666467,good,89
+Blacknose shark,3.677542,medium,90
+Blacknose shark,2.0293026,good,91
+Blacknose shark,2.2311854,good,92
+Blacknose shark,5.095698,medium,93
+Blacknose shark,2.410123,good,94
+Blacknose shark,1.2667798,good,95
+Blacknose shark,3.871344,medium,96
+Blacknose shark,4.910172,medium,97
+Blacknose shark,2.3170931,good,98
+Blacknose shark,3.812173,medium,99
+Blackspotted smooth-hound,2.2123396,good,100
+Blackspotted smooth-hound,1.3945407,good,101
+Blackspotted smooth-hound,3.0965774,good,102
+Blackspotted smooth-hound,2.4122303,good,103
+Blackspotted smooth-hound,1.4760425,good,104
+Blackspotted smooth-hound,1.5586501,good,105
+Blackspotted smooth-hound,6.482801,medium,106
+Blackspotted smooth-hound,6.8981857,medium,107
+Blackspotted smooth-hound,0.8655643,good,108
+Blackspotted smooth-hound,0.96289617,good,109
+Blackspotted smooth-hound,1.4084038,good,110
+Blackspotted smooth-hound,1.2820628,good,111
+Blackspotted smooth-hound,3.738816,medium,112
+Blackspotted smooth-hound,1.4323227,good,113
+Blackspotted smooth-hound,1.6118642,good,114
+Blackspotted smooth-hound,1.869606,good,115
+Blackspotted smooth-hound,5.315911,medium,116
+Blackspotted smooth-hound,1.780745,good,117
+Blackspotted smooth-hound,2.1290505,good,118
+Blackspotted smooth-hound,2.686493,good,119
+Blackspotted smooth-hound,1.6655995,good,120
+Blackspotted smooth-hound,2.784107,good,121
+Blackspotted smooth-hound,13.971966,bad,122
+Blackspotted smooth-hound,1.7088368,good,123
+Blackspotted smooth-hound,1.4808538,good,124
+Blackspotted smooth-hound,10.518963,bad,125
+Blackspotted smooth-hound,1.5096587,good,126
+Blackspotted smooth-hound,2.5436695,good,127
+Blackspotted smooth-hound,2.1574175,good,128
+Blackspotted smooth-hound,1.408125,good,129
+Blackspotted smooth-hound,1.9742768,good,130
+Blackspotted smooth-hound,1.0550491,good,131
+Blackspotted smooth-hound,2.6427407,good,132
+Blackspotted smooth-hound,1.3812429,good,133
+Blackspotted smooth-hound,1.5886624,good,134
+Blackspotted smooth-hound,1.8196305,good,135
+Blackspotted smooth-hound,2.6367228,good,136
+Blackspotted smooth-hound,0.94826347,good,137
+Blackspotted smooth-hound,1.2679676,good,138
+Blackspotted smooth-hound,1.4179109,good,139
+Blackspotted smooth-hound,2.2394564,good,140
+Blackspotted smooth-hound,2.4252176,good,141
+Blackspotted smooth-hound,1.6993169,good,142
+Blackspotted smooth-hound,2.112436,good,143
+Blackspotted smooth-hound,3.7014792,medium,144
+Blackspotted smooth-hound,5.0156035,medium,145
+Blackspotted smooth-hound,2.0876353,good,146
+Blackspotted smooth-hound,2.4293208,good,147
+Blackspotted smooth-hound,1.7226084,good,148
+Blackspotted smooth-hound,13.287858,bad,149
+Bonnethead shark,3.7909324,medium,150
+Bonnethead shark,4.361947,medium,151
+Bonnethead shark,3.4319623,good,152
+Bonnethead shark,4.95582,medium,153
+Bonnethead shark,5.686194,medium,154
+Bonnethead shark,10.6061535,bad,155
+Bonnethead shark,2.6586025,good,156
+Bonnethead shark,6.6881633,medium,157
+Bonnethead shark,3.8840775,medium,158
+Bonnethead shark,7.143064,medium,159
+Bonnethead shark,5.054758,medium,160
+Bonnethead shark,4.1464047,medium,161
+Bonnethead shark,3.6621027,medium,162
+Bonnethead shark,2.7771752,good,163
+Bonnethead shark,12.679422,bad,164
+Bonnethead shark,2.4720545,good,165
+Bonnethead shark,5.161852,medium,166
+Bonnethead shark,7.5592737,medium,167
+Bonnethead shark,8.162688,bad,168
+Bonnethead shark,10.077499,bad,169
+Bonnethead shark,4.0193486,medium,170
+Bonnethead shark,4.0834394,medium,171
+Bonnethead shark,9.352747,bad,172
+Bonnethead shark,5.354019,medium,173
+Bonnethead shark,3.2533395,good,174
+Bonnethead shark,4.9313555,medium,175
+Bonnethead shark,5.4024954,medium,176
+Bonnethead shark,3.3340576,good,177
+Bonnethead shark,6.844818,medium,178
+Bonnethead shark,10.312711,bad,179
+Bonnethead shark,6.7399597,medium,180
+Bonnethead shark,3.1343057,good,181
+Bonnethead shark,5.3319964,medium,182
+Bonnethead shark,14.59645,bad,183
+Bonnethead shark,6.146372,medium,184
+Bonnethead shark,9.5749235,bad,185
+Bonnethead shark,8.948482,bad,186
+Bonnethead shark,7.8293266,bad,187
+Bonnethead shark,3.2921684,good,188
+Bonnethead shark,2.2481942,good,189
+Bonnethead shark,4.5594544,medium,190
+Bonnethead shark,4.4507394,medium,191
+Bonnethead shark,3.00989,good,192
+Bonnethead shark,5.657137,medium,193
+Bonnethead shark,4.102889,medium,194
+Bonnethead shark,5.0389514,medium,195
+Bonnethead shark,4.5676904,medium,196
+Bonnethead shark,6.8824687,medium,197
+Bonnethead shark,2.8401625,good,198
+Bonnethead shark,5.482563,medium,199
+Common thresher shark,5.3900976,medium,200
+Common thresher shark,7.5283346,medium,201
+Common thresher shark,3.792527,medium,202
+Common thresher shark,6.335774,medium,203
+Common thresher shark,3.2977903,good,204
+Common thresher shark,2.335126,good,205
+Common thresher shark,3.8915753,medium,206
+Common thresher shark,6.716315,medium,207
+Common thresher shark,2.3972003,good,208
+Common thresher shark,5.751992,medium,209
+Common thresher shark,3.6280303,medium,210
+Common thresher shark,3.7055202,medium,211
+Common thresher shark,2.0044174,good,212
+Common thresher shark,5.8101215,medium,213
+Common thresher shark,2.3616915,good,214
+Common thresher shark,3.5931854,good,215
+Common thresher shark,3.582152,good,216
+Common thresher shark,6.384888,medium,217
+Common thresher shark,3.3099217,good,218
+Common thresher shark,6.858797,medium,219
+Common thresher shark,11.121236,bad,220
+Common thresher shark,5.9498014,medium,221
+Common thresher shark,8.547207,bad,222
+Common thresher shark,6.02879,medium,223
+Common thresher shark,3.8977773,medium,224
+Common thresher shark,13.128767,bad,225
+Common thresher shark,2.325175,good,226
+Common thresher shark,2.9275732,good,227
+Common thresher shark,6.05444,medium,228
+Common thresher shark,8.907747,bad,229
+Common thresher shark,3.3398535,good,230
+Common thresher shark,7.577491,medium,231
+Common thresher shark,2.0876694,good,232
+Common thresher shark,4.5137405,medium,233
+Common thresher shark,2.8456647,good,234
+Common thresher shark,2.8567264,good,235
+Common thresher shark,6.251686,medium,236
+Common thresher shark,8.127748,bad,237
+Common thresher shark,6.4541874,medium,238
+Common thresher shark,2.6760101,good,239
+Common thresher shark,4.928761,medium,240
+Common thresher shark,3.2387607,good,241
+Common thresher shark,6.805748,medium,242
+Common thresher shark,3.0509765,good,243
+Common thresher shark,4.8388352,medium,244
+Common thresher shark,3.0483468,good,245
+Common thresher shark,2.785242,good,246
+Common thresher shark,3.8296678,medium,247
+Common thresher shark,5.696379,medium,248
+Common thresher shark,8.454078,bad,249
+Great white shark,0.9552146,good,250
+Great white shark,2.4541976,good,251
+Great white shark,3.722183,medium,252
+Great white shark,1.2229214,good,253
+Great white shark,2.2476387,good,254
+Great white shark,6.093526,medium,255
+Great white shark,3.0921047,good,256
+Great white shark,1.9773028,good,257
+Great white shark,1.7473425,good,258
+Great white shark,1.961139,good,259
+Great white shark,3.1652806,good,260
+Great white shark,2.5083022,good,261
+Great white shark,8.73741,bad,262
+Great white shark,1.5507296,good,263
+Great white shark,2.055504,good,264
+Great white shark,4.5064774,medium,265
+Great white shark,0.61533326,good,266
+Great white shark,2.2261105,good,267
+Great white shark,3.3663783,good,268
+Great white shark,2.8243103,good,269
+Great white shark,1.825673,good,270
+Great white shark,4.096433,medium,271
+Great white shark,3.7919652,medium,272
+Great white shark,1.3040428,good,273
+Great white shark,1.9886992,good,274
+Great white shark,1.4172772,good,275
+Great white shark,0.86551046,good,276
+Great white shark,2.403972,good,277
+Great white shark,4.5471935,medium,278
+Great white shark,2.2295198,good,279
+Great white shark,5.225056,medium,280
+Great white shark,3.1119068,good,281
+Great white shark,1.6673269,good,282
+Great white shark,3.6430202,medium,283
+Great white shark,3.3231077,good,284
+Great white shark,8.028609,bad,285
+Great white shark,1.2161094,good,286
+Great white shark,9.549733,bad,287
+Great white shark,1.1006498,good,288
+Great white shark,1.86626,good,289
+Great white shark,2.8006907,good,290
+Great white shark,2.4368937,good,291
+Great white shark,3.1053948,good,292
+Great white shark,1.7876967,good,293
+Great white shark,1.5529635,good,294
+Great white shark,0.9396614,good,295
+Great white shark,3.270467,good,296
+Great white shark,1.992064,good,297
+Great white shark,4.5700364,medium,298
+Great white shark,4.0686927,medium,299
+Gummy shark,3.1791224,good,300
+Gummy shark,0.9598738,good,301
+Gummy shark,1.7220728,good,302
+Gummy shark,1.2723466,good,303
+Gummy shark,1.5533793,good,304
+Gummy shark,1.5014873,good,305
+Gummy shark,1.43459,good,306
+Gummy shark,1.6434897,good,307
+Gummy shark,1.4058,good,308
+Gummy shark,0.5534288,good,309
+Gummy shark,1.4717999,good,310
+Gummy shark,1.2662358,good,311
+Gummy shark,0.9848927,good,312
+Gummy shark,1.7968627,good,313
+Gummy shark,1.433474,good,314
+Gummy shark,1.722196,good,315
+Gummy shark,1.7460892,good,316
+Gummy shark,1.402892,good,317
+Gummy shark,1.6422182,good,318
+Gummy shark,1.5357331,good,319
+Gummy shark,0.723166,good,320
+Gummy shark,1.4532759,good,321
+Gummy shark,1.5833346,good,322
+Gummy shark,1.354301,good,323
+Gummy shark,1.1016936,good,324
+Gummy shark,1.5491312,good,325
+Gummy shark,1.7105083,good,326
+Gummy shark,1.1112936,good,327
+Gummy shark,1.5974069,good,328
+Gummy shark,2.2256424,good,329
+Gummy shark,1.9307901,good,330
+Gummy shark,0.79400486,good,331
+Gummy shark,1.644678,good,332
+Gummy shark,1.1682793,good,333
+Gummy shark,2.6329525,good,334
+Gummy shark,1.8844886,good,335
+Gummy shark,1.6103129,good,336
+Gummy shark,1.8270128,good,337
+Gummy shark,0.75371796,good,338
+Gummy shark,2.2185931,good,339
+Gummy shark,1.652951,good,340
+Gummy shark,1.3003005,good,341
+Gummy shark,0.9264866,good,342
+Gummy shark,1.528685,good,343
+Gummy shark,1.6701143,good,344
+Gummy shark,1.6055616,good,345
+Gummy shark,1.2995181,good,346
+Gummy shark,1.3993682,good,347
+Gummy shark,1.7359779,good,348
+Gummy shark,1.1993798,good,349
+Halavi guitarfish,1.842681,good,350
+Halavi guitarfish,2.0749986,good,351
+Halavi guitarfish,2.3721075,good,352
+Halavi guitarfish,6.017611,medium,353
+Halavi guitarfish,3.9943447,medium,354
+Halavi guitarfish,3.9715211,medium,355
+Halavi guitarfish,2.9842858,good,356
+Halavi guitarfish,2.1232421,good,357
+Halavi guitarfish,2.061112,good,358
+Halavi guitarfish,2.0114343,good,359
+Halavi guitarfish,1.8860915,good,360
+Halavi guitarfish,2.4487333,good,361
+Halavi guitarfish,3.5313447,good,362
+Halavi guitarfish,2.8927488,good,363
+Halavi guitarfish,1.4490732,good,364
+Halavi guitarfish,3.5936675,good,365
+Halavi guitarfish,2.594758,good,366
+Halavi guitarfish,1.9452226,good,367
+Halavi guitarfish,2.0907617,good,368
+Halavi guitarfish,2.3557878,good,369
+Halavi guitarfish,1.6430335,good,370
+Halavi guitarfish,2.3338594,good,371
+Halavi guitarfish,2.9272292,good,372
+Halavi guitarfish,2.7737238,good,373
+Halavi guitarfish,2.8903673,good,374
+Halavi guitarfish,2.060163,good,375
+Halavi guitarfish,1.7088635,good,376
+Halavi guitarfish,1.3193682,good,377
+Halavi guitarfish,3.8201742,medium,378
+Halavi guitarfish,2.078908,good,379
+Halavi guitarfish,2.462342,good,380
+Halavi guitarfish,2.094023,good,381
+Halavi guitarfish,4.766849,medium,382
+Halavi guitarfish,5.45963,medium,383
+Halavi guitarfish,1.7689131,good,384
+Halavi guitarfish,3.1226995,good,385
+Halavi guitarfish,2.3756638,good,386
+Halavi guitarfish,1.8317676,good,387
+Halavi guitarfish,2.3813741,good,388
+Halavi guitarfish,1.2002815,good,389
+Halavi guitarfish,1.0605444,good,390
+Halavi guitarfish,1.1037763,good,391
+Halavi guitarfish,1.8578122,good,392
+Halavi guitarfish,1.6496298,good,393
+Halavi guitarfish,1.4379745,good,394
+Halavi guitarfish,2.7040815,good,395
+Halavi guitarfish,5.652373,medium,396
+Halavi guitarfish,3.0363941,good,397
+Halavi guitarfish,2.8639452,good,398
+Halavi guitarfish,1.4144707,good,399
+Hooktooth shark,1.0822811,good,400
+Hooktooth shark,1.0191985,good,401
+Hooktooth shark,1.4900258,good,402
+Hooktooth shark,0.6695641,good,403
+Hooktooth shark,1.7711188,good,404
+Hooktooth shark,0.95048636,good,405
+Hooktooth shark,5.529065,medium,406
+Hooktooth shark,3.645893,medium,407
+Hooktooth shark,1.6045485,good,408
+Hooktooth shark,1.3155166,good,409
+Hooktooth shark,1.3399954,good,410
+Hooktooth shark,0.82932144,good,411
+Hooktooth shark,1.7262548,good,412
+Hooktooth shark,0.91758674,good,413
+Hooktooth shark,1.3988849,good,414
+Hooktooth shark,0.9601238,good,415
+Hooktooth shark,1.1650417,good,416
+Hooktooth shark,0.7401573,good,417
+Hooktooth shark,1.2222227,good,418
+Hooktooth shark,10.167582,bad,419
+Hooktooth shark,3.0750606,good,420
+Hooktooth shark,6.634585,medium,421
+Hooktooth shark,10.897606,bad,422
+Hooktooth shark,2.3232872,good,423
+Hooktooth shark,1.1686356,good,424
+Hooktooth shark,10.3090315,bad,425
+Hooktooth shark,1.2277144,good,426
+Hooktooth shark,2.24831,good,427
+Hooktooth shark,0.75649256,good,428
+Hooktooth shark,2.1673365,good,429
+Hooktooth shark,1.2121528,good,430
+Hooktooth shark,2.5598419,good,431
+Hooktooth shark,0.98981416,good,432
+Hooktooth shark,2.048617,good,433
+Hooktooth shark,1.389564,good,434
+Hooktooth shark,0.67542624,good,435
+Hooktooth shark,1.0565221,good,436
+Hooktooth shark,1.2423134,good,437
+Hooktooth shark,1.3569129,good,438
+Hooktooth shark,1.1576128,good,439
+Hooktooth shark,1.026258,good,440
+Hooktooth shark,0.5713175,good,441
+Hooktooth shark,4.2655616,medium,442
+Hooktooth shark,7.569442,medium,443
+Hooktooth shark,0.645158,good,444
+Hooktooth shark,1.1111917,good,445
+Hooktooth shark,0.8640373,good,446
+Hooktooth shark,0.60339504,good,447
+Hooktooth shark,1.554838,good,448
+Hooktooth shark,7.7424855,bad,449
+Longtail stingray,1.6396644,good,450
+Longtail stingray,1.7103078,good,451
+Longtail stingray,2.3488965,good,452
+Longtail stingray,1.0061893,good,453
+Longtail stingray,2.0011775,good,454
+Longtail stingray,1.4714103,good,455
+Longtail stingray,1.2804095,good,456
+Longtail stingray,1.3269451,good,457
+Longtail stingray,1.0684527,good,458
+Longtail stingray,1.8331764,good,459
+Longtail stingray,2.927274,good,460
+Longtail stingray,1.9338264,good,461
+Longtail stingray,2.8639343,good,462
+Longtail stingray,2.0914984,good,463
+Longtail stingray,3.110547,good,464
+Longtail stingray,1.8631786,good,465
+Longtail stingray,0.8118626,good,466
+Longtail stingray,2.2561772,good,467
+Longtail stingray,2.6054962,good,468
+Longtail stingray,1.2933475,good,469
+Longtail stingray,1.2051798,good,470
+Longtail stingray,1.4744639,good,471
+Longtail stingray,1.3600199,good,472
+Longtail stingray,0.904592,good,473
+Longtail stingray,1.1693135,good,474
+Longtail stingray,1.7411288,good,475
+Longtail stingray,1.1404641,good,476
+Longtail stingray,1.0868535,good,477
+Longtail stingray,1.705463,good,478
+Longtail stingray,1.2975811,good,479
+Longtail stingray,1.1312976,good,480
+Longtail stingray,1.5814037,good,481
+Longtail stingray,1.5294807,good,482
+Longtail stingray,1.1993322,good,483
+Longtail stingray,0.98727417,good,484
+Longtail stingray,1.2054496,good,485
+Longtail stingray,0.9884684,good,486
+Longtail stingray,0.9224632,good,487
+Longtail stingray,1.4591172,good,488
+Longtail stingray,2.7396646,good,489
+Longtail stingray,1.5525434,good,490
+Longtail stingray,1.6776346,good,491
+Longtail stingray,6.558167,medium,492
+Longtail stingray,0.88212186,good,493
+Longtail stingray,1.3063904,good,494
+Longtail stingray,1.3523257,good,495
+Longtail stingray,1.5350957,good,496
+Longtail stingray,1.9015268,good,497
+Longtail stingray,2.1374807,good,498
+Longtail stingray,1.096378,good,499
+Nurse shark,4.449047,medium,500
+Nurse shark,6.817302,medium,501
+Nurse shark,7.1421833,medium,502
+Nurse shark,6.843318,medium,503
+Nurse shark,5.7656164,medium,504
+Nurse shark,7.2213893,medium,505
+Nurse shark,6.3582983,medium,506
+Nurse shark,7.0280547,medium,507
+Nurse shark,11.319719,bad,508
+Nurse shark,0.9941213,good,509
+Nurse shark,0.6637715,good,510
+Nurse shark,7.929629,bad,511
+Nurse shark,1.1449885,good,512
+Nurse shark,3.5034237,good,513
+Nurse shark,7.1598535,medium,514
+Nurse shark,5.1273665,medium,515
+Nurse shark,7.0604296,medium,516
+Nurse shark,5.4935102,medium,517
+Nurse shark,3.8980606,medium,518
+Nurse shark,4.2573247,medium,519
+Nurse shark,6.872823,medium,520
+Nurse shark,9.507061,bad,521
+Nurse shark,6.937078,medium,522
+Nurse shark,6.330299,medium,523
+Nurse shark,6.559186,medium,524
+Nurse shark,7.4809523,medium,525
+Nurse shark,1.5877429,good,526
+Nurse shark,0.951222,good,527
+Nurse shark,0.5594712,good,528
+Nurse shark,6.8356223,medium,529
+Nurse shark,7.972441,bad,530
+Nurse shark,2.2025564,good,531
+Nurse shark,8.561834,bad,532
+Nurse shark,6.6217284,medium,533
+Nurse shark,0.07807167,good,534
+Nurse shark,0.68816376,good,535
+Nurse shark,2.4028673,good,536
+Nurse shark,1.1602162,good,537
+Nurse shark,6.4437656,medium,538
+Nurse shark,0.066403165,good,539
+Nurse shark,4.0026455,medium,540
+Nurse shark,7.170731,medium,541
+Nurse shark,5.2838383,medium,542
+Nurse shark,0.0031226806,good,543
+Nurse shark,1.1561818,good,544
+Nurse shark,1.9500524,good,545
+Nurse shark,4.7538433,medium,546
+Nurse shark,10.096754,bad,547
+Nurse shark,6.147212,medium,548
+Nurse shark,1.2243778,good,549
+Pelagic thresher shark,0.8951058,good,550
+Pelagic thresher shark,4.130777,medium,551
+Pelagic thresher shark,1.7609643,good,552
+Pelagic thresher shark,5.0847454,medium,553
+Pelagic thresher shark,1.4721277,good,554
+Pelagic thresher shark,1.4296753,good,555
+Pelagic thresher shark,4.3848367,medium,556
+Pelagic thresher shark,3.8878098,medium,557
+Pelagic thresher shark,3.3657923,good,558
+Pelagic thresher shark,1.476407,good,559
+Pelagic thresher shark,5.4487762,medium,560
+Pelagic thresher shark,5.8575363,medium,561
+Pelagic thresher shark,3.3963015,good,562
+Pelagic thresher shark,1.4590927,good,563
+Pelagic thresher shark,7.3906207,medium,564
+Pelagic thresher shark,2.640292,good,565
+Pelagic thresher shark,3.359589,good,566
+Pelagic thresher shark,5.253916,medium,567
+Pelagic thresher shark,3.9517434,medium,568
+Pelagic thresher shark,6.71201,medium,569
+Pelagic thresher shark,4.8303638,medium,570
+Pelagic thresher shark,3.0089455,good,571
+Pelagic thresher shark,5.2769923,medium,572
+Pelagic thresher shark,5.371021,medium,573
+Pelagic thresher shark,1.9605147,good,574
+Pelagic thresher shark,1.8918085,good,575
+Pelagic thresher shark,10.026649,bad,576
+Pelagic thresher shark,6.2315207,medium,577
+Pelagic thresher shark,4.7195387,medium,578
+Pelagic thresher shark,4.8174677,medium,579
+Pelagic thresher shark,1.3984737,good,580
+Pelagic thresher shark,1.3847091,good,581
+Pelagic thresher shark,4.9666276,medium,582
+Pelagic thresher shark,9.700444,bad,583
+Pelagic thresher shark,2.6071906,good,584
+Pelagic thresher shark,11.418992,bad,585
+Pelagic thresher shark,4.1169667,medium,586
+Pelagic thresher shark,3.4537153,good,587
+Pelagic thresher shark,1.9396415,good,588
+Pelagic thresher shark,7.998607,bad,589
+Pelagic thresher shark,3.7755911,medium,590
+Pelagic thresher shark,6.374672,medium,591
+Pelagic thresher shark,2.8544953,good,592
+Pelagic thresher shark,2.8744822,good,593
+Pelagic thresher shark,1.5044706,good,594
+Pelagic thresher shark,4.346101,medium,595
+Pelagic thresher shark,4.737793,medium,596
+Pelagic thresher shark,3.6570718,medium,597
+Pelagic thresher shark,1.904341,good,598
+Pelagic thresher shark,4.8946295,medium,599
+Sandbar shark,6.069817,medium,600
+Sandbar shark,1.2063864,good,601
+Sandbar shark,1.6211802,good,602
+Sandbar shark,2.2456257,good,603
+Sandbar shark,2.0324352,good,604
+Sandbar shark,10.620317,bad,605
+Sandbar shark,4.6636343,medium,606
+Sandbar shark,5.965448,medium,607
+Sandbar shark,5.6249533,medium,608
+Sandbar shark,4.1269045,medium,609
+Sandbar shark,7.3462687,medium,610
+Sandbar shark,2.5065198,good,611
+Sandbar shark,6.302925,medium,612
+Sandbar shark,2.9261754,good,613
+Sandbar shark,3.8175309,medium,614
+Sandbar shark,3.3007855,good,615
+Sandbar shark,2.243319,good,616
+Sandbar shark,8.10689,bad,617
+Sandbar shark,6.358886,medium,618
+Sandbar shark,4.1668997,medium,619
+Sandbar shark,7.601299,medium,620
+Sandbar shark,9.635301,bad,621
+Sandbar shark,3.6078718,good,622
+Sandbar shark,8.311025,bad,623
+Sandbar shark,2.899669,good,624
+Sandbar shark,8.466104,bad,625
+Sandbar shark,5.458939,medium,626
+Sandbar shark,9.4316,bad,627
+Sandbar shark,1.7178817,good,628
+Sandbar shark,4.9868927,medium,629
+Sandbar shark,11.620145,bad,630
+Sandbar shark,2.9629304,good,631
+Sandbar shark,2.6908593,good,632
+Sandbar shark,4.611042,medium,633
+Sandbar shark,6.413667,medium,634
+Sandbar shark,5.8917713,medium,635
+Sandbar shark,5.099118,medium,636
+Sandbar shark,3.3253913,good,637
+Sandbar shark,2.8032258,good,638
+Sandbar shark,7.0871406,medium,639
+Sandbar shark,3.982077,medium,640
+Sandbar shark,7.880811,bad,641
+Sandbar shark,7.240715,medium,642
+Sandbar shark,2.3898885,good,643
+Sandbar shark,13.065977,bad,644
+Sandbar shark,4.736061,medium,645
+Sandbar shark,1.7695496,good,646
+Sandbar shark,3.5662825,good,647
+Sandbar shark,4.093832,medium,648
+Sandbar shark,2.2113822,good,649
