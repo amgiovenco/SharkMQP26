@@ -1,0 +1,17 @@
+{
+  "best_k_very_low": 9,
+  "best_k_low": 10,
+  "best_k_medium": 9,
+  "best_k_high": 5,
+  "best_k_very_high": 2,
+  "best_macro_f1": 0.0,
+  "best_trial_number": 0,
+  "total_trials": 3,
+  "best_metrics": {
+    "mean_accuracy": null,
+    "mean_precision": null,
+    "mean_recall": null,
+    "total_synthetic_added": null
+  },
+  "best_bin_stats": {}
+}

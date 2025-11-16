@@ -1,7 +1,7 @@
 """
 Optuna-based hyperparameter optimization for synthetic sample addition to EfficientNet-B0 CNN.
 
-Optimizes five per-bin multipliers (k_very_low, k_low, k_medium, k_high, k_very_high)
+Optimizes five per-bin multipliers (n_very_low, n_low, n_medium, n_high, n_very_high)
 that determine how many synthetic samples per species to add to training data, based on
 species grouping by real count. Maximizes validation macro F1 score across 5-fold stratified CV.
 
@@ -43,7 +43,7 @@ from torchvision.models import efficientnet_b0
 import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.preprocessing import LabelEncoder
 
@@ -57,10 +57,10 @@ SEED = 8
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Paths and basic setup
-DATASET_DIR = Path('../../data')
 IMAGE_SIZE = 224
 N_FOLDS = 5
-NUM_FOLDS = N_FOLDS  # Alias for backwards compatibility
+TEST_SPLIT_RATIO = 0.2  # Hold out 20% for final test set
+MAX_SYN_PER_SPECIES = 48
 
 # Training hyperparameters (from train_efficientnetb0.ipynb optimization)
 BATCH_SIZE = 32
@@ -91,15 +91,15 @@ NUM_CLASSES = 57
 HIDDEN_DIM = 256
 DROPOUT_1 = HYPERPARAMETERS['cnn_dropout1']
 DROPOUT_2 = HYPERPARAMETERS['cnn_dropout2']
-NUM_WORKERS = 0  # Windows compatibility and memory efficiency
+NUM_WORKERS = 4
 
 print(DEVICE)
 
 # Data paths
 DATA_DIR = Path(__file__).parent / "data"
 REAL_DATA_PATH = DATA_DIR / "shark_dataset.csv"
-SYNTHETIC_DIR = DATA_DIR.parent / "syntheticDataIndividual"
-GOOD_SYNTHETIC_PATH = DATA_DIR.parent / "synthetic_data_good_quality.csv"
+SYNTHETIC_DIR = DATA_DIR / "syntheticDataIndividual"
+GOOD_SYNTHETIC_PATH = DATA_DIR / "synthetic_data_good_quality.csv"
 
 # Output
 OUTPUT_DIR = Path(__file__).parent / "optuna_results"
@@ -107,6 +107,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 DB_URL = "sqlite:///optuna_shark.db"
 CACHE_DIR = OUTPUT_DIR / "image_cache"
 CACHE_DIR.mkdir(exist_ok=True)
+
 
 # Set seeds for reproducibility
 torch.manual_seed(SEED)
@@ -347,21 +348,21 @@ def bin_species_by_real_count(real_data: pd.DataFrame) -> Dict[str, List[str]]:
 
 
 def create_augmented_dataset(real_data: pd.DataFrame, synthetic_data: Dict[str, pd.DataFrame],
-                           k_very_low: int, k_low: int, k_medium: int, k_high: int, k_very_high: int,
+                           n_very_low: int, n_low: int, n_medium: int, n_high: int, n_very_high: int,
                            max_synthetic_per_species: int = 50) -> Tuple[pd.DataFrame, Dict]:
     """
     Combine real and synthetic data based on per-bin multipliers.
 
-    For each species in a bin: add min(k_bin * real_count, max_synthetic_per_species) random synthetics.
+    For each species in a bin: add min(n_bin * real_count, max_synthetic_per_species) random synthetics.
 
     Args:
         real_data: Real samples
         synthetic_data: Synthetic samples per species
-        k_very_low: Multiplier for 'very_low' bin species (0-10)
-        k_low: Multiplier for 'low' bin species (0-10)
-        k_medium: Multiplier for 'medium' bin species (0-10)
-        k_high: Multiplier for 'high' bin species (0-10)
-        k_very_high: Multiplier for 'very_high' bin species (0-10)
+        n_very_low: Multiplier for 'very_low' bin species (0-10)
+        n_low: Multiplier for 'low' bin species (0-10)
+        n_medium: Multiplier for 'medium' bin species (0-10)
+        n_high: Multiplier for 'high' bin species (0-10)
+        n_very_high: Multiplier for 'very_high' bin species (0-10)
         max_synthetic_per_species: Cap per species
 
     Returns:
@@ -371,12 +372,12 @@ def create_augmented_dataset(real_data: pd.DataFrame, synthetic_data: Dict[str, 
 
     # Bin species
     bins = bin_species_by_real_count(real_data)
-    k_values = {
-        'very_low': k_very_low,
-        'low': k_low,
-        'medium': k_medium,
-        'high': k_high,
-        'very_high': k_very_high
+    n_values = {
+        'very_low': n_very_low,
+        'low': n_low,
+        'medium': n_medium,
+        'high': n_high,
+        'very_high': n_very_high
     }
 
     # Track per-bin statistics
@@ -389,7 +390,7 @@ def create_augmented_dataset(real_data: pd.DataFrame, synthetic_data: Dict[str, 
     }
 
     for bin_name in ['very_low', 'low', 'medium', 'high', 'very_high']:
-        k = k_values[bin_name]
+        k = n_values[bin_name]
         for species in bins[bin_name]:
             species_real = real_data[real_data['Species'] == species]
             real_count = len(species_real)
@@ -542,7 +543,7 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
     """
     train_transform, val_transform = get_transforms()
 
-    skf = StratifiedKFold(n_splits=NUM_FOLDS, shuffle=True, random_state=SEED)
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     fold_scores = {'accuracy': [], 'macro_f1': [], 'precision': [], 'recall': []}
 
     for fold_idx, (train_idx, val_idx) in enumerate(skf.split(train_data, train_data['Species'])):
@@ -596,7 +597,7 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
         fold_scores['precision'].append(val_prec)
         fold_scores['recall'].append(val_rec)
 
-        print(f"  Fold {fold_idx + 1}/{NUM_FOLDS}: F1={val_f1:.4f}, Acc={val_acc:.4f}")
+        print(f"  Fold {fold_idx + 1}/{N_FOLDS}: F1={val_f1:.4f}, Acc={val_acc:.4f}")
 
     # Compute means
     mean_f1 = np.mean(fold_scores['macro_f1'])
@@ -616,27 +617,142 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
 
 
 # ============================================================================
+# BASELINE EVALUATION (5-fold CV on REAL DATA ONLY)
+# ============================================================================
+
+def run_baseline() -> Dict:
+    """
+    Run baseline evaluation: 5-fold CV on real data only (no synthetic augmentation).
+
+    Returns:
+        Dictionary with baseline metrics
+    """
+    print(f"\n{'='*70}")
+    print("BASELINE: 5-Fold CV on Real Data Only (No Synthetic)")
+    print(f"{'='*70}")
+
+    set_seed(SEED)
+
+    try:
+        # Load real data
+        print("Loading data...")
+        real_data = load_real_data()
+        print(f"  Real samples: {len(real_data)}")
+
+        # Split real data into train+val vs test (stratified)
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=TEST_SPLIT_RATIO, random_state=SEED)
+        for train_idx, test_idx in sss.split(real_data, real_data['Species']):
+            real_train_val = real_data.iloc[train_idx].reset_index(drop=True)
+            real_test = real_data.iloc[test_idx].reset_index(drop=True)
+
+        print(f"  Train+Val: {len(real_train_val)} samples")
+        print(f"  Test (holdout): {len(real_test)} samples")
+
+        # Create label encoder from train+val (test uses same encoder)
+        label_encoder = LabelEncoder()
+        label_encoder.fit(real_train_val['Species'])
+
+        # Train with CV on train+val split (no synthetic augmentation)
+        print("Training with 5-fold CV on train+val split (NO synthetic data)...")
+        mean_f1, metrics = train_with_cv(real_train_val, label_encoder, DEVICE, trial=None)
+
+        # Evaluate on holdout test set
+        print("Evaluating on holdout test set...")
+        test_dataset = FluorescenceDataset(real_test, label_encoder, get_transforms()[1], CACHE_DIR)
+        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False,
+                                num_workers=NUM_WORKERS, pin_memory=True)
+
+        # Create a final model trained on full train+val for test evaluation
+        model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(DEVICE)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+
+        train_transform, _ = get_transforms()
+        train_dataset = FluorescenceDataset(real_train_val, label_encoder, train_transform, CACHE_DIR)
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
+                                 num_workers=NUM_WORKERS, pin_memory=True)
+
+        # Train on full train+val set
+        best_val_f1 = 0.0
+        patience_counter = 0
+        for _ in range(EPOCHS):
+            _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
+
+            # Check patience on test set
+            test_acc, test_f1, _, _ = evaluate(model, test_loader, DEVICE)
+
+            if test_f1 > best_val_f1:
+                best_val_f1 = test_f1
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter >= EARLY_STOPPING_PATIENCE:
+                break
+
+        # Final test evaluation
+        test_acc, test_f1, test_prec, test_rec = evaluate(model, test_loader, DEVICE)
+        print(f"  Holdout Test Results:")
+        print(f"    F1: {test_f1:.4f}, Accuracy: {test_acc:.4f}, Precision: {test_prec:.4f}, Recall: {test_rec:.4f}")
+
+        metrics['test_f1'] = test_f1
+        metrics['test_accuracy'] = test_acc
+        metrics['test_precision'] = test_prec
+        metrics['test_recall'] = test_rec
+
+        print(f"\nBaseline Results (Train+Val, 5-fold):")
+        print(f"  Mean Macro F1: {mean_f1:.4f}")
+        print(f"  Mean Accuracy: {metrics['mean_accuracy']:.4f}")
+        print(f"  Mean Precision: {metrics['mean_precision']:.4f}")
+        print(f"  Mean Recall: {metrics['mean_recall']:.4f}")
+        print(f"\nBaseline Test Results (Holdout Set):")
+        print(f"  Test F1: {metrics['test_f1']:.4f}")
+        print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}")
+        print(f"  Test Precision: {metrics['test_precision']:.4f}")
+        print(f"  Test Recall: {metrics['test_recall']:.4f}")
+
+        return {
+            'baseline_cv_macro_f1': mean_f1,
+            'baseline_cv_accuracy': metrics['mean_accuracy'],
+            'baseline_cv_precision': metrics['mean_precision'],
+            'baseline_cv_recall': metrics['mean_recall'],
+            'baseline_test_f1': test_f1,
+            'baseline_test_accuracy': test_acc,
+            'baseline_test_precision': test_prec,
+            'baseline_test_recall': test_rec,
+            'fold_scores': metrics['fold_scores']
+        }
+
+    except Exception as e:
+        print(f"Error in baseline: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
+# ============================================================================
 # OPTUNA OBJECTIVE
 # ============================================================================
 
 def objective(trial: optuna.Trial) -> float:
     """
-    Optuna objective function: optimize per-bin multipliers (k_very_low, k_low, k_medium, k_high, k_very_high).
+    Optuna objective function: optimize per-bin multipliers (n_very_low, n_low, n_medium, n_high, n_very_high).
 
     Maximizes mean macro F1 across 5-fold CV.
     """
     set_seed(SEED)
 
-    # Suggest per-bin multipliers (5 bins)
-    k_very_low = trial.suggest_int('k_very_low', 0, 10)
-    k_low = trial.suggest_int('k_low', 0, 10)
-    k_medium = trial.suggest_int('k_medium', 0, 10)
-    k_high = trial.suggest_int('k_high', 0, 10)
-    k_very_high = trial.suggest_int('k_very_high', 0, 10)
+    # Flat number of synthetic samples to add PER species in each real-data bin
+    n_very_low  = trial.suggest_int("n_very_low", 0, MAX_SYN_PER_SPECIES)
+    n_low       = trial.suggest_int("n_low", 0, MAX_SYN_PER_SPECIES)
+    n_medium    = trial.suggest_int("n_medium", 0, MAX_SYN_PER_SPECIES)
+    n_high      = trial.suggest_int("n_high", 0, MAX_SYN_PER_SPECIES)
+    n_very_high = trial.suggest_int("n_very_high", 0, MAX_SYN_PER_SPECIES)
 
     print(f"\n{'='*70}")
-    print(f"Trial {trial.number}: k_very_low={k_very_low}, k_low={k_low}, "
-          f"k_medium={k_medium}, k_high={k_high}, k_very_high={k_very_high}")
+    print(f"Trial {trial.number}: "
+        f"n_very_low={n_very_low}, n_low={n_low}, "
+        f"n_medium={n_medium}, n_high={n_high}, n_very_high={n_very_high}")
     print(f"{'='*70}")
 
     try:
@@ -645,24 +761,36 @@ def objective(trial: optuna.Trial) -> float:
         real_data = load_real_data()
         print(f"  Real samples: {len(real_data)}")
 
+        # Split real data into train+val vs test (stratified)
+        # Test set only contains REAL samples (not augmented)
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=TEST_SPLIT_RATIO, random_state=SEED)
+        for train_idx, test_idx in sss.split(real_data, real_data['Species']):
+            real_train_val = real_data.iloc[train_idx].reset_index(drop=True)
+            real_test = real_data.iloc[test_idx].reset_index(drop=True)
+
+        print(f"  Train+Val: {len(real_train_val)} samples")
+        print(f"  Test (holdout): {len(real_test)} samples")
+
         # Bin species and show distribution
-        bins = bin_species_by_real_count(real_data)
-        print(f"  Species distribution:")
+        bins = bin_species_by_real_count(real_train_val)
+        print(f"  Train+Val Species distribution:")
         print(f"    Very Low (<6):   {len(bins['very_low'])} species")
         print(f"    Low (6-9):       {len(bins['low'])} species")
         print(f"    Medium (10-15):  {len(bins['medium'])} species")
         print(f"    High (16-25):    {len(bins['high'])} species")
         print(f"    Very High (>25): {len(bins['very_high'])} species")
 
-        synthetic_data = load_synthetic_data(real_data['Species'].unique().tolist())
+        synthetic_data = load_synthetic_data(real_train_val['Species'].unique().tolist())
         print(f"  Synthetic species available: {len(synthetic_data)}")
 
-        # Create augmented dataset with per-bin multipliers
+        # Create augmented dataset with per-bin multipliers (only for train+val)
         augmented_data, bin_stats = create_augmented_dataset(
-            real_data, synthetic_data, k_very_low, k_low, k_medium, k_high, k_very_high
+            real_train_val, synthetic_data,
+            n_very_low, n_low, n_medium, n_high, n_very_high,
+            MAX_SYN_PER_SPECIES
         )
-        num_added = len(augmented_data) - len(real_data)
-        print(f"  Augmented samples: {len(augmented_data)} (added {num_added})")
+        num_added = len(augmented_data) - len(real_train_val)
+        print(f"  Augmented train+val samples: {len(augmented_data)} (added {num_added})")
 
         # Print per-bin statistics
         print(f"  Per-bin synthetic additions:")
@@ -677,13 +805,57 @@ def objective(trial: optuna.Trial) -> float:
         if not valid:
             print(f"  → Dataset has insufficient samples in some classes. CV may be unstable.")
 
-        # Create label encoder
+        # Create label encoder from train+val (test uses same encoder)
         label_encoder = LabelEncoder()
         label_encoder.fit(augmented_data['Species'])
 
-        # Train with CV
-        print("Training with 5-fold CV...")
+        # Train with CV on train+val split
+        print("Training with 5-fold CV on train+val split...")
         mean_f1, metrics = train_with_cv(augmented_data, label_encoder, DEVICE, trial)
+
+        # Evaluate on holdout test set
+        print("Evaluating on holdout test set...")
+        test_dataset = FluorescenceDataset(real_test, label_encoder, get_transforms()[1], CACHE_DIR)
+        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False,
+                                num_workers=NUM_WORKERS, pin_memory=True)
+
+        # Create a final model trained on full train+val for test evaluation
+        model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(DEVICE)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+
+        train_transform, _ = get_transforms()
+        train_dataset = FluorescenceDataset(augmented_data, label_encoder, train_transform, CACHE_DIR)
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
+                                 num_workers=NUM_WORKERS, pin_memory=True)
+
+        # Train on full augmented train+val set
+        best_val_f1 = 0.0
+        patience_counter = 0
+        for _ in range(EPOCHS):
+            _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
+
+            # Check patience on test set
+            test_acc, test_f1, _, _ = evaluate(model, test_loader, DEVICE)
+
+            if test_f1 > best_val_f1:
+                best_val_f1 = test_f1
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter >= EARLY_STOPPING_PATIENCE:
+                break
+
+        # Final test evaluation
+        test_acc, test_f1, test_prec, test_rec = evaluate(model, test_loader, DEVICE)
+        print(f"  Holdout Test Results:")
+        print(f"    F1: {test_f1:.4f}, Accuracy: {test_acc:.4f}, Precision: {test_prec:.4f}, Recall: {test_rec:.4f}")
+
+        metrics['test_f1'] = test_f1
+        metrics['test_accuracy'] = test_acc
+        metrics['test_precision'] = test_prec
+        metrics['test_recall'] = test_rec
 
         # Log results
         trial.set_user_attr('total_synthetic_added', num_added)
@@ -692,14 +864,25 @@ def objective(trial: optuna.Trial) -> float:
         trial.set_user_attr('mean_precision', metrics['mean_precision'])
         trial.set_user_attr('mean_recall', metrics['mean_recall'])
         trial.set_user_attr('fold_scores', metrics['fold_scores'])
+        trial.set_user_attr('test_f1', metrics['test_f1'])
+        trial.set_user_attr('test_accuracy', metrics['test_accuracy'])
+        trial.set_user_attr('test_precision', metrics['test_precision'])
+        trial.set_user_attr('test_recall', metrics['test_recall'])
 
-        print(f"\nResults:")
+        print(f"\nCV Results (Train+Val, 5-fold):")
         print(f"  Mean Macro F1: {mean_f1:.4f}")
         print(f"  Mean Accuracy: {metrics['mean_accuracy']:.4f}")
         print(f"  Mean Precision: {metrics['mean_precision']:.4f}")
         print(f"  Mean Recall: {metrics['mean_recall']:.4f}")
+        print(f"\nTest Results (Holdout Set):")
+        print(f"  Test F1: {metrics['test_f1']:.4f}")
+        print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}")
+        print(f"  Test Precision: {metrics['test_precision']:.4f}")
+        print(f"  Test Recall: {metrics['test_recall']:.4f}")
+        print(f"\nData Info:")
         print(f"  Total Synthetic Added: {num_added}")
 
+        # Return CV F1 for Optuna optimization (test is independent evaluation)
         return mean_f1
 
     except Exception as e:
@@ -753,52 +936,53 @@ def plot_optimization_results(study: optuna.Study):
 
     # Extract data
     completed_trials = [t for t in trials if t.state == optuna.trial.TrialState.COMPLETE]
-    k_very_low_values = [t.params['k_very_low'] for t in completed_trials]
-    k_low_values = [t.params['k_low'] for t in completed_trials]
-    k_medium_values = [t.params['k_medium'] for t in completed_trials]
-    k_high_values = [t.params['k_high'] for t in completed_trials]
-    k_very_high_values = [t.params['k_very_high'] for t in completed_trials]
-    f1_values = [t.value for t in completed_trials]
-    acc_values = [t.user_attrs.get('mean_accuracy', 0.0) for t in completed_trials]
+    n_very_low_values = [t.params['n_very_low'] for t in completed_trials]
+    n_low_values = [t.params['n_low'] for t in completed_trials]
+    n_medium_values = [t.params['n_medium'] for t in completed_trials]
+    n_high_values = [t.params['n_high'] for t in completed_trials]
+    n_very_high_values = [t.params['n_very_high'] for t in completed_trials]
+    f1_values = [t.value for t in completed_trials]  # CV F1
+    acc_values = [t.user_attrs.get('mean_accuracy', 0.0) for t in completed_trials]  # CV accuracy
+    test_f1_values = [t.user_attrs.get('test_f1', 0.0) for t in completed_trials]  # Holdout test F1
     synthetic_added = [t.user_attrs.get('total_synthetic_added', 0) for t in completed_trials]
 
-    # Create figure with subplots (3x3 for per-bin + summary)
-    fig, axes = plt.subplots(3, 3, figsize=(18, 14))
-    fig.suptitle('Optuna 5-Bin Per-Bin Optimization Results', fontsize=16, fontweight='bold')
+    # Create figure with subplots (4x3 for per-bin + summary + test comparison)
+    fig, axes = plt.subplots(4, 3, figsize=(18, 18))
+    fig.suptitle('Optuna 5-Bin Per-Bin Optimization Results (with Holdout Test Set)', fontsize=16, fontweight='bold')
 
-    # Plot 1: Macro F1 vs k_very_low
-    axes[0, 0].scatter(k_very_low_values, f1_values, alpha=0.6, s=100, color='darkred')
-    axes[0, 0].set_xlabel('k_very_low (Very Low Bin)')
+    # Plot 1: Macro F1 vs n_very_low
+    axes[0, 0].scatter(n_very_low_values, f1_values, alpha=0.6, s=100, color='darkred')
+    axes[0, 0].set_xlabel('n_very_low (Very Low Bin)')
     axes[0, 0].set_ylabel('Mean Macro F1')
-    axes[0, 0].set_title('F1 vs k_very_low (<6)')
+    axes[0, 0].set_title('F1 vs n_very_low (<6)')
     axes[0, 0].grid(True, alpha=0.3)
 
-    # Plot 2: Macro F1 vs k_low
-    axes[0, 1].scatter(k_low_values, f1_values, alpha=0.6, s=100, color='blue')
-    axes[0, 1].set_xlabel('k_low (Low Bin)')
+    # Plot 2: Macro F1 vs n_low
+    axes[0, 1].scatter(n_low_values, f1_values, alpha=0.6, s=100, color='blue')
+    axes[0, 1].set_xlabel('n_low (Low Bin)')
     axes[0, 1].set_ylabel('Mean Macro F1')
-    axes[0, 1].set_title('F1 vs k_low (6-9)')
+    axes[0, 1].set_title('F1 vs n_low (6-9)')
     axes[0, 1].grid(True, alpha=0.3)
 
-    # Plot 3: Macro F1 vs k_medium
-    axes[0, 2].scatter(k_medium_values, f1_values, alpha=0.6, s=100, color='green')
-    axes[0, 2].set_xlabel('k_medium (Medium Bin)')
+    # Plot 3: Macro F1 vs n_medium
+    axes[0, 2].scatter(n_medium_values, f1_values, alpha=0.6, s=100, color='green')
+    axes[0, 2].set_xlabel('n_medium (Medium Bin)')
     axes[0, 2].set_ylabel('Mean Macro F1')
-    axes[0, 2].set_title('F1 vs k_medium (10-15)')
+    axes[0, 2].set_title('F1 vs n_medium (10-15)')
     axes[0, 2].grid(True, alpha=0.3)
 
-    # Plot 4: Macro F1 vs k_high
-    axes[1, 0].scatter(k_high_values, f1_values, alpha=0.6, s=100, color='orange')
-    axes[1, 0].set_xlabel('k_high (High Bin)')
+    # Plot 4: Macro F1 vs n_high
+    axes[1, 0].scatter(n_high_values, f1_values, alpha=0.6, s=100, color='orange')
+    axes[1, 0].set_xlabel('n_high (High Bin)')
     axes[1, 0].set_ylabel('Mean Macro F1')
-    axes[1, 0].set_title('F1 vs k_high (16-25)')
+    axes[1, 0].set_title('F1 vs n_high (16-25)')
     axes[1, 0].grid(True, alpha=0.3)
 
-    # Plot 5: Macro F1 vs k_very_high
-    axes[1, 1].scatter(k_very_high_values, f1_values, alpha=0.6, s=100, color='purple')
-    axes[1, 1].set_xlabel('k_very_high (Very High Bin)')
+    # Plot 5: Macro F1 vs n_very_high
+    axes[1, 1].scatter(n_very_high_values, f1_values, alpha=0.6, s=100, color='purple')
+    axes[1, 1].set_xlabel('n_very_high (Very High Bin)')
     axes[1, 1].set_ylabel('Mean Macro F1')
-    axes[1, 1].set_title('F1 vs k_very_high (>25)')
+    axes[1, 1].set_title('F1 vs n_very_high (>25)')
     axes[1, 1].grid(True, alpha=0.3)
 
     # Plot 6: Macro F1 vs Total Synthetic Samples Added
@@ -827,28 +1011,71 @@ def plot_optimization_results(study: optuna.Study):
                     color='darkblue', linewidth=2, markersize=6)
     axes[2, 1].set_xlabel('Trial Number')
     axes[2, 1].set_ylabel('Best Macro F1 (so far)')
-    axes[2, 1].set_title('Optimization Progress')
+    axes[2, 1].set_title('Optimization Progress (CV F1)')
     axes[2, 1].grid(True, alpha=0.3)
 
-    # Plot 9: Heatmap-style summary of bin parameter importance
-    # Show correlation-like visualization
-    axes[2, 2].axis('off')
+    # Plot 9: CV F1 vs Test F1 scatter
+    axes[2, 2].scatter(f1_values, test_f1_values, alpha=0.6, s=100, color='teal')
+    axes[2, 2].plot([min(f1_values), max(f1_values)], [min(f1_values), max(f1_values)],
+                    'k--', alpha=0.3, label='CV=Test')
+    axes[2, 2].set_xlabel('CV F1 (5-fold)')
+    axes[2, 2].set_ylabel('Test F1 (Holdout)')
+    axes[2, 2].set_title('CV vs Test F1 Correlation')
+    axes[2, 2].legend()
+    axes[2, 2].grid(True, alpha=0.3)
+
+    # Plot 10: Trial history for Test F1
+    best_test_f1_so_far = []
+    current_best_test = 0.0
+    for val in test_f1_values:
+        if val > current_best_test:
+            current_best_test = val
+        best_test_f1_so_far.append(current_best_test)
+
+    axes[3, 0].plot(range(len(best_test_f1_so_far)), best_test_f1_so_far, marker='s',
+                    color='darkgreen', linewidth=2, markersize=6)
+    axes[3, 0].set_xlabel('Trial Number')
+    axes[3, 0].set_ylabel('Best Test F1 (so far)')
+    axes[3, 0].set_title('Test Set Optimization Progress')
+    axes[3, 0].grid(True, alpha=0.3)
+
+    # Plot 11: CV vs Test F1 side by side
+    trial_indices = np.arange(len(f1_values))
+    width = 0.35
+    axes[3, 1].bar(trial_indices - width/2, f1_values, width, label='CV F1', alpha=0.7, color='skyblue')
+    axes[3, 1].bar(trial_indices + width/2, test_f1_values, width, label='Test F1', alpha=0.7, color='salmon')
+    axes[3, 1].set_xlabel('Trial Number')
+    axes[3, 1].set_ylabel('F1 Score')
+    axes[3, 1].set_title('CV F1 vs Test F1 by Trial')
+    axes[3, 1].legend()
+    axes[3, 1].grid(True, alpha=0.3, axis='y')
+
+    # Plot 12: Summary statistics
+    axes[3, 2].axis('off')
     summary_text = f"""
-    Trial Summary:
-    ─────────────────────
+    Trial Summary (with Holdout Test):
+    ──────────────────────────────────
     Total Trials: {len(completed_trials)}
 
-    Best F1: {max(f1_values):.4f}
-    Best Acc: {max(acc_values):.4f}
+    CV F1:
+      Best: {max(f1_values):.4f}
+      Avg: {np.mean(f1_values):.4f}
+      Range: [{min(f1_values):.4f}, {max(f1_values):.4f}]
 
-    Avg F1: {np.mean(f1_values):.4f}
-    Avg Acc: {np.mean(acc_values):.4f}
+    Test F1:
+      Best: {max(test_f1_values):.4f}
+      Avg: {np.mean(test_f1_values):.4f}
+      Range: [{min(test_f1_values):.4f}, {max(test_f1_values):.4f}]
 
-    F1 Range: [{min(f1_values):.4f}, {max(f1_values):.4f}]
-    Samples Range: [{min(synthetic_added)}, {max(synthetic_added)}]
+    CV Accuracy:
+      Best: {max(acc_values):.4f}
+      Avg: {np.mean(acc_values):.4f}
+
+    Synthetic Range:
+      [{min(synthetic_added)}, {max(synthetic_added)}]
     """
-    axes[2, 2].text(0.1, 0.5, summary_text, fontsize=11, family='monospace',
-                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    axes[3, 2].text(0.05, 0.5, summary_text, fontsize=10, family='monospace',
+                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
 
     plt.tight_layout()
     plot_path = OUTPUT_DIR / 'optuna_optimization_results.png'
@@ -857,26 +1084,35 @@ def plot_optimization_results(study: optuna.Study):
     plt.close()
 
 
-def save_optimization_summary(study: optuna.Study):
-    """Save detailed summary to JSON with per-bin analysis (5 bins)."""
+def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Dict] = None):
+    """Save detailed summary to JSON with per-bin analysis (5 bins) and baseline comparison."""
     best_trial = study.best_trial
 
     summary = {
-        'best_k_very_low': best_trial.params['k_very_low'],
-        'best_k_low': best_trial.params['k_low'],
-        'best_k_medium': best_trial.params['k_medium'],
-        'best_k_high': best_trial.params['k_high'],
-        'best_k_very_high': best_trial.params['k_very_high'],
-        'best_macro_f1': best_trial.value,
+        'best_n_very_low': best_trial.params['n_very_low'],
+        'best_n_low': best_trial.params['n_low'],
+        'best_n_medium': best_trial.params['n_medium'],
+        'best_n_high': best_trial.params['n_high'],
+        'best_n_very_high': best_trial.params['n_very_high'],
+        'best_cv_macro_f1': best_trial.value,
         'best_trial_number': best_trial.number,
         'total_trials': len(study.trials),
-        'best_metrics': {
+        'cv_metrics': {
             'mean_accuracy': best_trial.user_attrs.get('mean_accuracy'),
             'mean_precision': best_trial.user_attrs.get('mean_precision'),
             'mean_recall': best_trial.user_attrs.get('mean_recall'),
+        },
+        'test_metrics': {
+            'test_f1': best_trial.user_attrs.get('test_f1'),
+            'test_accuracy': best_trial.user_attrs.get('test_accuracy'),
+            'test_precision': best_trial.user_attrs.get('test_precision'),
+            'test_recall': best_trial.user_attrs.get('test_recall'),
+        },
+        'data_info': {
             'total_synthetic_added': best_trial.user_attrs.get('total_synthetic_added')
         },
-        'best_bin_stats': best_trial.user_attrs.get('bin_stats', {})
+        'best_bin_stats': best_trial.user_attrs.get('bin_stats', {}),
+        'baseline_results': baseline_results if baseline_results else {}
     }
 
     summary_path = OUTPUT_DIR / 'optimization_summary.json'
@@ -890,16 +1126,21 @@ def save_optimization_summary(study: optuna.Study):
     print("OPTIMIZATION SUMMARY (5-BIN)")
     print(f"{'='*70}")
     print(f"Best Parameters:")
-    print(f"  k_very_low:  {best_trial.params['k_very_low']}")
-    print(f"  k_low:       {best_trial.params['k_low']}")
-    print(f"  k_medium:    {best_trial.params['k_medium']}")
-    print(f"  k_high:      {best_trial.params['k_high']}")
-    print(f"  k_very_high: {best_trial.params['k_very_high']}")
-    print(f"\nBest Performance:")
+    print(f"  n_very_low:  {best_trial.params['n_very_low']}")
+    print(f"  n_low:       {best_trial.params['n_low']}")
+    print(f"  n_medium:    {best_trial.params['n_medium']}")
+    print(f"  n_high:      {best_trial.params['n_high']}")
+    print(f"  n_very_high: {best_trial.params['n_very_high']}")
+    print(f"\nBest CV Performance (5-fold):")
     print(f"  Macro F1:  {best_trial.value:.4f}")
     print(f"  Accuracy:  {best_trial.user_attrs.get('mean_accuracy', 0.0):.4f}")
     print(f"  Precision: {best_trial.user_attrs.get('mean_precision', 0.0):.4f}")
     print(f"  Recall:    {best_trial.user_attrs.get('mean_recall', 0.0):.4f}")
+    print(f"\nBest Test Performance (Holdout Set):")
+    print(f"  F1:        {best_trial.user_attrs.get('test_f1', 0.0):.4f}")
+    print(f"  Accuracy:  {best_trial.user_attrs.get('test_accuracy', 0.0):.4f}")
+    print(f"  Precision: {best_trial.user_attrs.get('test_precision', 0.0):.4f}")
+    print(f"  Recall:    {best_trial.user_attrs.get('test_recall', 0.0):.4f}")
     print(f"\nBest Bin Statistics:")
     bin_stats = best_trial.user_attrs.get('bin_stats', {})
     bin_display_names = {
@@ -916,6 +1157,27 @@ def save_optimization_summary(study: optuna.Study):
             print(f"  {display_name:20s}: {stats['added']:4d} total "
                   f"({stats['avg_per_species']:5.1f} avg per species)")
     print(f"  {'Total synthetic added':20s}: {best_trial.user_attrs.get('total_synthetic_added', 0)}")
+
+    # Baseline comparison
+    if baseline_results:
+        print(f"\nComparison vs Baseline (Real Data Only):")
+        baseline_cv_f1 = baseline_results.get('baseline_cv_macro_f1', 0.0)
+        baseline_test_f1 = baseline_results.get('baseline_test_f1', 0.0)
+        optimized_cv_f1 = best_trial.value
+        optimized_test_f1 = best_trial.user_attrs.get('test_f1', 0.0)
+
+        cv_improvement = optimized_cv_f1 - baseline_cv_f1
+        test_improvement = optimized_test_f1 - baseline_test_f1
+
+        print(f"  CV Macro F1:")
+        print(f"    Baseline: {baseline_cv_f1:.4f}")
+        print(f"    Optimized: {optimized_cv_f1:.4f}")
+        print(f"    Improvement: {cv_improvement:+.4f} ({cv_improvement/baseline_cv_f1*100 if baseline_cv_f1 > 0 else 0:+.1f}%)")
+        print(f"  Test F1:")
+        print(f"    Baseline: {baseline_test_f1:.4f}")
+        print(f"    Optimized: {optimized_test_f1:.4f}")
+        print(f"    Improvement: {test_improvement:+.4f} ({test_improvement/baseline_test_f1*100 if baseline_test_f1 > 0 else 0:+.1f}%)")
+
     print(f"{'='*70}\n")
 
 
@@ -925,7 +1187,7 @@ def save_optimization_summary(study: optuna.Study):
 
 if __name__ == '__main__':
     print("Shark CNN Synthetic Sample Optimization with Optuna")
-    print("5-Bin Per-Bin Multipliers: k_very_low, k_low, k_medium, k_high, k_very_high")
+    print("5-Bin Per-Bin Multipliers: n_very_low, n_low, n_medium, n_high, n_very_high")
     print(f"\nConfiguration:")
     print(f"  Seed: {SEED}")
     print(f"  Device: {DEVICE}")
@@ -933,7 +1195,7 @@ if __name__ == '__main__':
     print(f"  Learning Rate: {LEARNING_RATE}")
     print(f"  Epochs per fold: {EPOCHS}")
     print(f"  Early stopping patience: {EARLY_STOPPING_PATIENCE}")
-    print(f"  Number of CV folds: {NUM_FOLDS}")
+    print(f"  Number of CV folds: {N_FOLDS}")
     print(f"  Model: EfficientNet-B0 → Linear(1280, {HIDDEN_DIM}) → Linear({HIDDEN_DIM}, {NUM_CLASSES})")
     print(f"  Output directory: {OUTPUT_DIR}")
     print(f"\nSpecies Binning (based on real sample counts):")
@@ -943,20 +1205,29 @@ if __name__ == '__main__':
     print(f"  High:      16-25 real samples")
     print(f"  Very High: > 25 real samples")
     print(f"\nHyperparameter Ranges (each 0-10):")
-    print(f"  k_very_low:  0-10")
-    print(f"  k_low:       0-10")
-    print(f"  k_medium:    0-10")
-    print(f"  k_high:      0-10")
-    print(f"  k_very_high: 0-10")
+    print(f"  n_very_low:  0-10")
+    print(f"  n_low:       0-10")
+    print(f"  n_medium:    0-10")
+    print(f"  n_high:      0-10")
+    print(f"  n_very_high: 0-10")
     print(f"\nObjective: Maximize mean Macro F1 across 5-fold stratified CV")
     print(f"Trials: 30, Pruner: MedianPruner, Sampler: TPE")
 
+    # Run baseline (5-fold CV on real data only)
+    print("\n" + "="*70)
+    print("STEP 1: BASELINE EVALUATION")
+    print("="*70)
+    baseline_results = run_baseline()
+
     # Run optimization
-    study = run_optimization(n_trials=1)
+    print("\n" + "="*70)
+    print("STEP 2: OPTUNA OPTIMIZATION WITH SYNTHETIC DATA")
+    print("="*70)
+    study = run_optimization(n_trials=50)
 
     # Generate visualizations
     print("\nGenerating plots...")
     plot_optimization_results(study)
-    save_optimization_summary(study)
+    save_optimization_summary(study, baseline_results)
 
     print("\nOptimization complete!")
