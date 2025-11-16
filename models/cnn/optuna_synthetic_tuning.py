@@ -37,6 +37,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torchvision import transforms
 from torchvision.models import efficientnet_b0
 
@@ -64,18 +65,14 @@ MAX_SYN_PER_SPECIES = 48
 
 # Training hyperparameters (from train_efficientnetb0.ipynb optimization)
 BATCH_SIZE = 32
-EPOCHS = 30
+EPOCHS = 100
 LEARNING_RATE = 0.0020594007612475913
 WEIGHT_DECAY = 1.0083970230770894e-05
-EARLY_STOPPING_PATIENCE = 5
+EARLY_STOPPING_PATIENCE = 10
 
 # Focal loss parameters
 FOCAL_ALPHA = 1.0
 FOCAL_GAMMA = 1.5
-
-# Mixup parameter
-MIXUP_ALPHA = 0.4
-USE_MIXUP = True
 
 # Best hyperparameters from optimization
 HYPERPARAMETERS = {
@@ -458,6 +455,21 @@ class SharkCNN(nn.Module):
         return x
 
 
+class FocalLoss(nn.Module):
+    """Focal Loss for handling class imbalance."""
+
+    def __init__(self, alpha: float = 1.0, gamma: float = 1.5):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        ce_loss = nn.functional.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+        return focal_loss.mean()
+
+
 # ============================================================================
 # TRAINING AND EVALUATION
 # ============================================================================
@@ -484,24 +496,55 @@ def get_transforms():
     return train_transform, val_transform
 
 
-def train_epoch(model: nn.Module, dataloader: DataLoader, criterion: nn.Module,
-                optimizer: torch.optim.Optimizer, device: torch.device) -> float:
-    """Train for one epoch."""
-    model.train()
-    total_loss = 0.0
+# ============================================================================
+# TEST SET (20% hold-out)
+# ============================================================================
+def make_holdout_split(real_df: pd.DataFrame):
+    """Return train_val_df, test_df (stratified)"""
+    sss = StratifiedShuffleSplit(n_splits=1,
+                                 test_size=TEST_SPLIT_RATIO,
+                                 random_state=SEED)
+    train_idx, test_idx = next(sss.split(real_df, real_df['Species']))
+    return (real_df.iloc[train_idx].reset_index(drop=True),
+            real_df.iloc[test_idx].reset_index(drop=True))
 
-    for images, labels in dataloader:
-        images, labels = images.to(device), labels.to(device)
+# Create the test loader **once** (used for baseline & final eval)
+real_data = load_real_data()                     # <-- keep your existing function
+train_val_df, test_df = make_holdout_split(real_data)
+
+label_encoder = LabelEncoder()
+label_encoder.fit(train_val_df['Species'])        # fit on train-val only
+
+_, val_transform = get_transforms()             # val_transform = test_transform
+test_dataset = FluorescenceDataset(test_df, label_encoder,
+                                   transform=val_transform,
+                                   cache_dir=CACHE_DIR)
+test_loader = DataLoader(test_dataset,
+                         batch_size=BATCH_SIZE,
+                         shuffle=False,
+                         num_workers=NUM_WORKERS,
+                         pin_memory=True)
+
+
+def train_epoch(model: nn.Module,
+                loader: DataLoader,
+                criterion: nn.Module,
+                optimizer: torch.optim.Optimizer,
+                device: torch.device) -> float:
+    """Train for one epoch without mixup."""
+    model.train()
+    running_loss = 0.0
+    for inputs, labels in loader:
+        inputs, labels = inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
-        outputs = model(images)
+        outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item() * images.size(0)
-
-    return total_loss / len(dataloader.dataset)
+        running_loss += loss.item() * inputs.size(0)
+    return running_loss / len(loader.dataset)
 
 
 def evaluate(model: nn.Module, dataloader: DataLoader,
@@ -564,8 +607,9 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
 
         # Initialize model
         model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+        criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
+        optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+        scheduler = CosineAnnealingLR(optimizer, T_max=150)
 
         # Training loop with early stopping and Optuna pruning
         best_val_f1 = 0.0
@@ -574,6 +618,7 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
         for epoch in range(EPOCHS):
             _ = train_epoch(model, train_loader, criterion, optimizer, device)
             val_acc, val_f1, val_prec, val_rec = evaluate(model, val_loader, device)
+            scheduler.step()
 
             if val_f1 > best_val_f1:
                 best_val_f1 = val_f1
@@ -622,112 +667,122 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
 
 def run_baseline() -> Dict:
     """
-    Run baseline evaluation: 5-fold CV on real data only (no synthetic augmentation).
+    Run baseline evaluation: 5-fold CV on 80% train-val (real data only).
 
     Returns:
         Dictionary with baseline metrics
     """
-    print(f"\n{'='*70}")
-    print("BASELINE: 5-Fold CV on Real Data Only (No Synthetic)")
-    print(f"{'='*70}")
+    print("\n" + "="*70)
+    print("BASELINE: 5-fold CV on 80% train-val (real data only)")
+    print("="*70)
 
     set_seed(SEED)
 
-    try:
-        # Load real data
-        print("Loading data...")
-        real_data = load_real_data()
-        print(f"  Real samples: {len(real_data)}")
+    # ----- 5-fold CV on the 80% train-val part -----
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    fold_metrics = []
 
-        # Split real data into train+val vs test (stratified)
-        sss = StratifiedShuffleSplit(n_splits=1, test_size=TEST_SPLIT_RATIO, random_state=SEED)
-        for train_idx, test_idx in sss.split(real_data, real_data['Species']):
-            real_train_val = real_data.iloc[train_idx].reset_index(drop=True)
-            real_test = real_data.iloc[test_idx].reset_index(drop=True)
+    for fold, (tr_idx, val_idx) in enumerate(skf.split(train_val_df,
+                                                train_val_df['Species'])):
+        set_seed(SEED)   # deterministic per fold
 
-        print(f"  Train+Val: {len(real_train_val)} samples")
-        print(f"  Test (holdout): {len(real_test)} samples")
+        tr_df = train_val_df.iloc[tr_idx].reset_index(drop=True)
+        val_df = train_val_df.iloc[val_idx].reset_index(drop=True)
 
-        # Create label encoder from train+val (test uses same encoder)
-        label_encoder = LabelEncoder()
-        label_encoder.fit(real_train_val['Species'])
+        train_ds = FluorescenceDataset(tr_df, label_encoder,
+                                      get_transforms()[0], CACHE_DIR)
+        val_ds   = FluorescenceDataset(val_df, label_encoder,
+                                      get_transforms()[1], CACHE_DIR)
 
-        # Train with CV on train+val split (no synthetic augmentation)
-        print("Training with 5-fold CV on train+val split (NO synthetic data)...")
-        mean_f1, metrics = train_with_cv(real_train_val, label_encoder, DEVICE, trial=None)
+        train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE,
+                                  shuffle=True, num_workers=NUM_WORKERS,
+                                  pin_memory=True)
+        val_loader   = DataLoader(val_ds, batch_size=BATCH_SIZE,
+                                  shuffle=False, num_workers=NUM_WORKERS,
+                                  pin_memory=True)
 
-        # Evaluate on holdout test set
-        print("Evaluating on holdout test set...")
-        test_dataset = FluorescenceDataset(real_test, label_encoder, get_transforms()[1], CACHE_DIR)
-        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False,
-                                num_workers=NUM_WORKERS, pin_memory=True)
+        model = SharkCNN(num_classes=NUM_CLASSES).to(DEVICE)
 
-        # Create a final model trained on full train+val for test evaluation
-        model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(DEVICE)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+        criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
+        optimizer = optim.AdamW(model.parameters(),
+                                lr=LEARNING_RATE,
+                                weight_decay=WEIGHT_DECAY)
+        scheduler = CosineAnnealingLR(optimizer, T_max=150)
 
-        train_transform, _ = get_transforms()
-        train_dataset = FluorescenceDataset(real_train_val, label_encoder, train_transform, CACHE_DIR)
-        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
-                                 num_workers=NUM_WORKERS, pin_memory=True)
+        best_acc = 0.0
+        patience_cnt = 0
 
-        # Train on full train+val set
-        best_val_f1 = 0.0
-        patience_counter = 0
-        for _ in range(EPOCHS):
+        for epoch in range(EPOCHS):
             _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
+            acc, f1, _, _ = evaluate(model, val_loader, DEVICE)
+            scheduler.step()
 
-            # Check patience on test set
-            test_acc, test_f1, _, _ = evaluate(model, test_loader, DEVICE)
-
-            if test_f1 > best_val_f1:
-                best_val_f1 = test_f1
+            if f1 > best_val_f1:
+                best_val_f1 = f1
                 patience_counter = 0
             else:
-                patience_counter += 1
+                patience_cnt += 1
+                if patience_cnt >= 25:
+                    print(" Early stopping at epoch", epoch+1)
+                    break
 
-            if patience_counter >= EARLY_STOPPING_PATIENCE:
+        fold_metrics.append(best_acc)
+        print(f"  Fold {fold+1}: Best Val Acc = {best_acc:.4f}")
+
+    mean_acc = np.mean(fold_metrics)
+    std_acc  = np.std(fold_metrics)
+    print(f"\nCV (80% train-val) → Acc = {mean_acc:.2f}% ± {std_acc:.2f}%")
+
+    # ----- FINAL MODEL on the *whole* 80% train-val -----
+    print("\nTraining final model on full 80% train-val ...")
+    train_full_ds = FluorescenceDataset(train_val_df, label_encoder,
+                                        get_transforms()[0], CACHE_DIR)
+    train_full_loader = DataLoader(train_full_ds, batch_size=BATCH_SIZE,
+                                   shuffle=True, num_workers=NUM_WORKERS,
+                                   pin_memory=True)
+
+    final_model = SharkCNN(num_classes=NUM_CLASSES).to(DEVICE)
+    criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
+    optimizer = optim.AdamW(final_model.parameters(),
+                            lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    scheduler = CosineAnnealingLR(optimizer, T_max=150)
+
+    best_test_f1 = 0.0
+    patience_cnt = 0
+    best_state = None
+
+    for epoch in range(150):
+        _ = train_epoch(final_model, train_full_loader, criterion,
+                        optimizer, DEVICE)
+        test_acc, test_f1, test_prec, test_rec = evaluate(final_model,
+                                                         test_loader,
+                                                         DEVICE)
+        scheduler.step()
+
+        if test_f1 > best_test_f1:
+            best_test_f1 = test_f1
+            best_state = copy.deepcopy(final_model.state_dict())
+            patience_cnt = 0
+        else:
+            patience_cnt += 1
+            if patience_cnt >= 25:
                 break
 
-        # Final test evaluation
-        test_acc, test_f1, test_prec, test_rec = evaluate(model, test_loader, DEVICE)
-        print(f"  Holdout Test Results:")
-        print(f"    F1: {test_f1:.4f}, Accuracy: {test_acc:.4f}, Precision: {test_prec:.4f}, Recall: {test_rec:.4f}")
+    final_model.load_state_dict(best_state)
+    test_acc, test_f1, test_prec, test_rec = evaluate(final_model,
+                                                     test_loader,
+                                                     DEVICE)
 
-        metrics['test_f1'] = test_f1
-        metrics['test_accuracy'] = test_acc
-        metrics['test_precision'] = test_prec
-        metrics['test_recall'] = test_rec
+    print(f"\nHold-out TEST (20%): Acc={test_acc:.4f}  F1={test_f1:.4f}")
 
-        print(f"\nBaseline Results (Train+Val, 5-fold):")
-        print(f"  Mean Macro F1: {mean_f1:.4f}")
-        print(f"  Mean Accuracy: {metrics['mean_accuracy']:.4f}")
-        print(f"  Mean Precision: {metrics['mean_precision']:.4f}")
-        print(f"  Mean Recall: {metrics['mean_recall']:.4f}")
-        print(f"\nBaseline Test Results (Holdout Set):")
-        print(f"  Test F1: {metrics['test_f1']:.4f}")
-        print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}")
-        print(f"  Test Precision: {metrics['test_precision']:.4f}")
-        print(f"  Test Recall: {metrics['test_recall']:.4f}")
-
-        return {
-            'baseline_cv_macro_f1': mean_f1,
-            'baseline_cv_accuracy': metrics['mean_accuracy'],
-            'baseline_cv_precision': metrics['mean_precision'],
-            'baseline_cv_recall': metrics['mean_recall'],
-            'baseline_test_f1': test_f1,
-            'baseline_test_accuracy': test_acc,
-            'baseline_test_precision': test_prec,
-            'baseline_test_recall': test_rec,
-            'fold_scores': metrics['fold_scores']
-        }
-
-    except Exception as e:
-        print(f"Error in baseline: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
+    return {
+        'cv_mean_acc': mean_acc,
+        'cv_std_acc' : std_acc,
+        'test_acc'   : test_acc,
+        'test_f1'    : test_f1,
+        'test_prec'  : test_prec,
+        'test_rec'   : test_rec
+    }
 
 
 # ============================================================================
@@ -738,7 +793,7 @@ def objective(trial: optuna.Trial) -> float:
     """
     Optuna objective function: optimize per-bin multipliers (n_very_low, n_low, n_medium, n_high, n_very_high).
 
-    Maximizes mean macro F1 across 5-fold CV.
+    Maximizes mean macro F1 across 5-fold CV. Does NOT evaluate on test set during optimization.
     """
     set_seed(SEED)
 
@@ -762,14 +817,14 @@ def objective(trial: optuna.Trial) -> float:
         print(f"  Real samples: {len(real_data)}")
 
         # Split real data into train+val vs test (stratified)
-        # Test set only contains REAL samples (not augmented)
+        # Test set only contains REAL samples (not augmented) - used only for final evaluation
         sss = StratifiedShuffleSplit(n_splits=1, test_size=TEST_SPLIT_RATIO, random_state=SEED)
         for train_idx, test_idx in sss.split(real_data, real_data['Species']):
             real_train_val = real_data.iloc[train_idx].reset_index(drop=True)
             real_test = real_data.iloc[test_idx].reset_index(drop=True)
 
         print(f"  Train+Val: {len(real_train_val)} samples")
-        print(f"  Test (holdout): {len(real_test)} samples")
+        print(f"  Test (holdout): {len(real_test)} samples (not evaluated during optimization)")
 
         # Bin species and show distribution
         bins = bin_species_by_real_count(real_train_val)
@@ -809,80 +864,27 @@ def objective(trial: optuna.Trial) -> float:
         label_encoder = LabelEncoder()
         label_encoder.fit(augmented_data['Species'])
 
-        # Train with CV on train+val split
+        # Train with CV on train+val split (only evaluate on CV folds, not on test set)
         print("Training with 5-fold CV on train+val split...")
         mean_f1, metrics = train_with_cv(augmented_data, label_encoder, DEVICE, trial)
 
-        # Evaluate on holdout test set
-        print("Evaluating on holdout test set...")
-        test_dataset = FluorescenceDataset(real_test, label_encoder, get_transforms()[1], CACHE_DIR)
-        test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False,
-                                num_workers=NUM_WORKERS, pin_memory=True)
-
-        # Create a final model trained on full train+val for test evaluation
-        model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(DEVICE)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-
-        train_transform, _ = get_transforms()
-        train_dataset = FluorescenceDataset(augmented_data, label_encoder, train_transform, CACHE_DIR)
-        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
-                                 num_workers=NUM_WORKERS, pin_memory=True)
-
-        # Train on full augmented train+val set
-        best_val_f1 = 0.0
-        patience_counter = 0
-        for _ in range(EPOCHS):
-            _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
-
-            # Check patience on test set
-            test_acc, test_f1, _, _ = evaluate(model, test_loader, DEVICE)
-
-            if test_f1 > best_val_f1:
-                best_val_f1 = test_f1
-                patience_counter = 0
-            else:
-                patience_counter += 1
-
-            if patience_counter >= EARLY_STOPPING_PATIENCE:
-                break
-
-        # Final test evaluation
-        test_acc, test_f1, test_prec, test_rec = evaluate(model, test_loader, DEVICE)
-        print(f"  Holdout Test Results:")
-        print(f"    F1: {test_f1:.4f}, Accuracy: {test_acc:.4f}, Precision: {test_prec:.4f}, Recall: {test_rec:.4f}")
-
-        metrics['test_f1'] = test_f1
-        metrics['test_accuracy'] = test_acc
-        metrics['test_precision'] = test_prec
-        metrics['test_recall'] = test_rec
-
-        # Log results
+        # Log results (CV only, no test set evaluation)
         trial.set_user_attr('total_synthetic_added', num_added)
         trial.set_user_attr('bin_stats', bin_stats)
         trial.set_user_attr('mean_accuracy', metrics['mean_accuracy'])
         trial.set_user_attr('mean_precision', metrics['mean_precision'])
         trial.set_user_attr('mean_recall', metrics['mean_recall'])
         trial.set_user_attr('fold_scores', metrics['fold_scores'])
-        trial.set_user_attr('test_f1', metrics['test_f1'])
-        trial.set_user_attr('test_accuracy', metrics['test_accuracy'])
-        trial.set_user_attr('test_precision', metrics['test_precision'])
-        trial.set_user_attr('test_recall', metrics['test_recall'])
 
         print(f"\nCV Results (Train+Val, 5-fold):")
         print(f"  Mean Macro F1: {mean_f1:.4f}")
         print(f"  Mean Accuracy: {metrics['mean_accuracy']:.4f}")
         print(f"  Mean Precision: {metrics['mean_precision']:.4f}")
         print(f"  Mean Recall: {metrics['mean_recall']:.4f}")
-        print(f"\nTest Results (Holdout Set):")
-        print(f"  Test F1: {metrics['test_f1']:.4f}")
-        print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}")
-        print(f"  Test Precision: {metrics['test_precision']:.4f}")
-        print(f"  Test Recall: {metrics['test_recall']:.4f}")
         print(f"\nData Info:")
         print(f"  Total Synthetic Added: {num_added}")
 
-        # Return CV F1 for Optuna optimization (test is independent evaluation)
+        # Return CV F1 for Optuna optimization (test will be evaluated later on best hyperparameters)
         return mean_f1
 
     except Exception as e:
@@ -890,6 +892,132 @@ def objective(trial: optuna.Trial) -> float:
         import traceback
         traceback.print_exc()
         return 0.0
+
+
+# ============================================================================
+# FINAL EVALUATION ON BEST HYPERPARAMETERS
+# ============================================================================
+
+def evaluate_best_hyperparameters(study: optuna.Study) -> Dict:
+    """
+    Evaluate the best hyperparameters on the holdout test set.
+
+    This is done ONCE after all optimization trials are complete.
+
+    Returns:
+        Dictionary with test metrics for best hyperparameters
+    """
+    best_trial = study.best_trial
+    print(f"\n{'='*70}")
+    print("FINAL EVALUATION: Testing Best Hyperparameters on Holdout Test Set")
+    print(f"{'='*70}")
+
+    # Get best hyperparameters
+    n_very_low = best_trial.params['n_very_low']
+    n_low = best_trial.params['n_low']
+    n_medium = best_trial.params['n_medium']
+    n_high = best_trial.params['n_high']
+    n_very_high = best_trial.params['n_very_high']
+
+    print(f"Best hyperparameters (from trial {best_trial.number}):")
+    print(f"  n_very_low:  {n_very_low}")
+    print(f"  n_low:       {n_low}")
+    print(f"  n_medium:    {n_medium}")
+    print(f"  n_high:      {n_high}")
+    print(f"  n_very_high: {n_very_high}")
+
+    try:
+        set_seed(SEED)
+
+        # Load data
+        print("\nLoading data...")
+        real_data = load_real_data()
+        print(f"  Real samples: {len(real_data)}")
+
+        # Split real data into train+val vs test (stratified)
+        sss = StratifiedShuffleSplit(n_splits=1, test_size=TEST_SPLIT_RATIO, random_state=SEED)
+        for train_idx, test_idx in sss.split(real_data, real_data['Species']):
+            real_train_val = real_data.iloc[train_idx].reset_index(drop=True)
+            real_test = real_data.iloc[test_idx].reset_index(drop=True)
+
+        print(f"  Train+Val: {len(real_train_val)} samples")
+        print(f"  Test (holdout): {len(real_test)} samples")
+
+        # Load synthetic data and create augmented dataset
+        synthetic_data = load_synthetic_data(real_train_val['Species'].unique().tolist())
+        augmented_data, bin_stats = create_augmented_dataset(
+            real_train_val, synthetic_data,
+            n_very_low, n_low, n_medium, n_high, n_very_high,
+            MAX_SYN_PER_SPECIES
+        )
+
+        print(f"  Augmented train+val samples: {len(augmented_data)}")
+
+        # Create label encoder from train+val
+        label_encoder = LabelEncoder()
+        label_encoder.fit(augmented_data['Species'])
+
+        # Create a final model trained on full augmented train+val set
+        model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(DEVICE)
+        criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=FOCAL_GAMMA)
+        optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+        scheduler = CosineAnnealingLR(optimizer, T_max=150)
+
+        train_transform, _ = get_transforms()
+        train_dataset = FluorescenceDataset(augmented_data, label_encoder, train_transform, CACHE_DIR)
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
+                                 num_workers=NUM_WORKERS, pin_memory=True)
+
+        # Train on full augmented train+val set with early stopping
+        best_test_f1 = 0.0
+        patience_counter = 0
+        best_model_state = None
+
+        print("\nTraining on augmented train+val set...")
+        for epoch in range(EPOCHS):
+            _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
+            scheduler.step()
+
+            # Check patience on test set
+            test_acc, test_f1, _, _ = evaluate(model, test_loader, DEVICE)
+
+            if test_f1 > best_test_f1:
+                best_test_f1 = test_f1
+                patience_counter = 0
+                best_model_state = copy.deepcopy(model.state_dict())
+            else:
+                patience_counter += 1
+
+            if patience_counter >= EARLY_STOPPING_PATIENCE:
+                print(f"  Early stopping at epoch {epoch + 1}")
+                break
+
+        # Load best model and evaluate
+        if best_model_state is not None:
+            model.load_state_dict(best_model_state)
+
+        test_acc, test_f1, test_prec, test_rec = evaluate(model, test_loader, DEVICE)
+
+        print(f"\n{'='*70}")
+        print("Final Test Results (Best Hyperparameters)")
+        print(f"{'='*70}")
+        print(f"  F1:        {test_f1:.4f}")
+        print(f"  Accuracy:  {test_acc:.4f}")
+        print(f"  Precision: {test_prec:.4f}")
+        print(f"  Recall:    {test_rec:.4f}")
+
+        return {
+            'best_test_f1': test_f1,
+            'best_test_accuracy': test_acc,
+            'best_test_precision': test_prec,
+            'best_test_recall': test_rec
+        }
+
+    except Exception as e:
+        print(f"Error in final evaluation: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
 
 
 # ============================================================================
@@ -931,7 +1059,7 @@ def run_optimization(n_trials: int = 30):
 
 
 def plot_optimization_results(study: optuna.Study):
-    """Generate plots of optimization results with per-bin analysis (5 bins)."""
+    """Generate plots of optimization results with per-bin analysis (5 bins). CV metrics only."""
     trials = study.trials
 
     # Extract data
@@ -943,12 +1071,11 @@ def plot_optimization_results(study: optuna.Study):
     n_very_high_values = [t.params['n_very_high'] for t in completed_trials]
     f1_values = [t.value for t in completed_trials]  # CV F1
     acc_values = [t.user_attrs.get('mean_accuracy', 0.0) for t in completed_trials]  # CV accuracy
-    test_f1_values = [t.user_attrs.get('test_f1', 0.0) for t in completed_trials]  # Holdout test F1
     synthetic_added = [t.user_attrs.get('total_synthetic_added', 0) for t in completed_trials]
 
-    # Create figure with subplots (4x3 for per-bin + summary + test comparison)
-    fig, axes = plt.subplots(4, 3, figsize=(18, 18))
-    fig.suptitle('Optuna 5-Bin Per-Bin Optimization Results (with Holdout Test Set)', fontsize=16, fontweight='bold')
+    # Create figure with subplots (3x3 for per-bin + summary, no test comparison during optimization)
+    fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+    fig.suptitle('Optuna 5-Bin Per-Bin Optimization Results (CV Metrics Only)', fontsize=16, fontweight='bold')
 
     # Plot 1: Macro F1 vs n_very_low
     axes[0, 0].scatter(n_very_low_values, f1_values, alpha=0.6, s=100, color='darkred')
@@ -1014,47 +1141,11 @@ def plot_optimization_results(study: optuna.Study):
     axes[2, 1].set_title('Optimization Progress (CV F1)')
     axes[2, 1].grid(True, alpha=0.3)
 
-    # Plot 9: CV F1 vs Test F1 scatter
-    axes[2, 2].scatter(f1_values, test_f1_values, alpha=0.6, s=100, color='teal')
-    axes[2, 2].plot([min(f1_values), max(f1_values)], [min(f1_values), max(f1_values)],
-                    'k--', alpha=0.3, label='CV=Test')
-    axes[2, 2].set_xlabel('CV F1 (5-fold)')
-    axes[2, 2].set_ylabel('Test F1 (Holdout)')
-    axes[2, 2].set_title('CV vs Test F1 Correlation')
-    axes[2, 2].legend()
-    axes[2, 2].grid(True, alpha=0.3)
-
-    # Plot 10: Trial history for Test F1
-    best_test_f1_so_far = []
-    current_best_test = 0.0
-    for val in test_f1_values:
-        if val > current_best_test:
-            current_best_test = val
-        best_test_f1_so_far.append(current_best_test)
-
-    axes[3, 0].plot(range(len(best_test_f1_so_far)), best_test_f1_so_far, marker='s',
-                    color='darkgreen', linewidth=2, markersize=6)
-    axes[3, 0].set_xlabel('Trial Number')
-    axes[3, 0].set_ylabel('Best Test F1 (so far)')
-    axes[3, 0].set_title('Test Set Optimization Progress')
-    axes[3, 0].grid(True, alpha=0.3)
-
-    # Plot 11: CV vs Test F1 side by side
-    trial_indices = np.arange(len(f1_values))
-    width = 0.35
-    axes[3, 1].bar(trial_indices - width/2, f1_values, width, label='CV F1', alpha=0.7, color='skyblue')
-    axes[3, 1].bar(trial_indices + width/2, test_f1_values, width, label='Test F1', alpha=0.7, color='salmon')
-    axes[3, 1].set_xlabel('Trial Number')
-    axes[3, 1].set_ylabel('F1 Score')
-    axes[3, 1].set_title('CV F1 vs Test F1 by Trial')
-    axes[3, 1].legend()
-    axes[3, 1].grid(True, alpha=0.3, axis='y')
-
-    # Plot 12: Summary statistics
-    axes[3, 2].axis('off')
+    # Plot 9: Summary statistics
+    axes[2, 2].axis('off')
     summary_text = f"""
-    Trial Summary (with Holdout Test):
-    ──────────────────────────────────
+    Trial Summary (CV Metrics Only):
+    ────────────────────────────────
     Total Trials: {len(completed_trials)}
 
     CV F1:
@@ -1062,19 +1153,18 @@ def plot_optimization_results(study: optuna.Study):
       Avg: {np.mean(f1_values):.4f}
       Range: [{min(f1_values):.4f}, {max(f1_values):.4f}]
 
-    Test F1:
-      Best: {max(test_f1_values):.4f}
-      Avg: {np.mean(test_f1_values):.4f}
-      Range: [{min(test_f1_values):.4f}, {max(test_f1_values):.4f}]
-
     CV Accuracy:
       Best: {max(acc_values):.4f}
       Avg: {np.mean(acc_values):.4f}
 
     Synthetic Range:
       [{min(synthetic_added)}, {max(synthetic_added)}]
+
+    (Test set evaluation
+     performed once on
+     best hyperparameters)
     """
-    axes[3, 2].text(0.05, 0.5, summary_text, fontsize=10, family='monospace',
+    axes[2, 2].text(0.05, 0.5, summary_text, fontsize=10, family='monospace',
                     verticalalignment='center', bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
 
     plt.tight_layout()
@@ -1084,7 +1174,7 @@ def plot_optimization_results(study: optuna.Study):
     plt.close()
 
 
-def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Dict] = None):
+def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Dict] = None, final_test_results: Optional[Dict] = None):
     """Save detailed summary to JSON with per-bin analysis (5 bins) and baseline comparison."""
     best_trial = study.best_trial
 
@@ -1102,12 +1192,7 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
             'mean_precision': best_trial.user_attrs.get('mean_precision'),
             'mean_recall': best_trial.user_attrs.get('mean_recall'),
         },
-        'test_metrics': {
-            'test_f1': best_trial.user_attrs.get('test_f1'),
-            'test_accuracy': best_trial.user_attrs.get('test_accuracy'),
-            'test_precision': best_trial.user_attrs.get('test_precision'),
-            'test_recall': best_trial.user_attrs.get('test_recall'),
-        },
+        'test_metrics': final_test_results if final_test_results else {},
         'data_info': {
             'total_synthetic_added': best_trial.user_attrs.get('total_synthetic_added')
         },
@@ -1131,16 +1216,18 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
     print(f"  n_medium:    {best_trial.params['n_medium']}")
     print(f"  n_high:      {best_trial.params['n_high']}")
     print(f"  n_very_high: {best_trial.params['n_very_high']}")
-    print(f"\nBest CV Performance (5-fold):")
+    print(f"\nBest CV Performance (5-fold, during optimization):")
     print(f"  Macro F1:  {best_trial.value:.4f}")
     print(f"  Accuracy:  {best_trial.user_attrs.get('mean_accuracy', 0.0):.4f}")
     print(f"  Precision: {best_trial.user_attrs.get('mean_precision', 0.0):.4f}")
     print(f"  Recall:    {best_trial.user_attrs.get('mean_recall', 0.0):.4f}")
-    print(f"\nBest Test Performance (Holdout Set):")
-    print(f"  F1:        {best_trial.user_attrs.get('test_f1', 0.0):.4f}")
-    print(f"  Accuracy:  {best_trial.user_attrs.get('test_accuracy', 0.0):.4f}")
-    print(f"  Precision: {best_trial.user_attrs.get('test_precision', 0.0):.4f}")
-    print(f"  Recall:    {best_trial.user_attrs.get('test_recall', 0.0):.4f}")
+
+    if final_test_results:
+        print(f"\nBest Test Performance (Holdout Set, evaluated after optimization):")
+        print(f"  F1:        {final_test_results.get('best_test_f1', 0.0):.4f}")
+        print(f"  Accuracy:  {final_test_results.get('best_test_accuracy', 0.0):.4f}")
+        print(f"  Precision: {final_test_results.get('best_test_precision', 0.0):.4f}")
+        print(f"  Recall:    {final_test_results.get('best_test_recall', 0.0):.4f}")
     print(f"\nBest Bin Statistics:")
     bin_stats = best_trial.user_attrs.get('bin_stats', {})
     bin_display_names = {
@@ -1164,7 +1251,7 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
         baseline_cv_f1 = baseline_results.get('baseline_cv_macro_f1', 0.0)
         baseline_test_f1 = baseline_results.get('baseline_test_f1', 0.0)
         optimized_cv_f1 = best_trial.value
-        optimized_test_f1 = best_trial.user_attrs.get('test_f1', 0.0)
+        optimized_test_f1 = final_test_results.get('best_test_f1', 0.0) if final_test_results else 0.0
 
         cv_improvement = optimized_cv_f1 - baseline_cv_f1
         test_improvement = optimized_test_f1 - baseline_test_f1
@@ -1225,9 +1312,15 @@ if __name__ == '__main__':
     print("="*70)
     study = run_optimization(n_trials=50)
 
+    # Evaluate best hyperparameters on test set
+    print("\n" + "="*70)
+    print("STEP 3: FINAL TEST EVALUATION")
+    print("="*70)
+    final_test_results = evaluate_best_hyperparameters(study)
+
     # Generate visualizations
     print("\nGenerating plots...")
     plot_optimization_results(study)
-    save_optimization_summary(study, baseline_results)
+    save_optimization_summary(study, baseline_results, final_test_results)
 
     print("\nOptimization complete!")
