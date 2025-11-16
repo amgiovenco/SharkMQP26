@@ -22,6 +22,7 @@ import sys
 import json
 import pickle
 import warnings
+import hashlib
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import numpy as np
@@ -30,6 +31,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
 from io import BytesIO
+import copy
 
 import torch
 import torch.nn as nn
@@ -53,22 +55,51 @@ warnings.filterwarnings('ignore')
 
 SEED = 8
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Paths and basic setup
+DATASET_DIR = Path('../../data')
+IMAGE_SIZE = 224
+N_FOLDS = 5
+NUM_FOLDS = N_FOLDS  # Alias for backwards compatibility
+
+# Training hyperparameters (from train_efficientnetb0.ipynb optimization)
 BATCH_SIZE = 32
-LEARNING_RATE = 1e-3
-EPOCHS = 150
-EARLY_STOPPING_PATIENCE = 10
-NUM_FOLDS = 5
+EPOCHS = 30
+LEARNING_RATE = 0.0020594007612475913
+WEIGHT_DECAY = 1.0083970230770894e-05
+EARLY_STOPPING_PATIENCE = 5
+
+# Focal loss parameters
+FOCAL_ALPHA = 1.0
+FOCAL_GAMMA = 1.5
+
+# Mixup parameter
+MIXUP_ALPHA = 0.4
+USE_MIXUP = True
+
+# Best hyperparameters from optimization
+HYPERPARAMETERS = {
+    'cnn_dropout1': 0.7,
+    'cnn_dropout2': 0.5,
+    'cnn_learning_rate': 0.0020594007612475913,
+    'cnn_batch_size': 32,
+    'cnn_weight_decay': 1.0083970230770894e-05,
+    'cnn_focal_gamma': 1.5
+}
+
 NUM_CLASSES = 57
 HIDDEN_DIM = 256
-DROPOUT_1 = 0.7
-DROPOUT_2 = 0.5
-IMAGE_SIZE = 224
+DROPOUT_1 = HYPERPARAMETERS['cnn_dropout1']
+DROPOUT_2 = HYPERPARAMETERS['cnn_dropout2']
+NUM_WORKERS = 0  # Windows compatibility and memory efficiency
+
+print(DEVICE)
 
 # Data paths
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+DATA_DIR = Path(__file__).parent / "data"
 REAL_DATA_PATH = DATA_DIR / "shark_dataset.csv"
-SYNTHETIC_DIR = DATA_DIR.parent / "syntheticDataGeneration" / "syntheticDataIndividual"
-GOOD_SYNTHETIC_PATH = DATA_DIR.parent / "syntheticDataGeneration" / "results" / "synthetic_quality_assessment" / "synthetic_data_good_quality.csv"
+SYNTHETIC_DIR = DATA_DIR.parent / "syntheticDataIndividual"
+GOOD_SYNTHETIC_PATH = DATA_DIR.parent / "synthetic_data_good_quality.csv"
 
 # Output
 OUTPUT_DIR = Path(__file__).parent / "optuna_results"
@@ -80,6 +111,19 @@ CACHE_DIR.mkdir(exist_ok=True)
 # Set seeds for reproducibility
 torch.manual_seed(SEED)
 np.random.seed(SEED)
+
+# ============================================================================
+# CACHED MODEL WEIGHTS (Loaded once to avoid repeated initialization)
+# ============================================================================
+_CACHED_EFFICIENTNET_WEIGHTS = None
+
+def get_cached_efficientnet_weights():
+    """Load EfficientNet-B0 weights once and cache them."""
+    global _CACHED_EFFICIENTNET_WEIGHTS
+    if _CACHED_EFFICIENTNET_WEIGHTS is None:
+        base_model = efficientnet_b0(weights='IMAGENET1K_V1')
+        _CACHED_EFFICIENTNET_WEIGHTS = copy.deepcopy(base_model.state_dict())
+    return _CACHED_EFFICIENTNET_WEIGHTS
 
 
 # ============================================================================
@@ -163,9 +207,13 @@ class FluorescenceDataset(Dataset):
         temps = np.linspace(20, 95, len(fluor))  # Temperature range
 
         # Try to load from cache or generate image
+        # Use hash-based cache key from curve values to survive shuffling across trials
         cache_path = None
         if self.cache_dir:
-            cache_path = self.cache_dir / f"{idx}_{species.replace(' ', '_')}.pkl"
+            cache_key = hashlib.md5(
+                f"{species}_{'_'.join(f'{x:.6f}' for x in fluor)}".encode()
+            ).hexdigest()
+            cache_path = self.cache_dir / f"{cache_key}.pkl"
             if cache_path.exists():
                 with open(cache_path, 'rb') as f:
                     img = pickle.load(f)
@@ -176,6 +224,7 @@ class FluorescenceDataset(Dataset):
         else:
             img = plot_fluorescence_curve_to_image(temps.tolist(), fluor.tolist())
 
+        # Apply augmentation after loading cached image
         if self.transform:
             img = self.transform(img)
         else:
@@ -236,6 +285,28 @@ def load_synthetic_data(species_list: List[str]) -> Dict[str, pd.DataFrame]:
             synthetic_data[species] = df.reset_index(drop=True)
 
     return synthetic_data
+
+
+def check_minimum_samples_per_class(data: pd.DataFrame, min_samples: int = 3) -> bool:
+    """
+    Validate that all classes have minimum samples for CV stability.
+
+    Args:
+        data: DataFrame with 'Species' column
+        min_samples: Minimum required samples per class
+
+    Returns:
+        True if valid, False if any class has fewer samples
+    """
+    class_counts = data['Species'].value_counts()
+    undersized = class_counts[class_counts < min_samples]
+
+    if len(undersized) > 0:
+        print(f"  WARNING: {len(undersized)} species have < {min_samples} samples:")
+        for species, count in undersized.items():
+            print(f"    {species}: {count} samples")
+        return False
+    return True
 
 
 def bin_species_by_real_count(real_data: pd.DataFrame) -> Dict[str, List[str]]:
@@ -329,6 +400,10 @@ def create_augmented_dataset(real_data: pd.DataFrame, synthetic_data: Dict[str, 
             if num_synthetic_to_add > 0 and species in synthetic_data:
                 synth_pool = synthetic_data[species]
                 if len(synth_pool) > 0:
+                    # Warn if sampling with replacement (indicates insufficient synthetic data)
+                    if num_synthetic_to_add > len(synth_pool):
+                        print(f"  WARNING: {species} sampling synthetic WITH REPLACEMENT "
+                              f"({num_synthetic_to_add} > {len(synth_pool)} available)")
                     # Sample with replacement if needed
                     sampled = synth_pool.sample(n=int(num_synthetic_to_add), replace=True,
                                                random_state=SEED)
@@ -354,8 +429,12 @@ class SharkCNN(nn.Module):
     def __init__(self, num_classes: int = NUM_CLASSES, hidden_dim: int = HIDDEN_DIM):
         super().__init__()
 
-        # Load pretrained EfficientNet-B0
-        self.backbone = efficientnet_b0(weights='IMAGENET1K_V1')
+        # Load pretrained EfficientNet-B0 architecture (without downloading weights)
+        self.backbone = efficientnet_b0(weights=None)
+
+        # Load cached weights instead of downloading again
+        cached_weights = get_cached_efficientnet_weights()
+        self.backbone.load_state_dict(cached_weights)
 
         # Get the output dimension of the backbone
         in_features = self.backbone.classifier[1].in_features  # 1280 for EfficientNet-B0
@@ -452,6 +531,12 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
     """
     Train model with 5-fold stratified CV.
 
+    Args:
+        train_data: Training data
+        label_encoder: Species label encoder
+        device: torch device
+        trial: Optuna trial for pruning (optional)
+
     Returns:
         Mean macro F1 across folds, detailed metrics per fold
     """
@@ -472,21 +557,21 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
         val_dataset = FluorescenceDataset(fold_val, label_encoder, val_transform, CACHE_DIR)
 
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
-                                 num_workers=0)
+                                 num_workers=NUM_WORKERS, pin_memory=True)
         val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False,
-                               num_workers=0)
+                               num_workers=NUM_WORKERS, pin_memory=True)
 
         # Initialize model
         model = SharkCNN(num_classes=NUM_CLASSES, hidden_dim=HIDDEN_DIM).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+        optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
-        # Training loop with early stopping
+        # Training loop with early stopping and Optuna pruning
         best_val_f1 = 0.0
         patience_counter = 0
 
         for epoch in range(EPOCHS):
-            train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
+            _ = train_epoch(model, train_loader, criterion, optimizer, device)
             val_acc, val_f1, val_prec, val_rec = evaluate(model, val_loader, device)
 
             if val_f1 > best_val_f1:
@@ -494,6 +579,12 @@ def train_with_cv(train_data: pd.DataFrame, label_encoder: LabelEncoder,
                 patience_counter = 0
             else:
                 patience_counter += 1
+
+            # Report to Optuna and check for pruning (skip if trial is None)
+            if trial is not None:
+                trial.report(val_f1, epoch)
+                if trial.should_prune():
+                    raise optuna.TrialPruned()
 
             if patience_counter >= EARLY_STOPPING_PATIENCE:
                 break
@@ -580,6 +671,12 @@ def objective(trial: optuna.Trial) -> float:
             print(f"    {bin_name.capitalize():10s}: {stats['added']:4d} total "
                   f"({stats['avg_per_species']:5.1f} avg per species)")
 
+        # Validate minimum samples per class for CV stability
+        print(f"  Validating class distribution for CV...")
+        valid = check_minimum_samples_per_class(augmented_data, min_samples=3)
+        if not valid:
+            print(f"  → Dataset has insufficient samples in some classes. CV may be unstable.")
+
         # Create label encoder
         label_encoder = LabelEncoder()
         label_encoder.fit(augmented_data['Species'])
@@ -629,7 +726,7 @@ def run_optimization(n_trials: int = 30):
         direction='maximize',
         sampler=sampler,
         pruner=pruner,
-        storage=f"sqlite:///{OUTPUT_DIR / 'optuna_shark.db'}",
+        storage=DB_URL,
         study_name='shark_synthetic_optimization',
         load_if_exists=True
     )
@@ -641,7 +738,9 @@ def run_optimization(n_trials: int = 30):
     print(f"\n{'='*60}")
     print(f"OPTIMIZATION COMPLETE")
     print(f"{'='*60}")
-    print(f"Best k: {best_trial.params['k']}")
+    print("Best multipliers:")
+    for p, v in best_trial.params.items():
+        print(f"  {p}: {v}")
     print(f"Best Macro F1: {best_trial.value:.4f}")
     print(f"Best Trial Number: {best_trial.number}")
 
@@ -853,7 +952,7 @@ if __name__ == '__main__':
     print(f"Trials: 30, Pruner: MedianPruner, Sampler: TPE")
 
     # Run optimization
-    study = run_optimization(n_trials=30)
+    study = run_optimization(n_trials=1)
 
     # Generate visualizations
     print("\nGenerating plots...")
