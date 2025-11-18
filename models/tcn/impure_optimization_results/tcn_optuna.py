@@ -13,7 +13,7 @@ from optuna.trial import TrialState
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set device
+# Set device and print GPU info
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("="*80)
 print("DEVICE INFORMATION")
@@ -31,7 +31,6 @@ else:
 print("="*80)
 print()
 
-#
 # --- Dataset Class ---
 class SharkFinDataset(Dataset):
     """Custom Dataset for shark fin fluorescence time-series data with augmentation"""
@@ -191,7 +190,7 @@ def evaluate(model, data_loader, criterion, device):
 # --- Load and Prepare Data ---
 print("LOADING AND PREPROCESSING DATA")
 
-# Load data
+# Load (IMPURE: SYNTHETIC) data
 df = pd.read_csv('shark_datasetSynthetic.csv')
 print(f"Dataset shape: {df.shape}")
 
