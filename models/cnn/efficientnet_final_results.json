@@ -1,0 +1,116 @@
+{
+  "model": "EfficientNet-B0",
+  "hyperparameters": {
+    "cnn_dropout1": 0.6217843386251581,
+    "cnn_dropout2": 0.19498440140497733,
+    "cnn_learning_rate": 0.0004303702377686196,
+    "cnn_batch_size": 16,
+    "cnn_weight_decay": 4.572988042665251e-06,
+    "cnn_focal_gamma": 1.2483412017424098
+  },
+  "configuration": {
+    "batch_size": 32,
+    "epochs": 150,
+    "learning_rate": 0.0020594007612475913,
+    "weight_decay": 1.0083970230770894e-05,
+    "focal_alpha": 1.0,
+    "focal_gamma": 1.5,
+    "mixup_alpha": 0.4,
+    "use_mixup": false,
+    "patience": 25,
+    "n_folds": 5,
+    "random_seed": 8
+  },
+  "cross_validation": {
+    "fold_accuracies": [
+      99.07407407407408,
+      98.14814814814815,
+      99.07407407407408,
+      99.07407407407408,
+      99.06542056074767
+    ],
+    "fold_f1_scores": [
+      98.76543209876543,
+      97.53086419753086,
+      98.76543209876543,
+      98.7037037037037,
+      99.06542056074767
+    ],
+    "fold_precisions": [
+      98.61111111111111,
+      97.22222222222221,
+      98.61111111111111,
+      98.4567901234568,
+      99.06542056074767
+    ],
+    "fold_recalls": [
+      99.07407407407408,
+      98.14814814814815,
+      99.07407407407408,
+      99.07407407407408,
+      99.06542056074767
+    ],
+    "mean_accuracy": 98.88715818622362,
+    "std_accuracy": 0.3695202181045116,
+    "mean_f1": 98.56617053190261,
+    "mean_precision": 98.3933310257298,
+    "mean_recall": 98.88715818622362
+  },
+  "test_results": {
+    "individual_fold_accuracies": [
+      96.73469387755102,
+      97.95918367346938,
+      97.14285714285714,
+      97.14285714285714,
+      97.95918367346938
+    ],
+    "individual_fold_f1_scores": [
+      96.47197825241457,
+      97.88791707159054,
+      96.9139205465736,
+      97.06831273823288,
+      97.74838766675502
+    ],
+    "individual_fold_precisions": [
+      97.46938775510205,
+      98.43537414965986,
+      97.90476190476191,
+      97.83673469387755,
+      98.5034013605442
+    ],
+    "individual_fold_recalls": [
+      96.73469387755102,
+      97.95918367346938,
+      97.14285714285714,
+      97.14285714285714,
+      97.95918367346938
+    ],
+    "best_fold": 2,
+    "best_test_accuracy": 97.95918367346938,
+    "best_test_f1": 97.88791707159054,
+    "best_test_precision": 98.43537414965986,
+    "best_test_recall": 97.95918367346938
+  },
+  "misclassified_samples": [
+    {
+      "true": "Night_shark",
+      "predicted": "Tiger_shark"
+    },
+    {
+      "true": "Oceanic_whitetip_shark",
+      "predicted": "Dusky_shark"
+    },
+    {
+      "true": "Pacific_guitarfish",
+      "predicted": "Spadenose_stingray"
+    },
+    {
+      "true": "Sandbar_shark",
+      "predicted": "Silvertip_shark"
+    },
+    {
+      "true": "Scalloped_hammerhead_shark",
+      "predicted": "Blacknose_shark"
+    }
+  ]
+}
