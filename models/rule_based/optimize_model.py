@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 CSV_PATH = "../../data/shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 300
+N_TRIALS = 1000
 
 # Optuna persistent storage
 STUDY_NAME = "rule_based_ensemble"
@@ -108,7 +108,7 @@ y_encoded = le.fit_transform(y)
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
 print("\n" + "="*60)
-print("BASELINE: Rule-based with RandomForest")
+print("BASELINE: Rule-based with ExtraTrees")
 print("="*60)
 
 scaler = StandardScaler()
@@ -116,7 +116,7 @@ X_scaled = scaler.fit_transform(X)
 
 base_clf = make_pipeline(
     StandardScaler(),
-    RandomForestClassifier(
+    ExtraTreesClassifier(
         n_estimators=300,
         min_samples_leaf=2,
         random_state=RANDOM_STATE,
@@ -131,65 +131,44 @@ print(f"Fold scores: {[f'{s:.4f}' for s in base_scores]}")
 best_overall_score = base_scores.mean()
 best_overall_model = "baseline_rb"
 best_overall_params = {
-    "model_type": "rf",
+    "model_type": "et",
     "n_estimators": 300,
     "min_samples_leaf": 2,
     "margin": 0.1
 }
 
-# Objective function for optimization
+# Objective function for optimization - ExtraTrees only
 def objective(trial):
-    model_type = trial.suggest_categorical('model_type', ['rf', 'et', 'lr'])
+    n_estimators = trial.suggest_int('n_estimators', 800, 3000, step=100)
+    max_depth = trial.suggest_categorical('max_depth', [None, 20, 30, 40, 50, 60, 80])
+    min_samples_split = trial.suggest_int('min_samples_split', 2, 20)
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 1, 10)
+    max_features = trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.5, 0.6, 0.7, 0.8, 0.9])
+    class_weight = trial.suggest_categorical('class_weight', ['balanced', 'balanced_subsample', None])
+    criterion = trial.suggest_categorical('criterion', ['gini', 'entropy'])
+    bootstrap = trial.suggest_categorical('bootstrap', [True, False])
+    max_samples = trial.suggest_float('max_samples', 0.5, 1.0) if bootstrap else None
+    ccp_alpha = trial.suggest_float('ccp_alpha', 0.0, 0.05, step=0.001)
+    warm_start = trial.suggest_categorical('warm_start', [True, False])
 
-    if model_type == 'rf':
-        n_estimators = trial.suggest_int('rf_n_estimators', 200, 800)
-        min_samples_leaf = trial.suggest_int('rf_min_samples_leaf', 1, 8)
-        max_depth = trial.suggest_categorical('rf_max_depth', [None, 15, 20, 30])
-        max_features = trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', None])
-
-        clf = make_pipeline(
-            StandardScaler(),
-            RandomForestClassifier(
-                n_estimators=n_estimators,
-                min_samples_leaf=min_samples_leaf,
-                max_depth=max_depth,
-                max_features=max_features,
-                random_state=RANDOM_STATE,
-                n_jobs=-1
-            )
+    clf = make_pipeline(
+        StandardScaler(),
+        ExtraTreesClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            max_features=max_features,
+            class_weight=class_weight,
+            criterion=criterion,
+            bootstrap=bootstrap,
+            max_samples=max_samples,
+            ccp_alpha=ccp_alpha,
+            warm_start=warm_start,
+            random_state=RANDOM_STATE,
+            n_jobs=-1
         )
-    elif model_type == 'et':
-        n_estimators = trial.suggest_int('et_n_estimators', 200, 800)
-        min_samples_leaf = trial.suggest_int('et_min_samples_leaf', 1, 8)
-        max_depth = trial.suggest_categorical('et_max_depth', [None, 15, 20, 30])
-        max_features = trial.suggest_categorical('et_max_features', ['sqrt', 'log2', None])
-
-        clf = make_pipeline(
-            StandardScaler(),
-            ExtraTreesClassifier(
-                n_estimators=n_estimators,
-                min_samples_leaf=min_samples_leaf,
-                max_depth=max_depth,
-                max_features=max_features,
-                random_state=RANDOM_STATE,
-                n_jobs=-1
-            )
-        )
-    else:  # lr
-        max_iter = trial.suggest_int('lr_max_iter', 1000, 5000)
-        C = trial.suggest_float('lr_C', 0.001, 100.0, log=True)
-        solver = trial.suggest_categorical('lr_solver', ['lbfgs', 'newton-cholesky'])
-
-        clf = make_pipeline(
-            StandardScaler(),
-            LogisticRegression(
-                max_iter=max_iter,
-                C=C,
-                solver=solver,
-                multi_class="multinomial",
-                random_state=RANDOM_STATE
-            )
-        )
+    )
 
     scores = cross_val_score(clf, X, y_encoded, cv=cv, scoring='f1_macro', n_jobs=1)
     return scores.mean()
@@ -247,61 +226,21 @@ print("Training final model on all data...")
 print("="*60)
 
 model_params = {k: v for k, v in best_overall_params.items() if k != 'margin'}
-model_type = model_params.pop('model_type', 'rf')
+model_params.pop('model_type', None)  # Remove model_type if present
 
-if model_type == 'rf':
-    # Extract RF-specific params
-    rf_params = {k: v for k, v in model_params.items() if k in [
-        'n_estimators', 'min_samples_leaf', 'max_depth', 'max_features'
-    ]}
-    rf_params['random_state'] = RANDOM_STATE
-    rf_params['n_jobs'] = -1
+# Extract ExtraTrees-specific params
+et_params = {k: v for k, v in model_params.items() if k in [
+    'n_estimators', 'max_depth', 'min_samples_split', 'min_samples_leaf',
+    'max_features', 'class_weight', 'criterion', 'bootstrap', 'max_samples',
+    'ccp_alpha', 'warm_start'
+]}
+et_params['random_state'] = RANDOM_STATE
+et_params['n_jobs'] = -1
 
-    final_clf = make_pipeline(
-        StandardScaler(),
-        RandomForestClassifier(**rf_params)
-    )
-elif model_type == 'et':
-    # Extract ExtraTrees-specific params
-    et_params = {k: v for k, v in model_params.items() if k in [
-        'n_estimators', 'min_samples_leaf', 'max_depth', 'max_features'
-    ]}
-    et_params['random_state'] = RANDOM_STATE
-    et_params['n_jobs'] = -1
-
-    final_clf = make_pipeline(
-        StandardScaler(),
-        ExtraTreesClassifier(**et_params)
-    )
-elif model_type == 'lgb':
-    # Extract LightGBM-specific params
-    lgb_params = {k: v for k, v in model_params.items() if k in [
-        'n_estimators', 'learning_rate', 'num_leaves', 'max_depth'
-    ]}
-    lgb_params['random_state'] = RANDOM_STATE
-    lgb_params['verbose'] = -1
-
-    final_clf = lgb.LGBMClassifier(**lgb_params)
-elif model_type == 'xgb':
-    # Extract XGBoost-specific params
-    xgb_params = {k.replace('xgb_', ''): v for k, v in model_params.items() if k.startswith('xgb_')}
-    xgb_params['random_state'] = RANDOM_STATE
-    xgb_params['verbosity'] = 0
-    xgb_params['use_label_encoder'] = False
-    xgb_params['eval_metric'] = 'mlogloss'
-
-    final_clf = xgb.XGBClassifier(**xgb_params)
-else:  # lr
-    lr_params = {k: v for k, v in model_params.items() if k in [
-        'max_iter', 'C', 'solver'
-    ]}
-    lr_params['random_state'] = RANDOM_STATE
-    lr_params['multi_class'] = 'multinomial'
-
-    final_clf = make_pipeline(
-        StandardScaler(),
-        LogisticRegression(**lr_params)
-    )
+final_clf = make_pipeline(
+    StandardScaler(),
+    ExtraTreesClassifier(**et_params)
+)
 
 final_clf.fit(X, y_encoded)
 

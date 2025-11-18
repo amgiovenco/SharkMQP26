@@ -23,34 +23,35 @@ from sklearn.metrics import accuracy_score, classification_report, f1_score, pre
 import pickle
 import json
 import time
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 
-# Determine device (CPU/GPU)
-try:
-    import torch
-    from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
-    from torch import nn, optim
-    from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
-    from torchvision import transforms
-    from torchvision.models import efficientnet_b0
-    from PIL import Image
-    TORCH_AVAILABLE = True
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-except ImportError:
-    TORCH_AVAILABLE = False
-    DEVICE = None
+import torch
+from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
+from torch import nn, optim
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+from torchvision import transforms
+from torchvision.models import efficientnet_b0
+from PIL import Image
+
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {DEVICE}")
+if torch.cuda.is_available():
+    print(f"CUDA device: {torch.cuda.get_device_name(0)}")
 
 # Constants
 RANDOM_STATE = 8
-DATA_PATH = Path(__file__).parent.parent.parent / "data" / "shark_dataset.csv"
-TRAIN_IMG_PATH = Path(__file__).parent.parent.parent / "data" / "train"
-TEST_IMG_PATH = Path(__file__).parent.parent.parent / "data" / "test"
-DECIMATE_STEP = 6  # For Gaussian curve fitting
+DATA_PATH = Path(__file__).parent.parent / "data" / "shark_dataset.csv"
+TRAIN_IMG_PATH = Path(__file__).parent.parent / "data" / "train_generated"
+NUM_WORKERS = 4
+
+# Temperature points for melting curves (401 points from 20°C to 85°C)
+TEMPERATURES = np.linspace(20, 85, 401)
 
 np.random.seed(RANDOM_STATE)
-if TORCH_AVAILABLE:
-    torch.manual_seed(RANDOM_STATE)
+torch.manual_seed(RANDOM_STATE)
 
 
 # ============================================================================
@@ -87,6 +88,81 @@ def load_data():
         'species_list': np.unique(y),
         'species_to_idx': {sp: idx for idx, sp in enumerate(np.unique(y))}
     }
+
+
+# ============================================================================
+# IMAGE GENERATION & CACHING
+# ============================================================================
+
+def generate_clean_curve_image(curve: np.ndarray, save_path: Path, temperatures: np.ndarray = None):
+    """
+    Generate a clean, axis-free, high-quality melting curve image.
+    Matches perfect reference style exactly.
+    """
+    # Use provided temperatures or create from curve length
+    if temperatures is None:
+        temperatures = np.linspace(20, 85, len(curve))
+
+    fig, ax = plt.subplots(figsize=(2.24, 2.24), dpi=100)  # 224/100 = 2.24
+    ax.plot(temperatures, curve, linewidth=2.2, color='#2E86AB')
+
+    # Critical: Remove everything except the line
+    ax.set_xlim(temperatures.min(), temperatures.max())
+    ax.set_ylim(curve.min() - 0.001, curve.max() + 0.001)
+    ax.axis('off')  # This removes axes, ticks, labels, spines
+
+    # Remove all padding
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    plt.margins(0, 0)
+
+    # Save with maximum cleanliness
+    plt.savefig(
+        save_path,
+        dpi=100,
+        bbox_inches='tight',
+        pad_inches=0,
+        facecolor='white',
+        edgecolor='none'
+    )
+    plt.close(fig)
+
+
+def generate_all_images_once(df: pd.DataFrame, img_dir: str = "data/train_generated"):
+    """
+    Generate images ONCE from the full CSV and cache them.
+    Uses original row index as filename (e.g., Arabian_smooth-hound_0034.png)
+    """
+    img_dir = Path(img_dir)
+    img_dir.mkdir(parents=True, exist_ok=True)
+
+    total_images = len(df)
+    generated = 0
+
+    # Calculate temperatures based on actual data columns
+    num_cols = len(df.iloc[0]) - 1  # Exclude species column
+    temperatures = np.linspace(20, 85, num_cols)
+
+    print(f"Generating {total_images} clean curve images → {img_dir.resolve()}")
+    print(f"  Temperature points: {num_cols} (from {temperatures[0]:.1f}°C to {temperatures[-1]:.1f}°C)")
+
+    for idx, row in tqdm(df.iterrows(), total=total_images, desc="Generating images"):
+        species = row.iloc[0]  # First column = species
+        curve = row.iloc[1:].values.astype(float)
+
+        # Clean species name for folder
+        species_clean = species.replace(' ', '_').replace('/', '_').replace('-', '_')
+        species_dir = img_dir / species_clean
+        species_dir.mkdir(exist_ok=True)
+
+        # Filename: species_0001.png (uses original CSV row index)
+        img_path = species_dir / f"{species_clean}_{idx:04d}.png"
+
+        if not img_path.exists():
+            generate_clean_curve_image(curve, img_path, temperatures)
+            generated += 1
+        # else: already exists → skip (fast re-runs)
+
+    print(f"Done! Generated {generated} new images ({total_images - generated} already cached)")
 
 
 def create_holdout_split(data_dict):
@@ -378,153 +454,6 @@ def extract_36_features(fluorescence_curve, x_temp=None):
 
     return features
 
-
-def extract_gaussian_features(fluorescence_curve, x_temp=None):
-    """Extract 12 features from optimal Gaussian curve fitting (k=1 to k=6)."""
-    if x_temp is None:
-        x_temp = np.arange(len(fluorescence_curve))
-
-    y = fluorescence_curve
-
-    # Decimate for faster fitting
-    decim_idx = np.arange(0, len(x_temp), DECIMATE_STEP)
-    x_decim = x_temp[decim_idx]
-    y_decim = y[decim_idx]
-
-    def gaussian(x, *params):
-        """Sum of Gaussians."""
-        y_pred = np.zeros_like(x, dtype=float)
-        for i in range(0, len(params), 3):
-            if i + 2 < len(params):
-                amp, mu, sigma = params[i:i+3]
-                y_pred += amp * np.exp(-0.5 * ((x - mu) / abs(sigma)) ** 2)
-        return y_pred
-
-    def bic(y_true, y_pred, n_params):
-        """Bayesian Information Criterion."""
-        n = len(y_true)
-        rss = np.sum((y_true - y_pred) ** 2)
-        return n * np.log(rss / n) + n_params * np.log(n)
-
-    # Find peaks for initialization
-    peaks, peak_props = find_peaks(y_decim, prominence=0.05)
-    if len(peaks) == 0:
-        # Fallback: single peak at argmax
-        peak_idx = np.argmax(y_decim)
-        peaks = [peak_idx]
-        peak_props = {'prominences': np.array([y_decim[peak_idx]])}
-
-    # Sort peaks by prominence
-    if 'prominences' in peak_props:
-        peak_order = np.argsort(peak_props['prominences'])[::-1]
-        peaks = peaks[peak_order]
-
-    # Try k=1 to k=6 Gaussians
-    best_k = 1
-    best_bic_val = float('inf')
-    best_params = None
-    best_y_pred = None
-
-    for k in range(1, 7):
-        try:
-            # Initial guess from top k peaks
-            p0 = []
-            for i in range(k):
-                if i < len(peaks):
-                    peak_x = x_decim[peaks[i]]
-                    peak_y = y_decim[peaks[i]]
-                else:
-                    # Distribute remaining peaks
-                    peak_x = x_decim[np.argmax(y_decim)] + (i - len(peaks)) * 5
-                    peak_y = np.max(y_decim) * (0.5 ** (i + 1))
-
-                sigma_guess = 2.0  # Initial sigma
-                p0.extend([peak_y, peak_x, sigma_guess])
-
-            # Fit
-            try:
-                popt, _ = curve_fit(
-                    gaussian, x_decim, y_decim, p0=p0,
-                    maxfev=15000, ftol=1e-6, xtol=1e-6
-                )
-                y_pred = gaussian(x_decim, *popt)
-                bic_val = bic(y_decim, y_pred, len(popt))
-
-                if bic_val < best_bic_val:
-                    best_bic_val = bic_val
-                    best_k = k
-                    best_params = popt
-                    best_y_pred = y_pred
-            except:
-                continue
-        except:
-            continue
-
-    # Extract features from best fit
-    if best_params is None:
-        # Fallback: simple heuristic approach
-        peak_idx = np.argmax(y_decim)
-        peak_amp = y_decim[peak_idx]
-        peak_mu = x_decim[peak_idx]
-
-        half_max = peak_amp / 2
-        above_half = np.where(y_decim > half_max)[0]
-        if len(above_half) > 1:
-            peak_sigma = (x_decim[above_half[-1]] - x_decim[above_half[0]]) / 2.355
-        else:
-            peak_sigma = 1.0
-
-        # Second peak
-        y_masked = y_decim.copy()
-        y_masked[max(0, peak_idx-3):min(len(y_decim), peak_idx+3)] = 0
-        if np.max(y_masked) > peak_amp * 0.1:
-            peak2_idx = np.argmax(y_masked)
-            peak2_amp = y_masked[peak2_idx]
-            peak2_mu = x_decim[peak2_idx]
-            above_half2 = np.where(y_masked > y_masked[peak2_idx]/2)[0]
-            if len(above_half2) > 1:
-                peak2_sigma = (x_decim[above_half2[-1]] - x_decim[above_half2[0]]) / 2.355
-            else:
-                peak2_sigma = 1.0
-        else:
-            peak2_amp = peak_amp * 0.3
-            peak2_mu = peak_mu + 10
-            peak2_sigma = peak_sigma
-
-        features = {
-            'peak1_mu': peak_mu,
-            'peak1_amp': peak_amp,
-            'peak1_sigma': peak_sigma,
-            'peak2_mu': peak2_mu,
-            'peak2_amp': peak2_amp,
-            'peak2_sigma': peak2_sigma,
-            'delta_mu_12': abs(peak_mu - peak2_mu),
-            'amp_ratio_12': peak_amp / (peak2_amp + 1e-10),
-            'total_area': (peak_amp * peak_sigma + peak2_amp * peak2_sigma) * np.sqrt(2 * np.pi),
-            'asym_0p5C': 0.5,
-            'best_K': 2,
-            'total_amp': peak_amp + peak2_amp,
-        }
-    else:
-        # Extract from best parameters
-        features = {
-            'peak1_mu': best_params[1] if len(best_params) >= 3 else 0,
-            'peak1_amp': best_params[0] if len(best_params) >= 3 else 0,
-            'peak1_sigma': best_params[2] if len(best_params) >= 3 else 1,
-            'peak2_mu': best_params[4] if len(best_params) >= 6 else (best_params[1] + 10) if len(best_params) >= 3 else 0,
-            'peak2_amp': best_params[3] if len(best_params) >= 6 else (best_params[0] * 0.3) if len(best_params) >= 3 else 0,
-            'peak2_sigma': best_params[5] if len(best_params) >= 6 else (best_params[2] if len(best_params) >= 3 else 1),
-            'delta_mu_12': abs(best_params[1] - best_params[4]) if len(best_params) >= 6 else (abs(best_params[1] - (best_params[1] + 10)) if len(best_params) >= 3 else 0),
-            'amp_ratio_12': best_params[0] / (best_params[3] + 1e-10) if len(best_params) >= 6 else (best_params[0] / (best_params[0] * 0.3 + 1e-10) if len(best_params) >= 3 else 1),
-            'total_area': sum(best_params[3*i] * best_params[3*i+2] * np.sqrt(2 * np.pi) for i in range(best_k)),
-            'asym_0p5C': 0.5,  # Would need full fit to compute accurately
-            'best_K': best_k,
-            'total_amp': sum(best_params[3*i] for i in range(best_k)),
-        }
-
-    return features
-
-
 # ============================================================================
 # PYTORCH MODELS & UTILITIES
 # ============================================================================
@@ -557,7 +486,7 @@ class FluorescenceImageDataset(Dataset):
 
         # Images are organized in species subdirectories
         # e.g., data/train/Arabian_smooth-hound/Arabian_smooth-hound_0002.png
-        species_clean = species.replace(' ', '_').replace('/', '_')
+        species_clean = species.replace(' ', '_').replace('/', '_').replace('-', '_')
         species_dir = self.img_dir / species_clean
         img_file = species_dir / f"{species_clean}_{orig_idx:04d}.png"
 
@@ -578,10 +507,10 @@ class EfficientNetHead(nn.Module):
     """Custom classifier head for EfficientNet-B0."""
     def __init__(self, num_classes=57):
         super().__init__()
-        self.dropout1 = nn.Dropout(0.7)
+        self.dropout1 = nn.Dropout(0.6217843386251581)
         self.fc1 = nn.Linear(1280, 256)
         self.relu = nn.ReLU()
-        self.dropout2 = nn.Dropout(0.5)
+        self.dropout2 = nn.Dropout(0.19498440140497733)
         self.fc2 = nn.Linear(256, num_classes)
 
     def forward(self, x):
@@ -692,10 +621,6 @@ def train_cnn_kfold(data_dict, X_train, y_train, indices_train):
     """Train CNN with 5-fold cross-validation."""
     print("\n[CNN] Training EfficientNet-B0 with 5-fold CV...")
 
-    if not TORCH_AVAILABLE:
-        print("[CNN] ERROR: PyTorch not available")
-        return None, None
-
     if not TRAIN_IMG_PATH.exists():
         print("[CNN] WARNING: Training image directory not found")
         return None, None
@@ -722,11 +647,11 @@ def train_cnn_kfold(data_dict, X_train, y_train, indices_train):
 
             optimizer = optim.AdamW(
                 model.parameters(),
-                lr=0.0020594007612475913,
-                weight_decay=1.0083970230770894e-05
+                lr=0.0004303702377686196,
+                weight_decay=4.572988042665251e-06
             )
             scheduler = CosineAnnealingLR(optimizer, T_max=150, eta_min=1e-6)
-            criterion = FocalLoss(alpha=1.0, gamma=1.5)
+            criterion = FocalLoss(alpha=1.0, gamma=1.2483412017424098)
 
             # Transforms with AddGaussianNoise
             train_transform = transforms.Compose([
@@ -756,8 +681,8 @@ def train_cnn_kfold(data_dict, X_train, y_train, indices_train):
                 species_list, transform=val_transform
             )
 
-            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=0)
-            val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=0)
+            train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=NUM_WORKERS)
+            val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=NUM_WORKERS)
 
             # Training loop
             best_acc = 0
@@ -835,10 +760,6 @@ def train_resnet1d_kfold(data_dict, X_train, y_train):
     """Train ResNet1D with 5-fold cross-validation."""
     print("\n[ResNet1D] Training ResNet1D with 5-fold CV...")
 
-    if not TORCH_AVAILABLE:
-        print("[ResNet1D] ERROR: PyTorch not available")
-        return None, None
-
     try:
         species_to_idx = data_dict['species_to_idx']
         species_list = data_dict['species_list']
@@ -877,14 +798,14 @@ def train_resnet1d_kfold(data_dict, X_train, y_train):
             val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
 
             # Model
-            model = ResNet1D(num_classes=len(species_list), initial_filters=80,
-                           dropout=0.20796879885018393)
+            model = ResNet1D(num_classes=len(species_list), initial_filters=128,
+                           dropout=0.2297762256462723)
             model = model.to(DEVICE)
 
             optimizer = optim.Adam(
                 model.parameters(),
-                lr=0.0004313869594239175,
-                weight_decay=0.0001560845747200455
+                lr=0.0001464213993082976,
+                weight_decay=2.8607285116257016e-05
             )
             scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
             criterion = nn.CrossEntropyLoss()
@@ -1142,12 +1063,14 @@ def train_statistics_kfold(data_dict, X_train, y_train):
 
             # Train model with calibration
             base_model = ExtraTreesClassifier(
-                n_estimators=1700,
-                max_depth=None,
-                min_samples_split=9,
+                n_estimators=1600,
+                max_depth=30,
+                min_samples_split=4,
                 min_samples_leaf=1,
-                max_features=0.7,
-                class_weight='balanced',
+                max_features=0.5,
+                class_weight='balanced_subsample',
+                bootstrap=False,
+                ccp_alpha=0.002,
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             )
@@ -1195,100 +1118,6 @@ def train_statistics_kfold(data_dict, X_train, y_train):
         return None, None
 
 
-def train_gaussian_kfold(data_dict, X_train, y_train):
-    """Train Gaussian model with 5-fold cross-validation."""
-    print("\n[Gaussian] Training Gaussian model with 5-fold CV...")
-
-    try:
-        x_temp = np.linspace(20, 85, X_train.shape[1])
-        species_list = data_dict['species_list']
-        species_to_idx = data_dict['species_to_idx']
-
-        fold_models = {}
-        oof_preds = np.zeros((len(X_train), len(species_list)), dtype=np.float32)
-
-        kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-
-        for fold, (train_idx, val_idx) in enumerate(kf.split(X_train, y_train)):
-            print(f"\n[Gaussian] Fold {fold+1}/5")
-
-            X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
-            y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
-
-            # Extract features with progress
-            print(f"[Gaussian] Extracting features for {len(X_fold_train)} training samples...")
-            train_features = []
-            for i, sample in enumerate(X_fold_train):
-                if (i + 1) % 50 == 0:
-                    print(f"[Gaussian]   Progress: {i+1}/{len(X_fold_train)}")
-                y_prep = preprocess_curve(x_temp, sample)
-                feat_dict = extract_gaussian_features(y_prep, x_temp)
-                train_features.append(list(feat_dict.values()))
-            train_features = np.array(train_features)
-
-            print(f"[Gaussian] Extracting features for {len(X_fold_val)} validation samples...")
-            val_features = []
-            for i, sample in enumerate(X_fold_val):
-                if (i + 1) % 20 == 0:
-                    print(f"[Gaussian]   Progress: {i+1}/{len(X_fold_val)}")
-                y_prep = preprocess_curve(x_temp, sample)
-                feat_dict = extract_gaussian_features(y_prep, x_temp)
-                val_features.append(list(feat_dict.values()))
-            val_features = np.array(val_features)
-
-            # Train model with calibration
-            base_model = RandomForestClassifier(
-                n_estimators=800,
-                random_state=RANDOM_STATE,
-                class_weight='balanced_subsample',
-                max_depth=None,
-                min_samples_leaf=1,
-                n_jobs=-1
-            )
-
-            # Adaptive CV for calibration: ensure each class has enough samples
-            # For 3-fold CV, each class needs at least 3 samples
-            y_fold_train_idx = np.array([species_to_idx[sp] for sp in y_fold_train])
-            min_class_samples = np.bincount(y_fold_train_idx).min()
-            n_cal_cv = 3 if min_class_samples >= 3 else 2
-
-            model = CalibratedClassifierCV(
-                estimator=base_model,
-                method='isotonic',
-                cv=n_cal_cv
-            )
-            try:
-                model.fit(train_features, y_fold_train)
-            except ValueError as e:
-                if "cross-validation" in str(e):
-                    # Fallback to 2-fold if calibration still fails
-                    print(f"[Gaussian] Fold {fold+1} - Retrying with 2-fold calibration...")
-                    model = CalibratedClassifierCV(
-                        estimator=base_model,
-                        method='isotonic',
-                        cv=2
-                    )
-                    model.fit(train_features, y_fold_train)
-                else:
-                    raise
-
-            # OOF predictions
-            oof_pred_probs = model.predict_proba(val_features)
-            oof_preds[val_idx] = oof_pred_probs
-
-            fold_models[fold] = model
-            val_acc = model.score(val_features, y_fold_val)
-            print(f"[Gaussian] Fold {fold+1} - Val Acc: {val_acc:.4f} (cal_cv={n_cal_cv})")
-
-        return oof_preds, fold_models
-
-    except Exception as e:
-        print(f"[Gaussian] ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return None, None
-
-
 # ============================================================================
 # HOLDOUT PREDICTION FUNCTIONS
 # ============================================================================
@@ -1301,7 +1130,7 @@ def predict_cnn_holdout(fold_models, data_dict, X_holdout, y_holdout, indices_ho
         print("[CNN] WARNING: No fold models available")
         return [''] * len(X_holdout)
 
-    if not TORCH_AVAILABLE or not TEST_IMG_PATH.exists():
+    if not TRAIN_IMG_PATH.exists():
         print("[CNN] WARNING: Cannot generate predictions")
         return [''] * len(X_holdout)
 
@@ -1327,10 +1156,10 @@ def predict_cnn_holdout(fold_models, data_dict, X_holdout, y_holdout, indices_ho
             model.eval()
 
             dataset = FluorescenceImageDataset(
-                TEST_IMG_PATH, indices_holdout, y_holdout,
+                TRAIN_IMG_PATH, indices_holdout, y_holdout,
                 species_list, transform=holdout_transform
             )
-            loader = DataLoader(dataset, batch_size=32, shuffle=False, num_workers=0)
+            loader = DataLoader(dataset, batch_size=32, shuffle=False, num_workers=NUM_WORKERS)
 
             fold_probs = []
             with torch.no_grad():
@@ -1364,10 +1193,6 @@ def predict_resnet1d_holdout(fold_models, data_dict, X_holdout, y_holdout):
         print("[ResNet1D] WARNING: No fold models available")
         return [''] * len(X_holdout)
 
-    if not TORCH_AVAILABLE:
-        print("[ResNet1D] WARNING: PyTorch not available")
-        return [''] * len(X_holdout)
-
     try:
         species_list = data_dict['species_list']
         species_to_idx = data_dict['species_to_idx']
@@ -1382,8 +1207,8 @@ def predict_resnet1d_holdout(fold_models, data_dict, X_holdout, y_holdout):
         all_probs = []
 
         for fold, model_state in fold_models.items():
-            model = ResNet1D(num_classes=len(species_list), initial_filters=80,
-                           dropout=0.20796879885018393)
+            model = ResNet1D(num_classes=len(species_list), initial_filters=128,
+                           dropout=0.2297762256462723)
             model.load_state_dict(model_state)
             model = model.to(DEVICE)
             model.eval()
@@ -1513,46 +1338,6 @@ def predict_statistics_holdout(fold_models, data_dict, X_holdout, y_holdout):
         return [''] * len(X_holdout)
 
 
-def predict_gaussian_holdout(fold_models, data_dict, X_holdout, y_holdout):
-    """Generate predictions on holdout set using fold models."""
-    print("\n[Gaussian] Generating holdout predictions...")
-
-    if fold_models is None or len(fold_models) == 0:
-        print("[Gaussian] WARNING: No fold models available")
-        return [''] * len(X_holdout)
-
-    try:
-        x_temp = np.linspace(20, 85, X_holdout.shape[1])
-        species_list = data_dict['species_list']
-
-        # Extract features
-        holdout_features = []
-        for sample in X_holdout:
-            y_prep = preprocess_curve(x_temp, sample)
-            feat_dict = extract_gaussian_features(y_prep, x_temp)
-            holdout_features.append(list(feat_dict.values()))
-        holdout_features = np.array(holdout_features)
-
-        # Ensemble predictions
-        all_probs = []
-        for fold, model in fold_models.items():
-            probs = model.predict_proba(holdout_features)
-            all_probs.append(probs)
-
-        # Average across folds
-        mean_probs = np.mean(all_probs, axis=0)
-        predictions = [species_list[np.argmax(probs)] for probs in mean_probs]
-
-        accuracy = np.mean(np.array(predictions) == y_holdout)
-        print(f"[Gaussian] Holdout Accuracy: {accuracy:.4f}")
-
-        return predictions
-
-    except Exception as e:
-        print(f"[Gaussian] ERROR: {str(e)}")
-        return [''] * len(X_holdout)
-
-
 # ============================================================================
 # HOLDOUT PROBABILITY RETURN FUNCTIONS (For CSV Output)
 # ============================================================================
@@ -1581,10 +1366,10 @@ def predict_cnn_holdout_probs(fold_models, data_dict, X_holdout, y_holdout, indi
             model.eval()
 
             dataset = FluorescenceImageDataset(
-                TEST_IMG_PATH, indices_holdout, y_holdout,
+                TRAIN_IMG_PATH, indices_holdout, y_holdout,
                 species_list, transform=holdout_transform
             )
-            loader = DataLoader(dataset, batch_size=32, shuffle=False, num_workers=0)
+            loader = DataLoader(dataset, batch_size=32, shuffle=False, num_workers=NUM_WORKERS)
 
             fold_probs = []
             with torch.no_grad():
@@ -1618,8 +1403,8 @@ def predict_resnet1d_holdout_probs(fold_models, data_dict, X_holdout, y_holdout)
 
         all_probs = []
         for fold, model_state in fold_models.items():
-            model = ResNet1D(num_classes=len(species_list), initial_filters=80,
-                           dropout=0.20796879885018393)
+            model = ResNet1D(num_classes=len(species_list), initial_filters=128,
+                           dropout=0.2297762256462723)
             model.load_state_dict(model_state)
             model = model.to(DEVICE)
             model.eval()
@@ -1750,37 +1535,6 @@ def predict_statistics_holdout_probs(fold_models, data_dict, X_holdout, y_holdou
         return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
 
 
-def predict_gaussian_holdout_probs(fold_models, data_dict, X_holdout, y_holdout):
-    """Return probability arrays for Gaussian holdout predictions."""
-    if fold_models is None or len(fold_models) == 0:
-        return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
-
-    try:
-        x_temp = np.linspace(20, 85, X_holdout.shape[1])
-        species_list = data_dict['species_list']
-
-        print(f"[Gaussian] Extracting features for {len(X_holdout)} holdout samples...")
-        holdout_features = []
-        for i, sample in enumerate(X_holdout):
-            if (i + 1) % 20 == 0:
-                print(f"[Gaussian]   Progress: {i+1}/{len(X_holdout)}")
-            y_prep = preprocess_curve(x_temp, sample)
-            feat_dict = extract_gaussian_features(y_prep, x_temp)
-            holdout_features.append(list(feat_dict.values()))
-        holdout_features = np.array(holdout_features)
-
-        all_probs = []
-        for fold, model in fold_models.items():
-            probs = model.predict_proba(holdout_features)
-            all_probs.append(probs)
-
-        return np.mean(all_probs, axis=0)
-
-    except Exception as e:
-        print(f"[Gaussian] WARNING: Could not get probabilities: {str(e)}")
-        return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
-
-
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
@@ -1788,12 +1542,29 @@ def predict_gaussian_holdout_probs(fold_models, data_dict, X_holdout, y_holdout)
 def main():
     """Run complete k-fold training and prediction pipeline."""
     print("="*70)
-    print("SHARK SPECIES CLASSIFICATION - K-FOLD TRAINING & OOF PREDICTIONS")
+    print("SHARK SPECIES CLASSIFICATION - AUTO IMAGE GENERATION + TRAINING")
     print("="*70)
 
     # Load full dataset
-    data_dict = load_data()
-    print(f"Loaded {len(data_dict['X'])} total samples")
+    print("\nLoading dataset from CSV...")
+    df_full = pd.read_csv(DATA_PATH)
+    print(f"Loaded {len(df_full)} total samples")
+
+    # === AUTO-GENERATE IMAGES IF NOT ALREADY DONE ===
+    if not TRAIN_IMG_PATH.exists() or len(list(TRAIN_IMG_PATH.rglob("*.png"))) < len(df_full):
+        generate_all_images_once(df_full, img_dir=str(TRAIN_IMG_PATH))
+    else:
+        print(f"Found {len(list(TRAIN_IMG_PATH.rglob('*.png')))} cached images → skipping generation")
+
+    # Create data_dict from CSV
+    X = df_full.iloc[:, 1:].values
+    y = df_full.iloc[:, 0].values
+    data_dict = {
+        'X': X,
+        'y': y,
+        'species_list': np.unique(y),
+        'species_to_idx': {sp: idx for idx, sp in enumerate(np.unique(y))}
+    }
     print(f"Number of species: {len(data_dict['species_list'])}")
 
     # Create 80/20 holdout split
@@ -1825,7 +1596,6 @@ def main():
         'resnet1d': None,
         'extratrees': None,
         'statistics': None,
-        'gaussian': None,
         'rulebased': None
     }
 
@@ -1834,7 +1604,6 @@ def main():
         'resnet1d': None,
         'extratrees': None,
         'statistics': None,
-        'gaussian': None,
         'rulebased': None
     }
 
@@ -1853,22 +1622,13 @@ def main():
         data_dict, X_train, y_train
     )
 
-    # TODO: Gaussian model disabled - revisit later
-    # oof_predictions['gaussian'], fold_models['gaussian'] = train_gaussian_kfold(
-    #     data_dict, X_train, y_train
-    # )
+    oof_predictions['cnn'], fold_models['cnn'] = train_cnn_kfold(
+        data_dict, X_train, y_train, indices_train
+    )
 
-    if TORCH_AVAILABLE:
-        oof_predictions['cnn'], fold_models['cnn'] = train_cnn_kfold(
-            data_dict, X_train, y_train, indices_train
-        )
-
-    if TORCH_AVAILABLE:
-        oof_predictions['resnet1d'], fold_models['resnet1d'] = train_resnet1d_kfold(
-            data_dict, X_train, y_train
-        )
-    else:
-        print("\n[PyTorch] Skipping ResNet1D: PyTorch not available")
+    oof_predictions['resnet1d'], fold_models['resnet1d'] = train_resnet1d_kfold(
+        data_dict, X_train, y_train
+    )
 
     training_time = time.time() - start_time
     print(f"\n{'='*70}")
@@ -1887,7 +1647,6 @@ def main():
         'resnet1d': [],
         'extratrees': [],
         'statistics': [],
-        'gaussian': [],
         'rulebased': []
     }
 
@@ -1912,14 +1671,6 @@ def main():
         )
     else:
         holdout_predictions['statistics'] = [''] * len(X_holdout)
-
-    # TODO: Gaussian model disabled - revisit later
-    # if fold_models['gaussian'] is not None:
-    #     holdout_predictions['gaussian'] = predict_gaussian_holdout(
-    #         fold_models['gaussian'], data_dict, X_holdout, y_holdout
-    #     )
-    # else:
-    holdout_predictions['gaussian'] = [''] * len(X_holdout)
 
     if fold_models['cnn'] is not None:
         holdout_predictions['cnn'] = predict_cnn_holdout(
@@ -1997,7 +1748,7 @@ def main():
                 all_probs.extend(fallback_probs)
                 print(f"  - Holdout: ERROR (using fallback)")
 
-        elif model_name in ['extratrees', 'statistics', 'gaussian', 'rulebased'] and fold_models[model_name] is not None:
+        elif model_name in ['extratrees', 'statistics', 'rulebased'] and fold_models[model_name] is not None:
             try:
                 # These already return probs via predict_proba
                 if model_name == 'extratrees':
@@ -2007,10 +1758,6 @@ def main():
                 elif model_name == 'statistics':
                     holdout_probs = predict_statistics_holdout_probs(
                         fold_models['statistics'], data_dict, X_holdout, y_holdout
-                    )
-                elif model_name == 'gaussian':
-                    holdout_probs = predict_gaussian_holdout_probs(
-                        fold_models['gaussian'], data_dict, X_holdout, y_holdout
                     )
                 else:  # rulebased
                     holdout_probs = predict_rulebased_holdout_probs(
@@ -2053,7 +1800,7 @@ def main():
     print(f"\nPredictions saved to: {output_file}")
     print(f"Columns: {len(output_df.columns)}")
     print(f"  - Base columns: index, species_true, set")
-    print(f"  - Per-model probabilities: {6 * len(species_list)} ({6} models × {len(species_list)} species)")
+    print(f"  - Per-model probabilities: {5 * len(species_list)} ({5} models × {len(species_list)} species)")
     print(f"{'='*70}")
 
 

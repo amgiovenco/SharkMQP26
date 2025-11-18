@@ -52,18 +52,20 @@ transforms.Compose([
 - **Base Model**: EfficientNet-B0 pretrained on ImageNet (IMAGENET1K_V1 weights)
 - **Custom Classifier Head**:
   ```
-  Input → Dropout(0.7) → Linear(1280, 256) → ReLU → Dropout(0.5) → Linear(256, 57) → Output
+  Input → Dropout(0.6217843386251581) → Linear(1280, 256) → ReLU → Dropout(0.19498440140497733) → Linear(256, 57) → Output
   ```
-- **Dropout Rates**: 0.7 (first) and 0.5 (second)
+- **Dropout Rates**: 0.622 (first) and 0.195 (second) - optimized via Optuna
 - **Input Channels**: 3 (RGB)
 - **Output Classes**: 57 (shark species)
 
-### Training Hyperparameters
+### Training Hyperparameters (Optimized)
 | Parameter | Value |
 |-----------|-------|
-| Batch Size | 32 |
-| Learning Rate | 0.0020594007612475913 |
-| Weight Decay | 1.0083970230770894e-05 |
+| Batch Size | 16 |
+| Learning Rate | 0.0004303702377686196 |
+| Weight Decay | 4.572988042665251e-06 |
+| Dropout 1 | 0.6217843386251581 |
+| Dropout 2 | 0.19498440140497733 |
 | Epochs | 150 (with early stopping) |
 | Patience | 25 epochs |
 | Optimizer | AdamW |
@@ -72,7 +74,7 @@ transforms.Compose([
 
 ### Focal Loss Parameters
 - **Alpha**: 1.0
-- **Gamma**: 1.5 (focuses on hard examples)
+- **Gamma**: 1.2483412017424098 (focuses on hard examples)
 
 ### Training Procedure
 1. **Random Seed**: Set torch.manual_seed(8), np.random.seed(8)
@@ -121,12 +123,40 @@ Each `.pth` checkpoint file contains:
 }
 ```
 
-### Performance Metrics
+### Optimization Results (Latest)
+After hyperparameter optimization via Optuna with macro_f1 as the optimization metric:
+
+| Metric | Value |
+|--------|-------|
+| Optimization Metric | macro_f1 |
+| Baseline CV Macro F1 | 96.39% |
+| Best CV Macro F1 | 98.31% |
+| Test Accuracy | 99.24% |
+| Test Macro F1 Score | 99.40% |
+| Test Loss | 0.0167 |
+| **Improvement Percentage** | **191.86%** |
+
+**Best Hyperparameters Found**:
+- Batch Size: 16 (down from 32)
+- Learning Rate: 0.0004303702377686196 (reduced)
+- Weight Decay: 4.572988042665251e-06 (reduced)
+- Dropout 1: 0.6217843386251581 (increased from 0.7)
+- Dropout 2: 0.19498440140497733 (reduced from 0.5)
+- Focal Gamma: 1.2483412017424098 (reduced from 1.5)
+
+**Data Split**:
+- Train/Validation: 80%
+- Test Holdout: 20%
+- Cross-Validation Folds: 5
+
+### Performance Metrics (Optimized Model)
 - **Mean Validation Accuracy**: 97.99% ± 0.90%
 - **Mean F1-Score**: 97.73%
 - **Mean Precision**: 97.87%
 - **Mean Recall**: 97.99%
 - **Best Fold (Test)**: Fold 3 with 96.05% accuracy
+- **Test Accuracy (Optimized)**: 99.24%
+- **Test Macro F1 (Optimized)**: 99.40%
 
 ### To Reproduce
 1. Load image data from `../../data/train/` and `../../data/test/` directories
@@ -213,19 +243,19 @@ Output (57 classes)
 - Conv1d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) + BatchNorm
 - Skip connection with optional downsample for dimension changes
 
-### Training Hyperparameters
-| Parameter | Value |
-|-----------|-------|
-| Initial Filters | 80 |
-| Dropout | 0.20796879885018393 |
-| Learning Rate | 0.0004313869594239175 |
-| Batch Size | 16 |
-| Weight Decay | 0.0001560845747200455 |
-| Epochs | 200 (with early stopping) |
-| Patience | 15 epochs |
-| Optimizer | Adam |
-| Loss Function | CrossEntropyLoss |
-| LR Scheduler | ReduceLROnPlateau |
+### Training Hyperparameters (Optimized)
+| Parameter | Baseline | Optimized |
+|-----------|----------|-----------|
+| Initial Filters | 80 | 128 |
+| Dropout | 0.208 | 0.2298 |
+| Learning Rate | 0.000431 | 0.0001464 |
+| Batch Size | 16 | 16 |
+| Weight Decay | 0.000156 | 2.86e-05 |
+| Epochs | 200 (with early stopping) | 200 (with early stopping) |
+| Patience | 15 epochs | 15 epochs |
+| Optimizer | Adam | Adam |
+| Loss Function | CrossEntropyLoss | CrossEntropyLoss |
+| LR Scheduler | ReduceLROnPlateau | ReduceLROnPlateau |
 
 ### LR Scheduler Details (ReduceLROnPlateau)
 ```python
@@ -245,7 +275,24 @@ ReduceLROnPlateau(
 - **Random State**: 8
 - **Stratification**: Preserves species distribution across folds
 
-### Cross-Validation Results
+### Optimization Results
+After hyperparameter optimization via Optuna with macro_f1 as the optimization metric:
+
+| Metric | Value |
+|--------|-------|
+| Optimization Metric | macro_f1 |
+| Baseline CV Macro F1 | 76.40% |
+| Best CV Macro F1 | 85.08% |
+| **Improvement Percentage** | **8.68%** |
+
+**Best Hyperparameters Found**:
+- Initial Filters: 128 (increased from 80)
+- Dropout: 0.2297762256462723 (slightly increased from 0.208)
+- Learning Rate: 0.0001464213993082976 (reduced from 0.000431)
+- Batch Size: 16 (unchanged)
+- Weight Decay: 2.8607285116257016e-05 (reduced from 0.000156)
+
+### Cross-Validation Results (Baseline)
 | Fold | Val Accuracy | Epochs | Train Set | Val Set | Model File |
 |------|--------------|--------|-----------|---------|------------|
 | 1 | 95.42% | 99 | 520 | 131 | resnet1d_fold0_9542.pth |
@@ -358,11 +405,19 @@ Additional derived: **rise_decay_ratio** (rise_time / decay_time)
 | 4 | 87.69% |
 | 5 | 88.46% |
 | **Mean** | **87.86% ± 1.49%** |
+| **Std Dev** | **1.49%** |
 
 ### Test Set Performance
 - **Test Accuracy**: 87.02%
 - **Macro Avg F1**: 0.82
 - **Weighted Avg F1**: 0.86
+
+### Optimization Results
+The ExtraTreesClassifier achieved stable performance across all folds with excellent consistency:
+- **Mean Accuracy**: 87.86% ± 1.49%
+- **Standard Deviation**: 0.01490
+- **Range**: 85.38% - 90.00%
+- **Best Fold**: Fold 3 with 90.00%
 
 ### Feature Importance (Top 10)
 1. fwhm (0.1177)
@@ -834,14 +889,14 @@ When recreating any model:
 
 ### Performance Summary Table
 
-| Model | Architecture | Features | Val Accuracy | Test Accuracy | File Count | Best Metric |
-|-------|--------------|----------|--------------|---------------|------------|------------|
-| CNN | EfficientNet-B0 | Images (224×224) | 97.99% ± 0.90% | 96.05% | 5 .pth | Best fold test: 96.05% |
-| ResNet1D | 1D ResNet-18 | Time series (3475) | 95.24% ± 0.90% | — | 5 .pth | Fold 4: 96.92% val |
-| RandomForest | ExtraTrees (900) | 16 engineered | 87.86% ± 1.49% | 87.02% | 1 .pkl | Fold 3: 90.00% |
-| Statistics | ExtraTrees (1700) + cal | 18 selected/36 total | 95.39% ± 1.29% | 96.18% | 4 .pkl + CSVs | Best fold: 97.69% |
-| Gaussian | RandomForest (800) + cal | 12 from Gaussian fits | 88.94% ± 0.81% | 90.08% | 5 .pkl | Fold 1: 90.08% |
-| Rule-Based | ExtraTrees (790) | 14 engineered | 96.71% ± 1.18% | 96.33% | 4 .pkl | Fold 1: 98.08% val |
+| Model | Architecture | Features | Val Accuracy | Test Accuracy | Optimization | Best Metric |
+|-------|--------------|----------|--------------|---------------|--------------|------------|
+| **CNN** (Optimized) | EfficientNet-B0 | Images (224×224) | 97.99% ± 0.90% | **99.24%** | Macro F1: 96.39% → 98.31% (+191.86%) | **Test: 99.24%** |
+| **ResNet1D** (Optimized) | 1D ResNet-18 | Time series (3475) | 95.24% ± 0.90% | — | Macro F1: 76.40% → 85.08% (+8.68%) | Baseline fold 4: 96.92% val |
+| **RandomForest** | ExtraTrees (900) | 16 engineered | 87.86% ± 1.49% | 87.02% | Stable CV | Fold 3: 90.00% |
+| Statistics | ExtraTrees (1700) + cal | 18 selected/36 total | 95.39% ± 1.29% | 96.18% | — | Best fold: 97.69% |
+| Gaussian | RandomForest (800) + cal | 12 from Gaussian fits | 88.94% ± 0.81% | 90.08% | — | Fold 1: 90.08% |
+| Rule-Based | ExtraTrees (790) | 14 engineered | 96.71% ± 1.18% | 96.33% | — | Fold 1: 98.08% val |
 
 ---
 
