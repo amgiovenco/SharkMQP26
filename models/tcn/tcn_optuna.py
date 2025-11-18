@@ -13,24 +13,26 @@ from optuna.trial import TrialState
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set device - DirectML for AMD GPU support on Windows
-try:
-    import torch_directml
-    device = torch_directml.device()
-    print(f"Using device: DirectML (AMD GPU)")
-    print(f"DirectML device name: {torch_directml.device_name(0)}")
-except ImportError:
-    print("torch-directml not found. Install with: pip install torch-directml")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Falling back to: {device}")
-except Exception as e:
-    print(f"DirectML initialization failed: {e}")
-    device = torch.device('cpu')
-    print(f"Falling back to CPU")
+# Set device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("="*80)
+print("DEVICE INFORMATION")
+print("="*80)
+print(f"Using device: {device}")
 
-# ============================================================================
-# DATASET CLASS WITH AUGMENTATION
-# ============================================================================
+if torch.cuda.is_available():
+    print(f"GPU Name: {torch.cuda.get_device_name(0)}")
+    print(f"GPU Count: {torch.cuda.device_count()}")
+    print(f"CUDA Version: {torch.version.cuda}")
+    print(f"Current GPU: {torch.cuda.current_device()}")
+    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+else:
+    print("WARNING: CUDA not available! Running on CPU (will be very slow)")
+print("="*80)
+print()
+
+#
+# --- Dataset Class ---
 class SharkFinDataset(Dataset):
     """Custom Dataset for shark fin fluorescence time-series data with augmentation"""
     def __init__(self, features, labels, augment=False):
@@ -60,9 +62,7 @@ class SharkFinDataset(Dataset):
         
         return x, y
 
-# ============================================================================
-# TCN MODEL ARCHITECTURE
-# ============================================================================
+# --- TCN Model Architecture ---
 class CausalConv1d(nn.Module):
     """Causal 1D convolution with weight normalization"""
     def __init__(self, in_channels, out_channels, kernel_size, dilation=1):
@@ -141,9 +141,7 @@ class TemporalConvNet(nn.Module):
         y = torch.mean(y, dim=2)
         return self.fc(y)
 
-# ============================================================================
-# TRAINING AND EVALUATION FUNCTIONS
-# ============================================================================
+# --- Training and Evaluation Functions ---
 def train_epoch(model, train_loader, criterion, optimizer, device):
     """Train for one epoch"""
     model.train()
@@ -190,15 +188,11 @@ def evaluate(model, data_loader, criterion, device):
     f1 = f1_score(all_labels, all_preds, average='macro')
     return total_loss / len(data_loader), f1
 
-# ============================================================================
-# LOAD AND PREPARE DATA (GLOBAL - DONE ONCE)
-# ============================================================================
-print("=" * 80)
+# --- Load and Prepare Data ---
 print("LOADING AND PREPROCESSING DATA")
-print("=" * 80)
 
 # Load data
-df = pd.read_csv('shark_data.csv')  # Replace with your actual filename
+df = pd.read_csv('shark_datasetSynthetic.csv')
 print(f"Dataset shape: {df.shape}")
 
 # Encode labels
@@ -208,31 +202,30 @@ X = df.iloc[:, 1:].values
 num_classes = len(label_encoder.classes_)
 print(f"Number of classes: {num_classes}")
 
-# Normalize features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-X_scaled = X_scaled.reshape(X_scaled.shape[0], 1, X_scaled.shape[1])
-
-# Fixed test split with seed 8
+# Split data
 X_train_full, X_test, y_train_full, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=8, stratify=y
+    X, y, test_size=0.2, random_state=8, stratify=y
 )
+
+# Normalization
+scaler = StandardScaler()
+X_train_full = scaler.fit_transform(X_train_full) 
+X_test = scaler.transform(X_test)                  
+
+# Reshape both
+X_train_full = X_train_full.reshape(X_train_full.shape[0], 1, X_train_full.shape[1])
+X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
 
 print(f"Training pool size: {len(X_train_full)}")
 print(f"Test set size: {len(X_test)}\n")
 
-# ============================================================================
-# OPTUNA OBJECTIVE FUNCTION
-# ============================================================================
+# --- Optuna Objective Function ---
 def objective(trial):
     """
     Optuna objective function to optimize hyperparameters
     Returns: Macro F1 score on validation set
     """
-    
-    # ========================
     # HYPERPARAMETER SEARCH SPACE
-    # ========================
     
     # Architecture parameters
     num_layers = trial.suggest_int('num_layers', 3, 7)
@@ -268,9 +261,7 @@ def objective(trial):
         scheduler_patience = trial.suggest_int('scheduler_patience', 3, 15)
         scheduler_factor = trial.suggest_float('scheduler_factor', 0.1, 0.7)
     
-    # ========================
     # PREPARE DATA SPLIT
-    # ========================
     
     # Use a fixed validation seed for fair comparison across trials
     val_seed = 42
@@ -285,9 +276,7 @@ def objective(trial):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
-    # ========================
     # BUILD MODEL
-    # ========================
     
     torch.manual_seed(val_seed)
     model = TemporalConvNet(
@@ -299,10 +288,8 @@ def objective(trial):
         reverse_dilation=reverse_dilation
     ).to(device)
     
-    # ========================
     # SETUP TRAINING
-    # ========================
-    
+
     criterion = nn.CrossEntropyLoss()
     
     if optimizer_name == 'Adam':
@@ -317,9 +304,7 @@ def objective(trial):
             optimizer, mode='max', factor=scheduler_factor, patience=scheduler_patience
         )
     
-    # ========================
     # TRAINING LOOP
-    # ========================
     
     max_epochs = 100  # Reduced for faster hyperparameter search
     patience = 20
@@ -354,9 +339,7 @@ def objective(trial):
     
     return best_val_f1
 
-# ============================================================================
-# RUN OPTUNA OPTIMIZATION
-# ============================================================================
+# --- Run Optuna Optimization ---
 print("=" * 80)
 print("STARTING OPTUNA HYPERPARAMETER OPTIMIZATION")
 print("=" * 80)
@@ -399,9 +382,7 @@ study.optimize(
     ]
 )
 
-# ============================================================================
-# PRINT RESULTS
-# ============================================================================
+# --- Print Study Results ---
 print("\n" + "=" * 80)
 print("OPTIMIZATION COMPLETE")
 print("=" * 80)
@@ -457,9 +438,7 @@ print("  pip install optuna-dashboard")
 print(f"  optuna-dashboard {storage_name}")
 print("=" * 80)
 
-# ============================================================================
-# SAVE BEST HYPERPARAMETERS TO FILE
-# ============================================================================
+# --- Save Best Hyperparameters to JSON ---
 import json
 
 best_params_file = 'best_hyperparameters.json'
