@@ -1,20 +1,25 @@
 {
-  "baseline_cv_macro_f1": 0.8648241120355229,
+  "baseline_cv_macro_f1": 0.834749229442728,
   "baseline_fold_scores": [
-    0.8433542647828361,
-    0.8246785550191122,
-    0.8327704946125999,
-    0.8999800566364033,
-    0.9233371891266628
+    0.8541858141858141,
+    0.8082223819065926,
+    0.8152983010568149,
+    0.8649876611176921,
+    0.8310519889467257
   ],
   "best_model": "optimized_rb",
-  "best_cv_macro_f1": 0.9269545718585966,
+  "best_cv_macro_f1": 0.9292368012104854,
   "best_params": {
-    "model_type": "et",
-    "et_n_estimators": 601,
-    "et_min_samples_leaf": 1,
-    "et_max_depth": 15,
-    "et_max_features": null
+    "n_estimators": 800,
+    "max_depth": 20,
+    "min_samples_split": 5,
+    "min_samples_leaf": 1,
+    "max_features": 0.8,
+    "class_weight": "balanced_subsample",
+    "criterion": "gini",
+    "bootstrap": false,
+    "ccp_alpha": 0.005,
+    "warm_start": false
   },
-  "improvement_percentage": 6.213045982307374
+  "improvement_percentage": 9.448757176775736
 }

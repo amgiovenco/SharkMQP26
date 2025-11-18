@@ -924,12 +924,18 @@ def train_rulebased_kfold(data_dict, X_train, y_train):
             train_features_scaled = scaler.fit_transform(train_features)
             val_features_scaled = scaler.transform(val_features)
 
-            # Train model
-            model = ExtraTreesClassifier(
-                n_estimators=790,
-                max_depth=15,
+            # Train model with optimized parameters
+            model = RandomForestClassifier(
+                n_estimators=800,
+                max_depth=20,
+                min_samples_split=5,
                 min_samples_leaf=1,
-                max_features=None,
+                max_features=0.8,
+                class_weight='balanced_subsample',
+                criterion='gini',
+                bootstrap=False,
+                ccp_alpha=0.005,
+                warm_start=False,
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             )
