@@ -50,6 +50,27 @@ NUM_WORKERS = 4
 # Temperature points for melting curves (401 points from 20°C to 85°C)
 TEMPERATURES = np.linspace(20, 85, 401)
 
+# TCN Best Hyperparameters (from Optuna trial 160)
+TCN_BEST_PARAMS = {
+    "num_layers": 7,
+    "base_filters": 32,
+    "filter_growth": "linear",
+    "kernel_size": 13,
+    "dropout": 0.02208528755253426,
+    "reverse_dilation": True,
+    "batch_size": 8,
+    "learning_rate": 9.29558217542935e-05,
+    "weight_decay": 0.0044478395955166086,
+    "optimizer": "AdamW",
+    "use_augmentation": True
+}
+
+# Build channel list for TCN (linear growth from base_filters)
+_tcn_num_layers = TCN_BEST_PARAMS["num_layers"]
+_tcn_base = TCN_BEST_PARAMS["base_filters"]
+TCN_CHANNELS = [_tcn_base * (i + 1) for i in range(_tcn_num_layers)]
+TCN_CHANNELS = [min(ch, 512) for ch in TCN_CHANNELS]  # safety cap at 512
+
 np.random.seed(RANDOM_STATE)
 torch.manual_seed(RANDOM_STATE)
 
@@ -503,6 +524,62 @@ class FluorescenceImageDataset(Dataset):
         return img, species
 
 
+class TCN_Dataset(Dataset):
+    """Dataset for raw time-series data with optional augmentation."""
+    def __init__(self, X, y=None, augment=False, species_to_idx=None):
+        """
+        Args:
+            X: Time series data (N, 401) or (N, 1, 401) tensor
+            y: Species labels (optional, can be strings or indices)
+            augment: Whether to apply augmentation
+            species_to_idx: Mapping of species names to indices
+        """
+        # Ensure shape is (N, 1, 401)
+        if isinstance(X, np.ndarray):
+            X = torch.FloatTensor(X)
+            if X.dim() == 2:
+                X = X.unsqueeze(1)
+
+        self.X = X
+
+        # Handle y labels - can be strings or already numeric indices
+        if y is not None:
+            if species_to_idx is not None:
+                # Convert string labels to indices
+                try:
+                    self.y = torch.LongTensor([species_to_idx[sp] for sp in y])
+                except (KeyError, TypeError):
+                    # y is already numeric indices
+                    self.y = torch.LongTensor(y)
+            else:
+                # Assume y is already numeric indices
+                self.y = torch.LongTensor(y)
+        else:
+            self.y = None
+
+        self.augment = augment
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        if self.augment:
+            # Add small noise
+            noise = 0.01 * torch.randn_like(x)
+            # Random scaling
+            scale = 1 + 0.05 * torch.randn(1)
+            x = x * scale + noise
+            # Random shift
+            shift = np.random.randint(-3, 4)
+            if shift != 0:
+                x = torch.roll(x, shifts=shift, dims=-1)
+
+        if self.y is not None:
+            return x, self.y[idx]
+        return x
+
+
 class EfficientNetHead(nn.Module):
     """Custom classifier head for EfficientNet-B0."""
     def __init__(self, num_classes=57):
@@ -597,6 +674,73 @@ class ResNet1D(nn.Module):
         x = self.dropout(x)
         x = self.fc(x)
         return x
+
+
+# ==================== TCN MODEL (from Optuna script) ====================
+class CausalConv1d(nn.Module):
+    """Causal convolution with weight normalization for TCN."""
+    def __init__(self, in_channels, out_channels, kernel_size, dilation=1):
+        super().__init__()
+        self.padding = (kernel_size - 1) * dilation
+        self.conv = nn.utils.weight_norm(
+            nn.Conv1d(in_channels, out_channels, kernel_size,
+                      padding=self.padding, dilation=dilation)
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        if self.padding > 0:
+            x = x[:, :, :-self.padding]
+        return x
+
+
+class TemporalBlock(nn.Module):
+    """Temporal block with two causal convolutions and residual connection."""
+    def __init__(self, n_inputs, n_outputs, kernel_size, dilation, dropout=0.2):
+        super().__init__()
+        self.conv1 = CausalConv1d(n_inputs, n_outputs, kernel_size, dilation)
+        self.bn1 = nn.BatchNorm1d(n_outputs)
+        self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(dropout)
+        self.conv2 = CausalConv1d(n_outputs, n_outputs, kernel_size, dilation)
+        self.bn2 = nn.BatchNorm1d(n_outputs)
+        self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(dropout)
+        self.net = nn.Sequential(
+            self.conv1, self.bn1, self.relu1, self.dropout1,
+            self.conv2, self.bn2, self.relu2, self.dropout2
+        )
+        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        out = self.net(x)
+        res = x if self.downsample is None else self.downsample(x)
+        return self.relu(out + res)
+
+
+class TemporalConvNet(nn.Module):
+    """Temporal Convolutional Network for time series classification."""
+    def __init__(self, num_inputs, num_channels, num_classes,
+                 kernel_size=3, dropout=0.2, reverse_dilation=False):
+        super().__init__()
+        layers = []
+        num_levels = len(num_channels)
+        for i in range(num_levels):
+            dilation_size = 2 ** (num_levels - i - 1) if reverse_dilation else 2 ** i
+            in_channels = num_inputs if i == 0 else num_channels[i-1]
+            out_channels = num_channels[i]
+            layers.append(TemporalBlock(in_channels, out_channels,
+                                        kernel_size, dilation_size, dropout))
+        self.network = nn.Sequential(*layers)
+        self.fc = nn.Linear(num_channels[-1], num_classes)
+
+    def forward(self, x):
+        # x: (B, C, L) → (B, channels, seq_len)
+        y = self.network(x)
+        y = torch.mean(y, dim=2)          # global average pooling
+        return self.fc(y)
+# ============================================================================
 
 
 class FocalLoss(nn.Module):
@@ -881,6 +1025,113 @@ def train_resnet1d_kfold(data_dict, X_train, y_train):
 
     except Exception as e:
         print(f"[ResNet1D] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+
+def train_tcn_kfold(data_dict, X_train, y_train):
+    """Train TCN with 5-fold cross-validation using Optuna-best hyperparameters."""
+    print("\n[TCN] Training Optuna-best TCN with 5-fold CV...")
+    try:
+        species_to_idx = data_dict['species_to_idx']
+        species_list = data_dict['species_list']
+        num_classes = len(species_list)
+
+        # Convert y_train strings to numeric indices for StratifiedKFold
+        y_train_idx = np.array([species_to_idx[sp] for sp in y_train])
+
+        # Global normalization stats (fit on whole train set)
+        scaler = StandardScaler()
+        X_train_norm = scaler.fit_transform(X_train)               # (N, 401)
+        X_train_norm = X_train_norm.reshape(-1, 1, X_train.shape[1])  # (N,1,401)
+
+        oof_preds = np.zeros((len(X_train), num_classes), dtype=np.float32)
+        fold_models = {}
+
+        kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+        for fold, (tr_idx, val_idx) in enumerate(kf.split(X_train, y_train_idx)):
+            print(f"[TCN] Fold {fold+1}/5")
+
+            X_tr, X_val = X_train_norm[tr_idx], X_train_norm[val_idx]
+            y_tr_idx = y_train_idx[tr_idx]
+            y_val_idx = y_train_idx[val_idx]
+
+            train_ds = TCN_Dataset(X_tr, y_tr_idx,
+                                   augment=TCN_BEST_PARAMS["use_augmentation"],
+                                   species_to_idx=None)  # Already numeric
+            val_ds = TCN_Dataset(X_val, y_val_idx, augment=False,
+                                 species_to_idx=None)  # Already numeric
+
+            train_loader = DataLoader(train_ds, batch_size=TCN_BEST_PARAMS["batch_size"],
+                                      shuffle=True, num_workers=NUM_WORKERS, pin_memory=True)
+            val_loader = DataLoader(val_ds, batch_size=TCN_BEST_PARAMS["batch_size"],
+                                    shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
+
+            model = TemporalConvNet(
+                num_inputs=1,
+                num_channels=TCN_CHANNELS,
+                num_classes=num_classes,
+                kernel_size=TCN_BEST_PARAMS["kernel_size"],
+                dropout=TCN_BEST_PARAMS["dropout"],
+                reverse_dilation=TCN_BEST_PARAMS["reverse_dilation"]
+            ).to(DEVICE)
+
+            criterion = nn.CrossEntropyLoss()
+            optimizer = optim.AdamW(model.parameters(),
+                                    lr=TCN_BEST_PARAMS["learning_rate"],
+                                    weight_decay=TCN_BEST_PARAMS["weight_decay"])
+
+            best_val_f1 = 0.0
+            best_state = None
+            patience_cnt = 0
+
+            for epoch in range(300):  # generous upper limit
+                model.train()
+                for xb, yb in train_loader:
+                    xb, yb = xb.to(DEVICE), yb.to(DEVICE)
+                    optimizer.zero_grad()
+                    outs = model(xb)
+                    loss = criterion(outs, yb)
+                    loss.backward()
+                    optimizer.step()
+
+                # ---- validation ----
+                model.eval()
+                val_probs = []
+                with torch.no_grad():
+                    for xb, yb in val_loader:
+                        xb = xb.to(DEVICE)
+                        probs = torch.softmax(model(xb), dim=1).cpu().numpy()
+                        val_probs.append(probs)
+                val_probs = np.vstack(val_probs)
+                val_f1 = f1_score(y_val_idx, val_probs.argmax(axis=1), average='macro')
+
+                if val_f1 > best_val_f1:
+                    best_val_f1 = val_f1
+                    best_state = model.state_dict()
+                    patience_cnt = 0
+                else:
+                    patience_cnt += 1
+                if patience_cnt >= 25:
+                    break
+
+            # Load best model & save OOF
+            model.load_state_dict(best_state)
+            model.eval()
+            with torch.no_grad():
+                probs = []
+                for xb, _ in val_loader:
+                    probs.append(torch.softmax(model(xb.to(DEVICE)), dim=1).cpu().numpy())
+                oof_preds[val_idx] = np.vstack(probs)
+
+            fold_models[fold] = {'model_state': best_state, 'scaler': scaler}
+            print(f"[TCN] Fold {fold+1} – best macro F1: {best_val_f1:.5f}")
+
+        return oof_preds, fold_models
+
+    except Exception as e:
+        print(f"[TCN] ERROR: {e}")
         import traceback
         traceback.print_exc()
         return None, None
@@ -1541,6 +1792,50 @@ def predict_statistics_holdout_probs(fold_models, data_dict, X_holdout, y_holdou
         return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
 
 
+def predict_tcn_holdout_probs(fold_models, data_dict, X_holdout, y_holdout):
+    """Return probability arrays for TCN holdout predictions."""
+    if fold_models is None or len(fold_models) == 0:
+        return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
+
+    try:
+        species_list = data_dict['species_list']
+        num_classes = len(species_list)
+
+        # Use the scaler that was fitted on the full training set (saved in fold 0)
+        scaler = fold_models[0]['scaler']
+        X_norm = scaler.transform(X_holdout)
+        X_norm = X_norm.reshape(-1, 1, X_holdout.shape[1])
+
+        all_fold_probs = []
+        for fold, info in fold_models.items():
+            model = TemporalConvNet(
+                num_inputs=1,
+                num_channels=TCN_CHANNELS,
+                num_classes=num_classes,
+                kernel_size=TCN_BEST_PARAMS["kernel_size"],
+                dropout=TCN_BEST_PARAMS["dropout"],
+                reverse_dilation=TCN_BEST_PARAMS["reverse_dilation"]
+            ).to(DEVICE)
+            model.load_state_dict(info['model_state'])
+            model.eval()
+
+            dataset = TCN_Dataset(X_norm, augment=False)
+            loader = DataLoader(dataset, batch_size=TCN_BEST_PARAMS["batch_size"],
+                                shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
+            fold_probs = []
+            with torch.no_grad():
+                for xb in loader:
+                    probs = torch.softmax(model(xb.to(DEVICE)), dim=1).cpu().numpy()
+                    fold_probs.append(probs)
+            all_fold_probs.append(np.vstack(fold_probs))
+
+        return np.mean(all_fold_probs, axis=0)
+
+    except Exception as e:
+        print(f"[TCN] WARNING: Could not get probabilities: {str(e)}")
+        return np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
+
+
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
@@ -1602,7 +1897,8 @@ def main():
         'resnet1d': None,
         'extratrees': None,
         'statistics': None,
-        'rulebased': None
+        'rulebased': None,
+        'tcn': None
     }
 
     fold_models = {
@@ -1610,7 +1906,8 @@ def main():
         'resnet1d': None,
         'extratrees': None,
         'statistics': None,
-        'rulebased': None
+        'rulebased': None,
+        'tcn': None
     }
 
     start_time = time.time()
@@ -1636,6 +1933,10 @@ def main():
         data_dict, X_train, y_train
     )
 
+    oof_predictions['tcn'], fold_models['tcn'] = train_tcn_kfold(
+        data_dict, X_train, y_train
+    )
+
     training_time = time.time() - start_time
     print(f"\n{'='*70}")
     print(f"Training complete in {training_time:.1f} seconds")
@@ -1653,7 +1954,8 @@ def main():
         'resnet1d': [],
         'extratrees': [],
         'statistics': [],
-        'rulebased': []
+        'rulebased': [],
+        'tcn': []
     }
 
     # Generate holdout predictions
@@ -1692,6 +1994,17 @@ def main():
     else:
         holdout_predictions['resnet1d'] = [''] * len(X_holdout)
 
+    if fold_models['tcn'] is not None:
+        print("[TCN] Generating holdout predictions...")
+        holdout_predictions['tcn'] = predict_tcn_holdout_probs(
+            fold_models['tcn'], data_dict, X_holdout, y_holdout
+        )
+        tcn_preds = np.argmax(holdout_predictions['tcn'], axis=1)
+        tcn_acc = (tcn_preds == np.array([data_dict['species_to_idx'][sp] for sp in y_holdout])).mean()
+        print(f"[TCN] Holdout Accuracy: {tcn_acc:.4f}")
+    else:
+        holdout_predictions['tcn'] = np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
+
     # ========================================================================
     # OUTPUT CSV GENERATION (WITH PROBABILITIES FOR META-LEARNER)
     # ========================================================================
@@ -1710,7 +2023,7 @@ def main():
     }
 
     # Process each model's predictions
-    for model_name in ['cnn', 'resnet1d', 'extratrees', 'statistics', 'rulebased']:
+    for model_name in ['cnn', 'resnet1d', 'extratrees', 'statistics', 'rulebased', 'tcn']:
         print(f"\nProcessing {model_name} predictions...")
 
         # Collect all probabilities (train OOF + holdout)
@@ -1754,9 +2067,9 @@ def main():
                 all_probs.extend(fallback_probs)
                 print(f"  - Holdout: ERROR (using fallback)")
 
-        elif model_name in ['extratrees', 'statistics', 'rulebased'] and fold_models[model_name] is not None:
+        elif model_name in ['extratrees', 'statistics', 'rulebased', 'tcn'] and fold_models[model_name] is not None:
             try:
-                # These already return probs via predict_proba
+                # These already return probs via predict_proba or predict_tcn_holdout_probs
                 if model_name == 'extratrees':
                     holdout_probs = predict_extratrees_holdout_probs(
                         fold_models['extratrees'], data_dict, X_holdout, y_holdout
@@ -1764,6 +2077,10 @@ def main():
                 elif model_name == 'statistics':
                     holdout_probs = predict_statistics_holdout_probs(
                         fold_models['statistics'], data_dict, X_holdout, y_holdout
+                    )
+                elif model_name == 'tcn':
+                    holdout_probs = predict_tcn_holdout_probs(
+                        fold_models['tcn'], data_dict, X_holdout, y_holdout
                     )
                 else:  # rulebased
                     holdout_probs = predict_rulebased_holdout_probs(

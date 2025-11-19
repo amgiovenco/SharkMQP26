@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 Show per-species performance for the best ensemble combination.
-Best combo: cnn + resnet1d + statistics (98.16% accuracy, 98.19% F1-weighted)
+Mathematically determines best ensemble from analyze_ensemble.py results.
 """
 
 import pandas as pd
 import numpy as np
+import json
 from pathlib import Path
 
 def load_predictions(csv_path='all_model_predictions.csv'):
@@ -44,11 +45,59 @@ def load_predictions(csv_path='all_model_predictions.csv'):
 
     return df, models, species_list, true_labels
 
+
+def find_best_ensemble_from_analysis(analysis_json='ensemble_analysis.json'):
+    """Find the mathematically best ensemble from analyze_ensemble.py results."""
+    if not Path(analysis_json).exists():
+        print(f"[WARNING] {analysis_json} not found - will use greedy selection")
+        return None
+
+    try:
+        with open(analysis_json, 'r') as f:
+            results = json.load(f)
+
+        # Get combination metrics (contains all tested combinations with their metrics)
+        combination_metrics = results.get('combination_metrics', {})
+
+        if not combination_metrics:
+            print("[WARNING] No combination_metrics in analysis file")
+            return None
+
+        # Find best by accuracy (primary metric)
+        best_combo = None
+        best_acc = -1
+        best_f1 = -1
+
+        for combo_name, metrics in combination_metrics.items():
+            acc = metrics.get('accuracy', 0)
+            f1m = metrics.get('f1_macro', 0)
+
+            # Prefer higher accuracy, then higher F1-macro
+            if acc > best_acc or (acc == best_acc and f1m > best_f1):
+                best_acc = acc
+                best_f1 = f1m
+                best_combo = combo_name
+
+        if best_combo:
+            print(f"[MATHEMATICAL SELECTION] Best ensemble from analyze_ensemble.py:")
+            print(f"  Combination: {best_combo}")
+            print(f"  Accuracy: {best_acc*100:.2f}%, F1-Macro: {best_f1*100:.2f}%")
+            # Parse the combination name (format: "model1+model2+..." or single model name)
+            if '+' in best_combo:
+                best_models = best_combo.split('+')
+            else:
+                best_models = [best_combo]
+            return best_models
+
+    except Exception as e:
+        print(f"[WARNING] Error reading analysis file: {e}")
+
+    return None
+
 def analyze_best_ensemble():
     """Analyze per-species performance of best ensemble."""
     print("\n" + "="*80)
     print("BEST ENSEMBLE PERFORMANCE BY SPECIES")
-    print("Ensemble: cnn + resnet1d + statistics")
     print("="*80)
 
     # Load data
@@ -59,9 +108,22 @@ def analyze_best_ensemble():
 
     df, models, species_list, true_labels = load_predictions(str(csv_path))
 
-    # Create ensemble predictions (average the 3 best models)
-    best_models = ['cnn', 'resnet1d', 'statistics']
-    ensemble_probs = np.zeros_like(models['cnn'])
+    # Try to find the mathematically best ensemble from analyze_ensemble.py results
+    best_models = find_best_ensemble_from_analysis('ensemble_analysis.json')
+
+    # Fallback: use available models in preferred order if analysis not available
+    if best_models is None:
+        print("\n[FALLBACK] No analysis file found - using preferred model order")
+        preferred_models = ['cnn', 'resnet1d', 'statistics', 'tcn']
+        best_models = [m for m in preferred_models if m in models]
+
+        # If preferred models not available, use all models
+        if not best_models:
+            best_models = list(models.keys())
+
+    print(f"Using ensemble: {' + '.join(best_models)}")
+
+    ensemble_probs = np.zeros_like(models[best_models[0]])
 
     for model_name in best_models:
         ensemble_probs += models[model_name]
@@ -148,7 +210,8 @@ def analyze_best_ensemble():
     print("="*80)
 
     model_accuracies = {}
-    for model_name in best_models + ['extratrees', 'rulebased']:
+    all_models_to_compare = ['cnn', 'resnet1d', 'statistics', 'extratrees', 'rulebased', 'tcn']
+    for model_name in all_models_to_compare:
         if model_name in models:
             preds = np.argmax(models[model_name], axis=1)
             acc = (preds == true_labels).mean()
@@ -156,13 +219,14 @@ def analyze_best_ensemble():
 
     print(f"{'Model':<20} {'Accuracy':<15}")
     print("-" * 35)
-    for model_name in ['cnn', 'resnet1d', 'statistics', 'extratrees', 'rulebased']:
+    for model_name in all_models_to_compare:
         if model_name in model_accuracies:
             acc = model_accuracies[model_name]
-            marker = " [BEST COMBO]" if model_name in best_models else ""
+            marker = " [ENSEMBLE]" if model_name in best_models else ""
             print(f"{model_name:<20} {acc*100:>6.2f}%{marker}")
 
-    print(f"{'cnn+resnet1d+stats':<20} {overall_acc*100:>6.2f}%            [ENSEMBLE]")
+    ensemble_name = '+'.join(best_models)
+    print(f"{ensemble_name:<20} {overall_acc*100:>6.2f}%            [BEST ENSEMBLE]")
 
 if __name__ == '__main__':
     analyze_best_ensemble()
