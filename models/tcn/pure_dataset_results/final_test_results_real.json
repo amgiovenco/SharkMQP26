@@ -1,0 +1,39 @@
+{
+    "test_f1": 0.9948963317384371,
+    "test_accuracy": 0.9923664122137404,
+    "test_loss": 0.021941964942551052,
+    "best_train_f1": 1.0,
+    "validation_f1": 0.9658869395711501,
+    "data_info": {
+        "train_samples": 520,
+        "test_samples": 131,
+        "num_classes": 57,
+        "data_type": "real_only"
+    },
+    "hyperparameters": {
+        "num_layers": 7,
+        "base_filters": 32,
+        "filter_growth": "linear",
+        "kernel_size": 13,
+        "dropout": 0.02208528755253426,
+        "reverse_dilation": true,
+        "batch_size": 8,
+        "learning_rate": 9.29558217542935e-05,
+        "weight_decay": 0.0044478395955166086,
+        "optimizer": "AdamW",
+        "use_augmentation": true,
+        "use_scheduler": false
+    },
+    "model_architecture": {
+        "num_channels": [
+            32,
+            64,
+            96,
+            128,
+            160,
+            192,
+            224
+        ],
+        "total_parameters": 3490649
+    }
+}
