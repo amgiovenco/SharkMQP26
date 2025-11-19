@@ -4,17 +4,13 @@ import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 import warnings
-from sklearn.model_selection import train_test_split
 warnings.filterwarnings('ignore')
 
 # Configuration
 CSV_FILE = '../../../data/shark_dataset.csv'
-OUTPUT_DIR = Path('../../../data')
+OUTPUT_DIR = Path('../../../data/images')
 IMAGE_SIZE = (224, 224)
 DPI = 100
-TRAIN_RATIO = 0.8
-TEST_RATIO = 0.2
-RANDOM_SEED = 42
 
 def generate_line_plot(time_values, signal_values, species_name, output_path):
     """Generate a clean line plot for a shark time-series"""
@@ -37,7 +33,7 @@ def generate_line_plot(time_values, signal_values, species_name, output_path):
     plt.close(fig)
 
 def main():
-    """Generate images from CSV dataset and split into 80% train / 20% test."""
+    """Generate images from CSV dataset."""
     print("Loading shark dataset...")
 
     csv_path = Path(CSV_FILE)
@@ -61,65 +57,20 @@ def main():
     species_list = df['Species'].unique()
     print(f"Number of unique species: {len(species_list)}")
 
-    # Split data into train and test sets per species (stratified)
-    train_indices = []
-    test_indices = []
+    # Create output directory
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for species in species_list:
-        species_indices = df[df['Species'] == species].index.tolist()
-        train_idx, test_idx = train_test_split(
-            species_indices,
-            train_size=TRAIN_RATIO,
-            test_size=TEST_RATIO,
-            random_state=RANDOM_SEED
-        )
-        train_indices.extend(train_idx)
-        test_indices.extend(test_idx)
+    print(f"\nGenerating images...")
 
-    # Create output directories for train and test
-    train_dir = OUTPUT_DIR / 'train'
-    test_dir = OUTPUT_DIR / 'test'
-    train_dir.mkdir(parents=True, exist_ok=True)
-    test_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create subdirectories for each species in both splits
-    train_species_dirs = {}
-    test_species_dirs = {}
-
-    for species in species_list:
-        train_species_dir = train_dir / species.replace(' ', '_').replace('/', '_')
-        test_species_dir = test_dir / species.replace(' ', '_').replace('/', '_')
-        train_species_dir.mkdir(parents=True, exist_ok=True)
-        test_species_dir.mkdir(parents=True, exist_ok=True)
-        train_species_dirs[species] = train_species_dir
-        test_species_dirs[species] = test_species_dir
-
-    print(f"\nGenerating images for train set ({TRAIN_RATIO*100:.0f}%)...")
-
-    # Generate images for training set
-    for idx in tqdm(train_indices, desc="Creating train images"):
+    # Generate images for all samples
+    for idx in tqdm(range(len(df)), desc="Creating images"):
         row = df.iloc[idx]
         species = row['Species']
         signal_values = row[time_columns].values.astype(float)
 
         # Create filename
         species_clean = species.replace(' ', '_').replace('/', '_')
-        output_path = train_species_dirs[species] / f"{species_clean}_{idx:04d}.png"
-
-        # Generate the plot
-        generate_line_plot(time_values, signal_values, species, output_path)
-
-    print(f"\nGenerating images for test set ({TEST_RATIO*100:.0f}%)...")
-
-    # Generate images for test set
-    for idx in tqdm(test_indices, desc="Creating test images"):
-        row = df.iloc[idx]
-        species = row['Species']
-        signal_values = row[time_columns].values.astype(float)
-
-        # Create filename
-        species_clean = species.replace(' ', '_').replace('/', '_')
-        output_path = test_species_dirs[species] / f"{species_clean}_{idx:04d}.png"
+        output_path = OUTPUT_DIR / f"{species_clean}_{idx:04d}.png"
 
         # Generate the plot
         generate_line_plot(time_values, signal_values, species, output_path)
@@ -129,24 +80,11 @@ def main():
 
     # Print summary statistics
     print(f"\nSummary:")
-    print(f"  Train images: {len(train_indices)} ({TRAIN_RATIO*100:.0f}%)")
-    print(f"  Test images: {len(test_indices)} ({TEST_RATIO*100:.0f}%)")
-    print(f"  Total images: {len(train_indices) + len(test_indices)}")
-    print(f"\nTrain set breakdown:")
-    for species in species_list[:10]:  # Show first 10
-        species_dir = train_species_dirs[species]
-        count = len(list(species_dir.glob('*.png')))
+    print(f"  Total images: {len(df)}")
+    print(f"\nBreakdown by species:")
+    for species in sorted(species_list):
+        count = len(list(OUTPUT_DIR.glob(f"{species.replace(' ', '_').replace('/', '_')}*.png")))
         print(f"  {species}: {count} images")
-    if len(species_list) > 10:
-        print(f"  ... and {len(species_list) - 10} more species")
-
-    print(f"\nTest set breakdown:")
-    for species in species_list[:10]:  # Show first 10
-        species_dir = test_species_dirs[species]
-        count = len(list(species_dir.glob('*.png')))
-        print(f"  {species}: {count} images")
-    if len(species_list) > 10:
-        print(f"  ... and {len(species_list) - 10} more species")
 
 if __name__ == '__main__':
     main()
