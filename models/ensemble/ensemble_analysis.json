@@ -68,7 +68,194 @@
       0.2689474494405526
     ]
   ],
-  "good_pairs_by_jaccard": [],
+  "good_pairs_by_jaccard": [
+    [
+      "cnn",
+      "resnet1d",
+      0.8825347758887172
+    ],
+    [
+      "cnn",
+      "extratrees",
+      0.8528951486697965
+    ],
+    [
+      "cnn",
+      "statistics",
+      0.940809968847352
+    ],
+    [
+      "cnn",
+      "rulebased",
+      0.8421875
+    ],
+    [
+      "resnet1d",
+      "extratrees",
+      0.8638573743922204
+    ],
+    [
+      "resnet1d",
+      "statistics",
+      0.9056603773584906
+    ],
+    [
+      "resnet1d",
+      "rulebased",
+      0.8557536466774717
+    ],
+    [
+      "extratrees",
+      "statistics",
+      0.8609794628751974
+    ],
+    [
+      "extratrees",
+      "rulebased",
+      0.8213114754098361
+    ],
+    [
+      "statistics",
+      "rulebased",
+      0.8530805687203792
+    ]
+  ],
+  "good_pairs_by_kl_divergence": [
+    [
+      "cnn",
+      "resnet1d",
+      0.7405416071414948,
+      0.939410388469696
+    ],
+    [
+      "cnn",
+      "extratrees",
+      1.5896213948726654,
+      2.216933012008667
+    ],
+    [
+      "cnn",
+      "statistics",
+      1.0020473897457123,
+      1.41277015209198
+    ],
+    [
+      "cnn",
+      "rulebased",
+      1.3207688927650452,
+      1.3612909317016602
+    ],
+    [
+      "resnet1d",
+      "extratrees",
+      1.4477788209915161,
+      1.5908141136169434
+    ],
+    [
+      "resnet1d",
+      "statistics",
+      1.5570748150348663,
+      2.5710859298706055
+    ],
+    [
+      "resnet1d",
+      "rulebased",
+      1.6484994888305664,
+      2.2843782901763916
+    ],
+    [
+      "extratrees",
+      "statistics",
+      3.501009613275528,
+      6.183333873748779
+    ],
+    [
+      "extratrees",
+      "rulebased",
+      2.7582622170448303,
+      4.33042573928833
+    ],
+    [
+      "statistics",
+      "rulebased",
+      2.536051630973816,
+      3.580637216567993
+    ]
+  ],
+  "kl_divergence_forward": {
+    "cnn": {
+      "cnn": 0.0,
+      "resnet1d": 0.5416728258132935,
+      "extratrees": 0.9623097777366638,
+      "statistics": 1.41277015209198,
+      "rulebased": 1.3612909317016602
+    },
+    "resnet1d": {
+      "cnn": 0.939410388469696,
+      "resnet1d": 0.0,
+      "extratrees": 1.3047435283660889,
+      "statistics": 2.5710859298706055,
+      "rulebased": 2.2843782901763916
+    },
+    "extratrees": {
+      "cnn": 2.216933012008667,
+      "resnet1d": 1.5908141136169434,
+      "extratrees": 0.0,
+      "statistics": 6.183333873748779,
+      "rulebased": 4.33042573928833
+    },
+    "statistics": {
+      "cnn": 0.5913246273994446,
+      "resnet1d": 0.5430637001991272,
+      "extratrees": 0.8186853528022766,
+      "statistics": 0.0,
+      "rulebased": 1.4914660453796387
+    },
+    "rulebased": {
+      "cnn": 1.2802468538284302,
+      "resnet1d": 1.0126206874847412,
+      "extratrees": 1.1860986948013306,
+      "statistics": 3.580637216567993,
+      "rulebased": 0.0
+    }
+  },
+  "kl_divergence_reverse": {
+    "cnn": {
+      "cnn": 0.0,
+      "resnet1d": 0.939410388469696,
+      "extratrees": 2.216933012008667,
+      "statistics": 0.5913246273994446,
+      "rulebased": 1.2802468538284302
+    },
+    "resnet1d": {
+      "cnn": 0.5416728258132935,
+      "resnet1d": 0.0,
+      "extratrees": 1.5908141136169434,
+      "statistics": 0.5430637001991272,
+      "rulebased": 1.0126206874847412
+    },
+    "extratrees": {
+      "cnn": 0.9623097777366638,
+      "resnet1d": 1.3047435283660889,
+      "extratrees": 0.0,
+      "statistics": 0.8186853528022766,
+      "rulebased": 1.1860986948013306
+    },
+    "statistics": {
+      "cnn": 1.41277015209198,
+      "resnet1d": 2.5710859298706055,
+      "extratrees": 6.183333873748779,
+      "statistics": 0.0,
+      "rulebased": 3.580637216567993
+    },
+    "rulebased": {
+      "cnn": 1.3612909317016602,
+      "resnet1d": 2.2843782901763916,
+      "extratrees": 4.33042573928833,
+      "statistics": 1.4914660453796387,
+      "rulebased": 0.0
+    }
+  },
   "calibration": {
     "cnn": {
       "brier": 0.001186493864256866,

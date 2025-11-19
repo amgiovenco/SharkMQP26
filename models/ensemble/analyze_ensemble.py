@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from scipy.spatial.distance import jensenshannon, pdist, squareform
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, entropy as scipy_entropy
 from scipy.cluster import hierarchy
 from sklearn.metrics import (
     brier_score_loss, accuracy_score, precision_score,
@@ -189,6 +189,94 @@ def compute_js_divergence(models):
             print(f"  {model_names[i]:15} + {model_names[j]:15}: {js:6.3f} {status}")
 
     return js_matrix, model_names
+
+# ============================================================================
+# 2.5. KL DIVERGENCE (asymmetric distribution distance)
+# ============================================================================
+
+def compute_kl_divergence(models):
+    """Measure asymmetric KL divergence between models.
+
+    KL(P||Q) = sum(P(x) * log(P(x) / Q(x)))
+    Asymmetric: KL(P||Q) != KL(Q||P)
+    - Low KL(P||Q) means Q approximates P well
+    - High KL(P||Q) means Q poorly approximates P
+    """
+    print("\n" + "="*70)
+    print("2.5. KL DIVERGENCE (asymmetric distribution distance)")
+    print("="*70)
+
+    model_names = list(models.keys())
+    n_models = len(model_names)
+
+    # Compute pairwise KL divergence (both directions)
+    kl_matrix_forward = np.zeros((n_models, n_models))  # KL(P||Q)
+    kl_matrix_reverse = np.zeros((n_models, n_models))  # KL(Q||P)
+
+    for i, name1 in enumerate(model_names):
+        for j, name2 in enumerate(model_names):
+            if i == j:
+                kl_matrix_forward[i, j] = 0.0
+                kl_matrix_reverse[i, j] = 0.0
+            else:
+                # Compute KL divergence across all samples
+                kl_distances_forward = []  # KL(name1 || name2)
+                kl_distances_reverse = []  # KL(name2 || name1)
+
+                for sample_i in range(models[name1].shape[0]):
+                    p = models[name1][sample_i] + 1e-10
+                    q = models[name2][sample_i] + 1e-10
+                    p /= p.sum()
+                    q /= q.sum()
+
+                    # KL(p||q) - how well does q approximate p
+                    kl_fwd = np.sum(p * (np.log(p) - np.log(q)))
+                    kl_distances_forward.append(kl_fwd)
+
+                    # KL(q||p) - how well does p approximate q
+                    kl_rev = np.sum(q * (np.log(q) - np.log(p)))
+                    kl_distances_reverse.append(kl_rev)
+
+                kl_matrix_forward[i, j] = np.mean(kl_distances_forward)
+                kl_matrix_reverse[i, j] = np.mean(kl_distances_reverse)
+
+    # Print forward KL divergence
+    print("\nKL Divergence Matrix - KL(Model_i || Model_j):")
+    print("(Low = Model_j well approximates Model_i)")
+    kl_fwd_df = pd.DataFrame(kl_matrix_forward, index=model_names, columns=model_names)
+    print(kl_fwd_df.round(4))
+
+    # Print reverse KL divergence
+    print("\nKL Divergence Matrix - KL(Model_j || Model_i) [transposed]:")
+    print("(Low = Model_i well approximates Model_j)")
+    kl_rev_df = pd.DataFrame(kl_matrix_reverse, index=model_names, columns=model_names)
+    print(kl_rev_df.round(4))
+
+    # Find complementary pairs (high mutual KL = diverse predictions)
+    print("\nModel Complementarity (by KL divergence):")
+    print("High mutual KL = very different prediction distributions = GOOD for ensemble")
+    complementary_pairs = []
+    for i in range(n_models):
+        for j in range(i+1, n_models):
+            kl_ij = kl_matrix_forward[i, j]
+            kl_ji = kl_matrix_reverse[i, j]
+            avg_kl = (kl_ij + kl_ji) / 2
+            max_kl = max(kl_ij, kl_ji)
+
+            if max_kl > 0.3:
+                status = "[VERY DIFFERENT]"
+                complementary_pairs.append((model_names[i], model_names[j], avg_kl, max_kl))
+            elif max_kl > 0.15:
+                status = "[DIFFERENT]"
+                complementary_pairs.append((model_names[i], model_names[j], avg_kl, max_kl))
+            elif max_kl > 0.05:
+                status = "[SIMILAR]"
+            else:
+                status = "[VERY SIMILAR]"
+
+            print(f"  {model_names[i]:15} <-> {model_names[j]:15}: avg_KL={avg_kl:6.4f}, max_KL={max_kl:6.4f} {status}")
+
+    return kl_matrix_forward, kl_matrix_reverse, model_names, complementary_pairs
 
 # ============================================================================
 # 3. CALIBRATION METRICS
@@ -478,7 +566,7 @@ def compute_jaccard_correctness(models, true_labels):
     jaccard_df = pd.DataFrame(jaccard_matrix, index=model_names, columns=model_names)
     print(jaccard_df.round(3))
 
-    # Identify complementary pairs
+    # Identify complementary pairs (all pairs, will sort by score in recommendations)
     print("\nModel Complementarity (by correctness overlap):")
     complementary_pairs = []
     for i in range(n_models):
@@ -486,15 +574,15 @@ def compute_jaccard_correctness(models, true_labels):
             j_score = jaccard_matrix[i, j]
             if j_score < 0.3:
                 status = "[EXCELLENT]"
-                complementary_pairs.append((model_names[i], model_names[j], j_score))
             elif j_score < 0.5:
                 status = "[GOOD]"
-                complementary_pairs.append((model_names[i], model_names[j], j_score))
             elif j_score < 0.7:
                 status = "[MODERATE]"
             else:
                 status = "[REDUNDANT]"
 
+            # Collect all pairs for later sorting
+            complementary_pairs.append((model_names[i], model_names[j], j_score))
             print(f"  {model_names[i]:15} + {model_names[j]:15}: {j_score:6.3f} {status}")
 
     return jaccard_matrix, model_names, complementary_pairs
@@ -723,6 +811,7 @@ def main():
     # Run all analyses
     corr_matrix, model_names_1, good_pairs = compute_error_correlation(models, true_labels)
     js_matrix, model_names_2 = compute_js_divergence(models)
+    kl_fwd, kl_rev, model_names_25, kl_pairs = compute_kl_divergence(models)
     calibration = compute_calibration(models, true_labels, species_list)
     per_class_acc = compute_class_specialization(models, true_labels, species_list)
     entropy = compute_entropy(models)
@@ -749,10 +838,17 @@ def main():
 
     print(f"\n[REC] Best complementary pairs (by Jaccard correctness):")
     if jaccard_pairs:
-        for m1, m2, j_score in jaccard_pairs[:3]:
+        for m1, m2, j_score in sorted(jaccard_pairs, key=lambda x: x[2])[:5]:
             print(f"  - {m1} + {m2} (Jaccard: {j_score:.3f})")
     else:
-        print("  - None found with low Jaccard")
+        print("  - None found (all pairs have high Jaccard overlap)")
+
+    print(f"\n[REC] Best complementary pairs (by KL divergence):")
+    if kl_pairs:
+        for m1, m2, avg_kl, max_kl in sorted(kl_pairs, key=lambda x: -x[3])[:3]:
+            print(f"  - {m1} + {m2} (avg_KL: {avg_kl:.4f}, max_KL: {max_kl:.4f})")
+    else:
+        print("  - None found with high KL divergence")
 
     print(f"\n[REC] Most confident/stable model:")
     best_calib = min(calibration.keys(), key=lambda m: calibration[m]['ece'])
@@ -793,6 +889,9 @@ def main():
         'model_species_coverage': {model: len(species) for model, species in model_coverage.items()},
         'good_pairs_by_error_correlation': [(m1, m2, float(corr)) for m1, m2, corr in good_pairs],
         'good_pairs_by_jaccard': [(m1, m2, float(j_score)) for m1, m2, j_score in jaccard_pairs],
+        'good_pairs_by_kl_divergence': [(m1, m2, float(avg_kl), float(max_kl)) for m1, m2, avg_kl, max_kl in kl_pairs],
+        'kl_divergence_forward': {model_names_25[i]: {model_names_25[j]: float(kl_fwd[i, j]) for j in range(len(model_names_25))} for i in range(len(model_names_25))},
+        'kl_divergence_reverse': {model_names_25[i]: {model_names_25[j]: float(kl_rev[i, j]) for j in range(len(model_names_25))} for i in range(len(model_names_25))},
         'calibration': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in calibration.items()},
         'entropy': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in entropy.items()},
         'combination_metrics': {k: {kk: float(vv) for kk, vv in v.items()} for k, v in combination_metrics.items()},
