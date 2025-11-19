@@ -1995,13 +1995,9 @@ def main():
         holdout_predictions['resnet1d'] = [''] * len(X_holdout)
 
     if fold_models['tcn'] is not None:
-        print("[TCN] Generating holdout predictions...")
         holdout_predictions['tcn'] = predict_tcn_holdout_probs(
             fold_models['tcn'], data_dict, X_holdout, y_holdout
         )
-        tcn_preds = np.argmax(holdout_predictions['tcn'], axis=1)
-        tcn_acc = (tcn_preds == np.array([data_dict['species_to_idx'][sp] for sp in y_holdout])).mean()
-        print(f"[TCN] Holdout Accuracy: {tcn_acc:.4f}")
     else:
         holdout_predictions['tcn'] = np.ones((len(X_holdout), len(data_dict['species_list']))) / len(data_dict['species_list'])
 

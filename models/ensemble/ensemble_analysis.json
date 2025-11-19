@@ -3,8 +3,8 @@
     "cnn",
     "tcn",
     "statistics",
-    "resnet1d",
     "extratrees",
+    "resnet1d",
     "rulebased"
   ],
   "coverage_required_models": [
