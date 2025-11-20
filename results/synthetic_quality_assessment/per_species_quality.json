@@ -119,6 +119,36 @@
       "distance_median": 0.046805832203689265
     }
   },
+  "Blue shark": {
+    "threshold": {
+      "value": 0.09336430445771107,
+      "n_reals": 35,
+      "method": "mean_2std",
+      "mean": 0.050631891692318,
+      "std": 0.021366206382696533,
+      "median": 0.04905507798701005,
+      "max": 0.14988806174115066
+    },
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 49,
+      "bad_samples": 1,
+      "unknown_samples": 0,
+      "distance_mean": 0.046698603890589066,
+      "distance_std": 0.016184496215865967,
+      "distance_min": 0.019261310094983084,
+      "distance_max": 0.11066062722488251,
+      "distance_median": 0.04518291390704444
+    },
+    "real": {
+      "total_samples": 34,
+      "distance_mean": 0.050631891692318,
+      "distance_std": 0.021366206382696533,
+      "distance_min": 0.01963688479751564,
+      "distance_max": 0.14988806174115066,
+      "distance_median": 0.04905507798701005
+    }
+  },
   "Bonnethead shark": {
     "threshold": {
       "value": 0.2567096349940887,
@@ -147,6 +177,36 @@
       "distance_min": 0.0836321750919437,
       "distance_max": 0.26527702375944967,
       "distance_median": 0.12638244837057866
+    }
+  },
+  "Brownbanded bamboo shark": {
+    "threshold": {
+      "value": 0.2605105067338358,
+      "n_reals": 9,
+      "method": "mean_2std",
+      "mean": 0.1201374977983162,
+      "std": 0.07018650446775979,
+      "median": 0.0840751338079177,
+      "max": 0.27677261246782076
+    },
+    "synthetic": {
+      "total_samples": 50,
+      "good_samples": 50,
+      "bad_samples": 0,
+      "unknown_samples": 0,
+      "distance_mean": 0.08157433663312169,
+      "distance_std": 0.0365468859699656,
+      "distance_min": 0.01334358316249006,
+      "distance_max": 0.1564450823991785,
+      "distance_median": 0.08540324754240941
+    },
+    "real": {
+      "total_samples": 8,
+      "distance_mean": 0.1201374977983162,
+      "distance_std": 0.07018650446775979,
+      "distance_min": 0.06450592611226136,
+      "distance_max": 0.27677261246782076,
+      "distance_median": 0.0840751338079177
     }
   },
   "Common thresher shark": {
