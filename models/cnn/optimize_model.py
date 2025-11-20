@@ -225,7 +225,7 @@ def validate(model, loader, criterion, device):
     return running_loss / len(loader), acc, f1, all_preds, all_labels
 
 
-def train_cnn(all_images, y_encoded, dropout1, dropout2, learning_rate, batch_size, weight_decay, focal_gamma, trial=None):
+def train_cnn(all_images, y_encoded, dropout1, dropout2, learning_rate, batch_size, weight_decay, focal_alpha, focal_gamma, trial=None):
     """5-fold CV, early stopping on validation MACRO F1, returns mean best val-f1."""
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
     cv_scores = []
@@ -251,7 +251,7 @@ def train_cnn(all_images, y_encoded, dropout1, dropout2, learning_rate, batch_si
         model = CNNModel(num_classes=len(np.unique(y_encoded)),
                          dropout1=dropout1, dropout2=dropout2).to(DEVICE)
 
-        criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=focal_gamma)
+        criterion = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
         optimizer = optim.AdamW(model.parameters(),
                                 lr=learning_rate, weight_decay=weight_decay)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
@@ -335,7 +335,7 @@ print("BASELINE: CNN/EfficientNet (5-fold CV on 80% trainval)")
 print("="*60)
 
 base_score = train_cnn(trainval_images, y_trainval, dropout1=0.7, dropout2=0.5,
-                       learning_rate=0.001, batch_size=32, weight_decay=0.0001, focal_gamma=1.5)
+                       learning_rate=0.001, batch_size=32, weight_decay=0.0001, focal_alpha=1.0, focal_gamma=1.5)
 print(f"Baseline CV Macro F1: {base_score:.2f}%")
 
 best_overall_score = base_score
@@ -345,6 +345,7 @@ best_overall_params = {
     "cnn_learning_rate": 0.001,
     "cnn_batch_size": 32,
     "cnn_weight_decay": 0.0001,
+    "cnn_focal_alpha": 1.0,
     "cnn_focal_gamma": 1.5
 }
 
@@ -355,6 +356,7 @@ def objective(trial):
     lr           = trial.suggest_float('cnn_learning_rate', 1e-4, 1e-2, log=True)
     batch_size   = trial.suggest_categorical('cnn_batch_size', [16, 32, 64])
     weight_decay = trial.suggest_float('cnn_weight_decay', 1e-6, 1e-4, log=True)
+    focal_alpha  = trial.suggest_float('cnn_focal_alpha', 0.5, 2.0)
     focal_gamma  = trial.suggest_float('cnn_focal_gamma', 1.0, 3.0)
 
     score = train_cnn(trainval_images, y_trainval,
@@ -363,6 +365,7 @@ def objective(trial):
                       learning_rate=lr,
                       batch_size=batch_size,
                       weight_decay=weight_decay,
+                      focal_alpha=focal_alpha,
                       focal_gamma=focal_gamma,
                       trial=trial)
     return score
@@ -401,7 +404,7 @@ print("="*60)
 best = study.best_params if study.best_value > base_score else {
     "cnn_dropout1": 0.7, "cnn_dropout2": 0.5,
     "cnn_learning_rate": 0.001, "cnn_batch_size": 32,
-    "cnn_weight_decay": 0.0001, "cnn_focal_gamma": 1.5
+    "cnn_weight_decay": 0.0001, "cnn_focal_alpha": 1.0, "cnn_focal_gamma": 1.5
 }
 
 # Train on full trainval set with best params
@@ -418,7 +421,7 @@ test_loader = DataLoader(test_dataset,
 optimizer = optim.AdamW(test_model.parameters(),
                         lr=best['cnn_learning_rate'],
                         weight_decay=best['cnn_weight_decay'])
-criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=best['cnn_focal_gamma'])
+criterion = FocalLoss(alpha=best['cnn_focal_alpha'], gamma=best['cnn_focal_gamma'])
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
                         T_max=EPOCHS, eta_min=1e-6)
 
@@ -494,7 +497,7 @@ final_model = CNNModel(num_classes=len(np.unique(y_encoded)),
 optimizer = optim.AdamW(final_model.parameters(),
                         lr=best['cnn_learning_rate'],
                         weight_decay=best['cnn_weight_decay'])
-criterion = FocalLoss(alpha=FOCAL_ALPHA, gamma=best['cnn_focal_gamma'])
+criterion = FocalLoss(alpha=best['cnn_focal_alpha'], gamma=best['cnn_focal_gamma'])
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
                         T_max=EPOCHS, eta_min=1e-6)
 
