@@ -14,6 +14,10 @@ import pickle
 import json
 from pathlib import Path
 
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold, cross_val_score
@@ -43,7 +47,7 @@ else:
 # ======================================================================
 
 # SQLite database for Optuna studies
-OPTUNA_DB_PATH = Path("optuna_studies.db")
+OPTUNA_DB_PATH = RESULTS_DIR / "optuna_studies.db"
 OPTUNA_DB_URL = f"sqlite:///{OPTUNA_DB_PATH.absolute()}"
 
 print(f"Optuna database: {OPTUNA_DB_PATH.absolute()}")
@@ -464,14 +468,14 @@ else:
 # ======================================================================
 
 # Save models
-with open('best_lr_model.pkl', 'wb') as f:
+with open(RESULTS_DIR / 'best_lr_model.pkl', 'wb') as f:
     pickle.dump(best_lr_model, f)
 
-torch.save(nn_model.state_dict(), 'best_nn_model.pt')
-torch.save(scaler_final, 'nn_scaler.pt')
+torch.save(nn_model.state_dict(), RESULTS_DIR / 'best_nn_model.pt')
+torch.save(scaler_final, RESULTS_DIR / 'nn_scaler.pt')
 
 # Save results JSON
-with open('meta_learner_results.json', 'w') as f:
+with open(RESULTS_DIR / 'meta_learner_results.json', 'w') as f:
     json.dump(results, f, indent=2)
 
 # Save detailed per-species performance
@@ -501,10 +505,10 @@ for species in species_list:
         print(f"  {species}: {np.sum(pred_species[mask] == true_species[mask])}/{count} ({acc*100:.1f}%)")
 
 print(f"\n[SUCCESS] Models and results saved")
-print(f"  - best_lr_model.pkl")
-print(f"  - best_nn_model.pt")
-print(f"  - nn_scaler.pt")
-print(f"  - meta_learner_results.json")
+print(f"  - {RESULTS_DIR / 'best_lr_model.pkl'}")
+print(f"  - {RESULTS_DIR / 'best_nn_model.pt'}")
+print(f"  - {RESULTS_DIR / 'nn_scaler.pt'}")
+print(f"  - {RESULTS_DIR / 'meta_learner_results.json'}")
 
 # ======================================================================
 # 7. OPTUNA DATABASE SUMMARY

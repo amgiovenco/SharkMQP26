@@ -35,9 +35,13 @@ N_TRIALS = 300
 NUM_EPOCHS = 150
 PATIENCE = 15
 
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
+
 # Optuna persistent storage
 STUDY_NAME = "resnet1d"
-STORAGE_PATH = Path("./optuna_studies")
+STORAGE_PATH = RESULTS_DIR / "optuna_studies"
 STORAGE_PATH.mkdir(exist_ok=True)
 STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
 
@@ -367,10 +371,10 @@ results_dict = {
     "improvement_percentage": float((best_overall_score - base_score) * 100)
 }
 
-with open("./optimization_results.json", 'w') as f:
+with open(RESULTS_DIR / "optimization_results.json", 'w') as f:
     json.dump(results_dict, f, indent=2)
 
-print(f"\nSaved optimization results to ./optimization_results.json")
+print(f"\nSaved optimization results to {RESULTS_DIR / 'optimization_results.json'}")
 
 # Train final model on all data
 print("\n" + "="*60)
@@ -417,7 +421,7 @@ for _ in range(200):
         optimizer.step()
 
 # Save model
-torch.save(final_model.state_dict(), "./resnet1d_optimized.pth")
+torch.save(final_model.state_dict(), RESULTS_DIR / "resnet1d_optimized.pth")
 
 bundle = {
     "model": final_model,
@@ -426,8 +430,8 @@ bundle = {
     "params": best_overall_params
 }
 
-joblib.dump(bundle, "./optimized_resnet_model.pkl")
-print(f"Saved optimized model to ./resnet1d_optimized.pth and ./optimized_resnet_model.pkl")
+joblib.dump(bundle, RESULTS_DIR / "optimized_resnet_model.pkl")
+print(f"Saved optimized model to {RESULTS_DIR / 'resnet1d_optimized.pth'} and {RESULTS_DIR / 'optimized_resnet_model.pkl'}")
 
 print("\n" + "="*60)
 print("SUMMARY (Macro F1 Score)")

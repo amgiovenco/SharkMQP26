@@ -8,6 +8,10 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
+
 def analyze_species_accuracy(csv_path='all_model_predictions.csv'):
     """Analyze per-species accuracy across all models."""
     print(f"Loading predictions from {csv_path}...")
@@ -106,8 +110,8 @@ def analyze_species_accuracy(csv_path='all_model_predictions.csv'):
 
     # Export to CSV for detailed analysis
     results_df = pd.DataFrame(species_accuracy)
-    results_df.to_csv('species_accuracy.csv', index=False)
-    print(f"\n✓ Detailed results saved to species_accuracy.csv")
+    results_df.to_csv(RESULTS_DIR / 'species_accuracy.csv', index=False)
+    print(f"\n✓ Detailed results saved to {RESULTS_DIR / 'species_accuracy.csv'}")
 
 if __name__ == '__main__':
     analyze_species_accuracy()

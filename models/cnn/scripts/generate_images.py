@@ -68,9 +68,13 @@ def main():
         species = row['Species']
         signal_values = row[time_columns].values.astype(float)
 
-        # Create filename
+        # Create class subfolder for this species
         species_clean = species.replace(' ', '_').replace('/', '_')
-        output_path = OUTPUT_DIR / f"{species_clean}_{idx:04d}.png"
+        species_dir = OUTPUT_DIR / species_clean
+        species_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create filename inside class subfolder
+        output_path = species_dir / f"{idx:04d}.png"
 
         # Generate the plot
         generate_line_plot(time_values, signal_values, species, output_path)
@@ -83,7 +87,9 @@ def main():
     print(f"  Total images: {len(df)}")
     print(f"\nBreakdown by species:")
     for species in sorted(species_list):
-        count = len(list(OUTPUT_DIR.glob(f"{species.replace(' ', '_').replace('/', '_')}*.png")))
+        species_clean = species.replace(' ', '_').replace('/', '_')
+        species_dir = OUTPUT_DIR / species_clean
+        count = len(list(species_dir.glob("*.png"))) if species_dir.exists() else 0
         print(f"  {species}: {count} images")
 
 if __name__ == '__main__':

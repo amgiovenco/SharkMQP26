@@ -28,11 +28,12 @@ SPECIES_COL = "Species"
 RANDOM_STATE = 8
 N_TRIALS = 500
 N_CV_FOLDS = 5
-results_dir = Path("results")
-results_dir.mkdir(exist_ok=True)
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
 
 # Optuna persistent storage
-STORAGE_PATH = Path("./optuna_studies")
+STORAGE_PATH = RESULTS_DIR / "optuna_studies"
 STORAGE_PATH.mkdir(exist_ok=True)
 STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
 storage = RDBStorage(STORAGE_URL)
@@ -301,9 +302,9 @@ bundle = {
     "params": clean_params(best_overall_params, best_overall_model.split('_')[1]) if 'optimized' in best_overall_model else best_overall_params
 }
 
-with open(results_dir / "statistics_final.pkl", 'wb') as f:
+with open(RESULTS_DIR / "statistics_final.pkl", 'wb') as f:
     pickle.dump(bundle, f)
-print(f"Saved model to {results_dir}/statistics_final.pkl")
+print(f"Saved model to {RESULTS_DIR / 'statistics_final.pkl'}")
 
 # ============================= EXPORT RESULTS =============================
 results_dict = {
@@ -323,9 +324,9 @@ results_dict = {
     }
 }
 
-with open("./optimization_results.json", 'w') as f:
+with open(RESULTS_DIR / "optimization_results.json", 'w') as f:
     json.dump(results_dict, f, indent=2)
-print("Saved results to ./optimization_results.json")
+print(f"Saved results to {RESULTS_DIR / 'optimization_results.json'}")
 
 # ============================= SUMMARY =============================
 print("\n" + "="*60)

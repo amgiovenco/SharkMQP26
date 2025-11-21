@@ -8,6 +8,11 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
 import matplotlib.pyplot as plt
 import random
+from pathlib import Path
+
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
 #--- Random Seeding + Device Checking ---
 torch.manual_seed(8)
 np.random.seed(8)
@@ -376,7 +381,7 @@ for epoch in range(num_epochs):
     # Save best model
     if val_acc > best_val_acc:
         best_val_acc = val_acc
-        torch.save(model.state_dict(), 'best_resnet1d_shark.pth')
+        torch.save(model.state_dict(), RESULTS_DIR / 'best_resnet1d_shark.pth')
         print(f"  -> New best model saved!")
 
     # Early stopping
@@ -394,7 +399,7 @@ for epoch in range(num_epochs):
 print(f"\nTraining complete! Best validation accuracy: {best_val_acc:.2f}%")
 print(f"Total epochs trained: {len(train_losses)}")
 #--- Evaluation on test set ---
-model.load_state_dict(torch.load('best_resnet1d_shark.pth'))
+model.load_state_dict(torch.load(RESULTS_DIR / 'best_resnet1d_shark.pth'))
 
 # Evaluate on test set
 test_loss, test_acc, test_predictions, test_labels = evaluate(
@@ -440,10 +445,10 @@ ax2.legend()
 ax2.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('training_history.png', dpi=300, bbox_inches='tight')
+plt.savefig(RESULTS_DIR / 'training_history.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-print("\nTraining history plot saved as 'training_history.png'")
+print(f"\nTraining history plot saved as '{RESULTS_DIR / 'training_history.png'}'")
 #--- Top/Bottom Performing Species ---
 from sklearn.metrics import precision_recall_fscore_support
 
@@ -515,10 +520,10 @@ for i, v in enumerate(bottom_5_sorted['F1-Score']):
     ax2.text(v + 0.02, i, f'{v:.3f}', va='center', fontsize=10)
 
 plt.tight_layout()
-plt.savefig('species_performance.png', dpi=300, bbox_inches='tight')
+plt.savefig(RESULTS_DIR / 'species_performance.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-print("\nSpecies performance plot saved as 'species_performance.png'")
+print(f"\nSpecies performance plot saved as '{RESULTS_DIR / 'species_performance.png'}'")
 #--- Confusion matrix ---
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
@@ -538,7 +543,7 @@ plt.title('Confusion Matrix - Test Set', fontsize=14, fontweight='bold')
 plt.xticks(rotation=90, ha='right', fontsize=8)
 plt.yticks(rotation=0, fontsize=8)
 plt.tight_layout()
-plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
+plt.savefig(RESULTS_DIR / 'confusion_matrix.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-print("Confusion matrix saved as 'confusion_matrix.png'")
+print(f"Confusion matrix saved as '{RESULTS_DIR / 'confusion_matrix.png'}'")

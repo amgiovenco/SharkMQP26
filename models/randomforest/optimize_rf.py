@@ -22,8 +22,12 @@ SPECIES_COL = "Species"
 RANDOM_STATE = 8
 N_TRIALS = 300
 
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
+
 # Optuna persistent storage
-STORAGE_PATH = Path("./optuna_studies")
+STORAGE_PATH = RESULTS_DIR / "optuna_studies"
 STORAGE_PATH.mkdir(exist_ok=True)
 STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
 storage = RDBStorage(STORAGE_URL)
@@ -333,8 +337,8 @@ bundle = {
     "label_encoder": label_encoder
 }
 
-joblib.dump(bundle, "./randomforest_final.pkl")
-print(f"Saved optimized model to ./randomforest_final.pkl")
+joblib.dump(bundle, RESULTS_DIR / "randomforest_final.pkl")
+print(f"Saved optimized model to {RESULTS_DIR / 'randomforest_final.pkl'}")
 
 print("\n" + "="*60)
 print("SUMMARY")
