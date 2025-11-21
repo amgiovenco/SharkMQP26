@@ -23,6 +23,7 @@ import json
 import pickle
 import warnings
 import hashlib
+import math
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import numpy as np
@@ -56,32 +57,36 @@ warnings.filterwarnings('ignore')
 
 SEED = 8
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    print(torch.cuda.get_device_name(0))
+else:
+    print("No GPU available")
 
 # Paths and basic setup
 IMAGE_SIZE = 224
 N_FOLDS = 5
 TEST_SPLIT_RATIO = 0.2  # Hold out 20% for final test set
-MAX_SYN_PER_SPECIES = 48
+MAX_SYN_PER_SPECIES = 50
 
 # Training hyperparameters (from train_efficientnetb0.ipynb optimization)
-BATCH_SIZE = 32
-EPOCHS = 100
-LEARNING_RATE = 0.0020594007612475913
-WEIGHT_DECAY = 1.0083970230770894e-05
-EARLY_STOPPING_PATIENCE = 10
+BATCH_SIZE = 16
+EPOCHS = 200
+LEARNING_RATE = 0.0004303702377686196
+WEIGHT_DECAY = 4.572988042665251e-06
+EARLY_STOPPING_PATIENCE = 15
 
 # Focal loss parameters
 FOCAL_ALPHA = 1.0
-FOCAL_GAMMA = 1.5
+FOCAL_GAMMA = 1.2483412017424098
 
 # Best hyperparameters from optimization
 HYPERPARAMETERS = {
-    'cnn_dropout1': 0.7,
-    'cnn_dropout2': 0.5,
-    'cnn_learning_rate': 0.0020594007612475913,
-    'cnn_batch_size': 32,
-    'cnn_weight_decay': 1.0083970230770894e-05,
-    'cnn_focal_gamma': 1.5
+    'cnn_dropout1': 0.6217843386251581,
+    'cnn_dropout2': 0.19498440140497733,
+    'cnn_learning_rate': 0.0004303702377686196,
+    'cnn_batch_size': 16,
+    'cnn_weight_decay': 4.572988042665251e-06,
+    'cnn_focal_gamma': 1.2483412017424098
 }
 
 NUM_CLASSES = 57
@@ -93,7 +98,7 @@ NUM_WORKERS = 4
 print(DEVICE)
 
 # Data paths
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 REAL_DATA_PATH = DATA_DIR / "shark_dataset.csv"
 SYNTHETIC_DIR = DATA_DIR / "syntheticDataIndividual"
 GOOD_SYNTHETIC_PATH = DATA_DIR / "synthetic_data_good_quality.csv"
@@ -392,8 +397,16 @@ def create_augmented_dataset(real_data: pd.DataFrame, synthetic_data: Dict[str, 
             species_real = real_data[real_data['Species'] == species]
             real_count = len(species_real)
 
-            # Determine how many synthetics to add
-            num_synthetic_to_add = min(k * real_count, max_synthetic_per_species)
+            # Determine how many synthetics to add per species
+            # k is multiplier: add k * real_count synthetic samples
+            # Use ceil to ensure we add at least 1 when k > 0 and real_count > 0
+            num_synthetic_to_add = 0
+            if k > 0 and real_count > 0:
+                raw_count = k * real_count
+                num_synthetic_to_add = max(1, min(math.ceil(raw_count), max_synthetic_per_species))
+            elif k > 0 and real_count == 0:
+                # Edge case: k > 0 but no real samples (shouldn't happen)
+                num_synthetic_to_add = 0
 
             if num_synthetic_to_add > 0 and species in synthetic_data:
                 synth_pool = synthetic_data[species]
@@ -680,7 +693,10 @@ def run_baseline() -> Dict:
 
     # ----- 5-fold CV on the 80% train-val part -----
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-    fold_metrics = []
+    fold_metrics_acc = []
+    fold_metrics_f1 = []
+    fold_metrics_prec = []
+    fold_metrics_rec = []
 
     for fold, (tr_idx, val_idx) in enumerate(skf.split(train_val_df,
                                                 train_val_df['Species'])):
@@ -710,28 +726,42 @@ def run_baseline() -> Dict:
         scheduler = CosineAnnealingLR(optimizer, T_max=150)
 
         best_acc = 0.0
+        best_val_f1 = 0.0
+        best_prec = 0.0
+        best_rec = 0.0
         patience_cnt = 0
 
         for epoch in range(EPOCHS):
             _ = train_epoch(model, train_loader, criterion, optimizer, DEVICE)
-            acc, f1, _, _ = evaluate(model, val_loader, DEVICE)
+            acc, f1, prec, rec = evaluate(model, val_loader, DEVICE)
             scheduler.step()
 
             if f1 > best_val_f1:
                 best_val_f1 = f1
-                patience_counter = 0
+                best_acc = acc
+                best_prec = prec
+                best_rec = rec
+                patience_cnt = 0
             else:
                 patience_cnt += 1
                 if patience_cnt >= 25:
                     print(" Early stopping at epoch", epoch+1)
                     break
 
-        fold_metrics.append(best_acc)
-        print(f"  Fold {fold+1}: Best Val Acc = {best_acc:.4f}")
+        fold_metrics_acc.append(best_acc)
+        fold_metrics_f1.append(best_val_f1)
+        fold_metrics_prec.append(best_prec)
+        fold_metrics_rec.append(best_rec)
+        print(f"  Fold {fold + 1}/{N_FOLDS}: F1={best_val_f1:.4f}, Acc={best_acc:.4f}")
 
-    mean_acc = np.mean(fold_metrics)
-    std_acc  = np.std(fold_metrics)
-    print(f"\nCV (80% train-val) → Acc = {mean_acc:.2f}% ± {std_acc:.2f}%")
+    mean_acc = np.mean(fold_metrics_acc)
+    std_acc  = np.std(fold_metrics_acc)
+    mean_f1 = np.mean(fold_metrics_f1)
+    mean_prec = np.mean(fold_metrics_prec)
+    mean_rec = np.mean(fold_metrics_rec)
+
+    print(f"\nCV (80% train-val) → Acc = {mean_acc:.4f} ± {std_acc:.4f}")
+    print(f"CV (80% train-val) → F1  = {mean_f1:.4f}")
 
     # ----- FINAL MODEL on the *whole* 80% train-val -----
     print("\nTraining final model on full 80% train-val ...")
@@ -776,12 +806,15 @@ def run_baseline() -> Dict:
     print(f"\nHold-out TEST (20%): Acc={test_acc:.4f}  F1={test_f1:.4f}")
 
     return {
-        'cv_mean_acc': mean_acc,
-        'cv_std_acc' : std_acc,
-        'test_acc'   : test_acc,
-        'test_f1'    : test_f1,
-        'test_prec'  : test_prec,
-        'test_rec'   : test_rec
+        'baseline_cv_macro_f1': mean_f1,
+        'baseline_cv_accuracy': mean_acc,
+        'baseline_cv_std_acc': std_acc,
+        'baseline_cv_precision': mean_prec,
+        'baseline_cv_recall': mean_rec,
+        'baseline_test_acc': test_acc,
+        'baseline_test_f1': test_f1,
+        'baseline_test_prec': test_prec,
+        'baseline_test_rec': test_rec
     }
 
 
@@ -1178,7 +1211,14 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
     """Save detailed summary to JSON with per-bin analysis (5 bins) and baseline comparison."""
     best_trial = study.best_trial
 
+    # Get GPU info
+    gpu_name = "CPU"
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0)
+
     summary = {
+        'device': str(DEVICE),
+        'gpu_name': gpu_name,
         'best_n_very_low': best_trial.params['n_very_low'],
         'best_n_low': best_trial.params['n_low'],
         'best_n_medium': best_trial.params['n_medium'],
@@ -1210,7 +1250,11 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
     print(f"\n{'='*70}")
     print("OPTIMIZATION SUMMARY (5-BIN)")
     print(f"{'='*70}")
-    print(f"Best Parameters:")
+    print(f"Device Information:")
+    print(f"  Device: {DEVICE}")
+    if torch.cuda.is_available():
+        print(f"  GPU: {torch.cuda.get_device_name(0)}")
+    print(f"\nBest Parameters:")
     print(f"  n_very_low:  {best_trial.params['n_very_low']}")
     print(f"  n_low:       {best_trial.params['n_low']}")
     print(f"  n_medium:    {best_trial.params['n_medium']}")
@@ -1250,20 +1294,34 @@ def save_optimization_summary(study: optuna.Study, baseline_results: Optional[Di
         print(f"\nComparison vs Baseline (Real Data Only):")
         baseline_cv_f1 = baseline_results.get('baseline_cv_macro_f1', 0.0)
         baseline_test_f1 = baseline_results.get('baseline_test_f1', 0.0)
+        baseline_cv_acc = baseline_results.get('baseline_cv_accuracy', 0.0)
+        baseline_test_acc = baseline_results.get('baseline_test_acc', 0.0)
         optimized_cv_f1 = best_trial.value
         optimized_test_f1 = final_test_results.get('best_test_f1', 0.0) if final_test_results else 0.0
+        optimized_cv_acc = best_trial.user_attrs.get('mean_accuracy', 0.0)
+        optimized_test_acc = final_test_results.get('best_test_accuracy', 0.0) if final_test_results else 0.0
 
-        cv_improvement = optimized_cv_f1 - baseline_cv_f1
-        test_improvement = optimized_test_f1 - baseline_test_f1
+        cv_f1_improvement = optimized_cv_f1 - baseline_cv_f1
+        test_f1_improvement = optimized_test_f1 - baseline_test_f1
+        cv_acc_improvement = optimized_cv_acc - baseline_cv_acc
+        test_acc_improvement = optimized_test_acc - baseline_test_acc
 
         print(f"  CV Macro F1:")
         print(f"    Baseline: {baseline_cv_f1:.4f}")
-        print(f"    Optimized: {optimized_cv_f1:.4f}")
-        print(f"    Improvement: {cv_improvement:+.4f} ({cv_improvement/baseline_cv_f1*100 if baseline_cv_f1 > 0 else 0:+.1f}%)")
+        print(f"    Synthetic-Augmented: {optimized_cv_f1:.4f}")
+        print(f"    Improvement: {cv_f1_improvement:+.4f} ({cv_f1_improvement/baseline_cv_f1*100 if baseline_cv_f1 > 0 else 0:+.1f}%)")
+        print(f"  CV Accuracy:")
+        print(f"    Baseline: {baseline_cv_acc:.4f}")
+        print(f"    Synthetic-Augmented: {optimized_cv_acc:.4f}")
+        print(f"    Improvement: {cv_acc_improvement:+.4f} ({cv_acc_improvement/baseline_cv_acc*100 if baseline_cv_acc > 0 else 0:+.1f}%)")
         print(f"  Test F1:")
         print(f"    Baseline: {baseline_test_f1:.4f}")
-        print(f"    Optimized: {optimized_test_f1:.4f}")
-        print(f"    Improvement: {test_improvement:+.4f} ({test_improvement/baseline_test_f1*100 if baseline_test_f1 > 0 else 0:+.1f}%)")
+        print(f"    Synthetic-Augmented: {optimized_test_f1:.4f}")
+        print(f"    Improvement: {test_f1_improvement:+.4f} ({test_f1_improvement/baseline_test_f1*100 if baseline_test_f1 > 0 else 0:+.1f}%)")
+        print(f"  Test Accuracy:")
+        print(f"    Baseline: {baseline_test_acc:.4f}")
+        print(f"    Synthetic-Augmented: {optimized_test_acc:.4f}")
+        print(f"    Improvement: {test_acc_improvement:+.4f} ({test_acc_improvement/baseline_test_acc*100 if baseline_test_acc > 0 else 0:+.1f}%)")
 
     print(f"{'='*70}\n")
 
