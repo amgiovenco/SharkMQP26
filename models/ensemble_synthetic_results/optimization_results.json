@@ -1,0 +1,55 @@
+{
+  "baseline": {
+    "baseline_cnn_f1": 0.9606711222500696,
+    "baseline_tcn_f1": 0.9480729883069066,
+    "baseline_stats_f1": 0.9025124258457591,
+    "baseline_avg_f1": 0.937085512134245
+  },
+  "best_params": {
+    "n_very_low": 44,
+    "n_low": 49,
+    "n_medium": 44,
+    "n_high": 27,
+    "n_very_high": 11
+  },
+  "best_avg_f1": 0.9945360842062435,
+  "best_cnn_f1": 0.9990089640577416,
+  "best_tcn_f1": 0.9980295552980124,
+  "best_stats_f1": 0.9865697332629766,
+  "total_synthetic_added": 2369,
+  "bin_stats": {
+    "very_low": {
+      "added": 440,
+      "species_count": 10,
+      "avg_per_species": 44.0
+    },
+    "low": {
+      "added": 1617,
+      "species_count": 34,
+      "avg_per_species": 47.55882352941177
+    },
+    "medium": {
+      "added": 220,
+      "species_count": 6,
+      "avg_per_species": 36.666666666666664
+    },
+    "high": {
+      "added": 81,
+      "species_count": 5,
+      "avg_per_species": 16.2
+    },
+    "very_high": {
+      "added": 11,
+      "species_count": 2,
+      "avg_per_species": 5.5
+    }
+  },
+  "total_trials": 20,
+  "improvement": {
+    "avg_f1_improvement": 0.05745057207199855,
+    "avg_f1_improvement_pct": 6.130771560127194,
+    "cnn_improvement": 0.03833784180767208,
+    "tcn_improvement": 0.049956566991105844,
+    "stats_improvement": 0.08405730741721751
+  }
+}
