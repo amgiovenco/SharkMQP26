@@ -1107,6 +1107,211 @@ def run_optimization(n_trials: int = 30, baseline_results: Dict = None):
 
 
 # ============================================================================
+# FINAL MODEL TRAINING & TEST EVALUATION
+# ============================================================================
+
+def train_final_cnn(train_data: pd.DataFrame, test_data: pd.DataFrame, num_classes: int) -> Tuple[float, float]:
+    """Train final CNN on full training data and evaluate on test set."""
+    train_transform, val_transform = get_cnn_transforms()
+    label_encoder = LabelEncoder()
+    label_encoder.fit(train_data['Species'])
+
+    torch.manual_seed(SEED)
+
+    train_dataset = FluorescenceDataset(train_data, label_encoder, train_transform, CACHE_DIR)
+    test_dataset = FluorescenceDataset(test_data, label_encoder, val_transform, CACHE_DIR)
+
+    train_loader = DataLoader(train_dataset, batch_size=CNN_BATCH_SIZE, shuffle=True, num_workers=2)
+    test_loader = DataLoader(test_dataset, batch_size=CNN_BATCH_SIZE, shuffle=False, num_workers=2)
+
+    model = SharkCNN(num_classes=num_classes).to(DEVICE)
+    criterion = FocalLoss(alpha=CNN_FOCAL_ALPHA, gamma=CNN_FOCAL_GAMMA)
+    optimizer = optim.AdamW(model.parameters(), lr=CNN_LEARNING_RATE, weight_decay=CNN_WEIGHT_DECAY)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
+
+    best_train_f1 = 0.0
+    patience_counter = 0
+
+    for epoch in range(CNN_EPOCHS):
+        _ = train_cnn_epoch(model, train_loader, criterion, optimizer, DEVICE)
+        train_f1 = evaluate_cnn(model, train_loader, DEVICE)
+        scheduler.step()
+
+        if train_f1 > best_train_f1:
+            best_train_f1 = train_f1
+            patience_counter = 0
+        else:
+            patience_counter += 1
+
+        if patience_counter >= CNN_PATIENCE:
+            break
+
+    # Evaluate on test set
+    test_f1 = evaluate_cnn(model, test_loader, DEVICE)
+    return best_train_f1, test_f1
+
+
+def train_final_tcn(train_data: pd.DataFrame, test_data: pd.DataFrame, num_classes: int) -> Tuple[float, float]:
+    """Train final TCN on full training data and evaluate on test set."""
+    temp_cols = sorted([c for c in train_data.columns if c != 'Species'], key=lambda c: float(c))
+
+    X_train = train_data[temp_cols].values
+    y_train_labels = train_data['Species'].values
+
+    X_test = test_data[temp_cols].values
+    y_test_labels = test_data['Species'].values
+
+    label_encoder = LabelEncoder()
+    y_train = label_encoder.fit_transform(y_train_labels)
+    y_test = label_encoder.transform(y_test_labels)
+
+    torch.manual_seed(SEED)
+
+    # Normalize
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
+    # Reshape for TCN
+    X_train = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
+    X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+
+    train_dataset = TCNDataset(X_train, y_train)
+    test_dataset = TCNDataset(X_test, y_test)
+
+    train_loader = DataLoader(train_dataset, batch_size=TCN_BATCH_SIZE, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=TCN_BATCH_SIZE, shuffle=False)
+
+    model = TemporalConvNet(
+        num_inputs=1,
+        num_channels=TCN_NUM_CHANNELS,
+        num_classes=num_classes,
+        kernel_size=TCN_KERNEL_SIZE,
+        dropout=TCN_DROPOUT,
+        reverse_dilation=TCN_REVERSE_DILATION
+    ).to(DEVICE)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=TCN_LEARNING_RATE, weight_decay=TCN_WEIGHT_DECAY)
+
+    best_train_f1 = 0.0
+    patience_counter = 0
+
+    for epoch in range(TCN_EPOCHS):
+        _ = train_tcn_epoch(model, train_loader, criterion, optimizer, DEVICE)
+        train_f1 = evaluate_tcn(model, train_loader, DEVICE)
+
+        if train_f1 > best_train_f1:
+            best_train_f1 = train_f1
+            patience_counter = 0
+        else:
+            patience_counter += 1
+
+        if patience_counter >= TCN_PATIENCE:
+            break
+
+    # Evaluate on test set
+    test_f1 = evaluate_tcn(model, test_loader, DEVICE)
+    return best_train_f1, test_f1
+
+
+def train_final_stats(train_data: pd.DataFrame, test_data: pd.DataFrame) -> Tuple[float, float]:
+    """Train final Statistics model on full training data and evaluate on test set."""
+    X_train, y_train = prepare_stats_data(train_data)
+    X_test, y_test = prepare_stats_data(test_data)
+
+    model = ExtraTreesClassifier(
+        n_estimators=STATS_N_ESTIMATORS,
+        max_depth=STATS_MAX_DEPTH,
+        min_samples_split=STATS_MIN_SAMPLES_SPLIT,
+        min_samples_leaf=STATS_MIN_SAMPLES_LEAF,
+        max_features=STATS_MAX_FEATURES,
+        class_weight=STATS_CLASS_WEIGHT,
+        random_state=SEED,
+        n_jobs=-1
+    )
+
+    model.fit(X_train, y_train)
+    y_pred_train = model.predict(X_train)
+    y_pred_test = model.predict(X_test)
+
+    train_f1 = f1_score(y_train, y_pred_train, average='macro', zero_division=0)
+    test_f1 = f1_score(y_test, y_pred_test, average='macro', zero_division=0)
+
+    return train_f1, test_f1
+
+
+def evaluate_on_test_set(best_params: Dict, real_train_val: pd.DataFrame, real_test: pd.DataFrame,
+                         synthetic_data: Dict, num_classes: int) -> Dict:
+    """Train final models with best params and evaluate on test set."""
+    print("\n" + "="*80)
+    print("FINAL EVALUATION ON HELD-OUT TEST SET")
+    print("="*80)
+    print(f"Training final models with best hyperparameters:")
+    print(f"  n_very_low:  {best_params['n_very_low']}")
+    print(f"  n_low:       {best_params['n_low']}")
+    print(f"  n_medium:    {best_params['n_medium']}")
+    print(f"  n_high:      {best_params['n_high']}")
+    print(f"  n_very_high: {best_params['n_very_high']}")
+
+    # Create augmented training set with best params
+    augmented_data, bin_stats = create_augmented_dataset(
+        real_train_val, synthetic_data,
+        best_params['n_very_low'], best_params['n_low'], best_params['n_medium'],
+        best_params['n_high'], best_params['n_very_high'],
+        MAX_SYN_PER_SPECIES
+    )
+
+    print(f"\nTraining data: {len(augmented_data)} samples ({len(augmented_data) - len(real_train_val)} synthetic added)")
+    print(f"Test data: {len(real_test)} samples")
+
+    # Train and evaluate CNN
+    print("\n" + "-"*80)
+    print("Training final CNN on full training data...")
+    print("-"*80)
+    cnn_train_f1, cnn_test_f1 = train_final_cnn(augmented_data, real_test, num_classes)
+    print(f"CNN Train F1: {cnn_train_f1:.4f}, Test F1: {cnn_test_f1:.4f}")
+
+    # Train and evaluate TCN
+    print("\n" + "-"*80)
+    print("Training final TCN on full training data...")
+    print("-"*80)
+    tcn_train_f1, tcn_test_f1 = train_final_tcn(augmented_data, real_test, num_classes)
+    print(f"TCN Train F1: {tcn_train_f1:.4f}, Test F1: {tcn_test_f1:.4f}")
+
+    # Train and evaluate Statistics
+    print("\n" + "-"*80)
+    print("Training final Statistics model on full training data...")
+    print("-"*80)
+    stats_train_f1, stats_test_f1 = train_final_stats(augmented_data, real_test)
+    print(f"Statistics Train F1: {stats_train_f1:.4f}, Test F1: {stats_test_f1:.4f}")
+
+    # Average test F1
+    avg_test_f1 = (cnn_test_f1 + tcn_test_f1 + stats_test_f1) / 3.0
+
+    print("\n" + "="*80)
+    print("FINAL TEST SET RESULTS")
+    print("="*80)
+    print(f"CNN Test F1:        {cnn_test_f1:.4f}")
+    print(f"TCN Test F1:        {tcn_test_f1:.4f}")
+    print(f"Statistics Test F1: {stats_test_f1:.4f}")
+    print(f"Average Test F1:    {avg_test_f1:.4f}")
+    print("="*80)
+
+    return {
+        'cnn_train_f1': cnn_train_f1,
+        'cnn_test_f1': cnn_test_f1,
+        'tcn_train_f1': tcn_train_f1,
+        'tcn_test_f1': tcn_test_f1,
+        'stats_train_f1': stats_train_f1,
+        'stats_test_f1': stats_test_f1,
+        'avg_test_f1': avg_test_f1,
+        'test_samples': len(real_test),
+        'train_samples': len(augmented_data)
+    }
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -1136,6 +1341,24 @@ if __name__ == '__main__':
 
     # Run optimization
     study = run_optimization(n_trials=20, baseline_results=baseline_results)
+
+    # Evaluate on test set with best hyperparameters
+    synthetic_data = load_synthetic_data(real_train_val['Species'].unique().tolist())
+    test_results = evaluate_on_test_set(
+        study.best_params,
+        real_train_val,
+        real_test,
+        synthetic_data,
+        num_classes
+    )
+
+    # Update results file with test scores
+    results_path = OUTPUT_DIR / 'optimization_results.json'
+    with open(results_path, 'r') as f:
+        results = json.load(f)
+    results['test_evaluation'] = test_results
+    with open(results_path, 'w') as f:
+        json.dump(results, f, indent=2)
 
     print("\nOptimization complete!")
     print(f"Results saved to {OUTPUT_DIR}")

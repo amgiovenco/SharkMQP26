@@ -1,0 +1,81 @@
+Loading python/3.10.16/gokvai4
+  Loading requirement: gcc-runtime/13.2.0/yimvxxm bzip2/1.0.8/itttwfv
+    gcc-runtime/13.2.0/s3f7i6x libmd/1.0.4/ngvfltj libbsd/0.12.1/6of6olc
+    expat/2.6.2/zoq445h ncurses/6.4/zqsx2w2 readline/8.2/hmsgdsx
+    gdbm/1.23/gtrssid libiconv/1.17/pmxhi4x xz/5.4.6/uxouxrg
+    zlib-ng/2.1.5/uctcqfl libxml2/2.10.3/vdqe2g3 pigz/2.8/pmmdaqf
+    zstd/1.5.5/juuobg2 tar/1.34/5prin2y gettext/0.22.4/iy5z4el
+    libffi/3.4.4/vqf2avv libxcrypt/4.4.35/vng2vef openssl/3.4.0/pholr53
+    sqlite/3.43.2/o22u32h util-linux-uuid/2.38.1/2x7vfxr
+/home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: 'Could not load this library: /home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/image.so'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+================================================================================
+ENSEMBLE SYNTHETIC DATA OPTIMIZATION
+================================================================================
+Device: cuda
+GPU: NVIDIA A100-SXM4-80GB
+Random Seed: 8
+Output Directory: /home/cejason/sark/synthetic/ensemble_synthetic_results
+================================================================================
+
+
+Ensemble Synthetic Data Optimization
+Optimizes synthetic data allocation across CNN, TCN, and Statistics models
+
+Configuration:
+  Models: CNN (EfficientNet-B0), TCN, Statistics (ExtraTrees)
+  Buckets: very_low (<6), low (6-9), medium (10-15), high (16-25), very_high (>25)
+  Max synthetic per species: 50
+  CV Folds: 5
+  Random Seed: 8
+  Device: cuda
+
+Loading data for baseline evaluation...
+Real data split: Train=239, Val=281, Test=131
+
+Using fixed optimal synthetic allocation:
+  n_very_low: 50
+  n_low: 50
+  n_medium: 50
+  n_high: 50
+  n_very_high: 50
+
+================================================================================
+FINAL EVALUATION ON HELD-OUT TEST SET
+================================================================================
+Training final models with best hyperparameters:
+  n_very_low:  50
+  n_low:       50
+  n_medium:    50
+  n_high:      50
+  n_very_high: 50
+
+Training data: 3089 samples (2850 synthetic added)
+Test data: 131 samples
+
+--------------------------------------------------------------------------------
+Training final CNN on full training data...
+--------------------------------------------------------------------------------
+CNN Train F1: 1.0000, Test F1: 1.0000
+
+--------------------------------------------------------------------------------
+Training final TCN on full training data...
+--------------------------------------------------------------------------------
+TCN Train F1: 1.0000, Test F1: 0.9690
+
+--------------------------------------------------------------------------------
+Training final Statistics model on full training data...
+--------------------------------------------------------------------------------
+Statistics Train F1: 1.0000, Test F1: 1.0000
+
+================================================================================
+FINAL TEST SET RESULTS
+================================================================================
+CNN Test F1:        1.0000
+TCN Test F1:        0.9690
+Statistics Test F1: 1.0000
+Average Test F1:    0.9897
+================================================================================
+
+Optimization complete!
+Results saved to /home/cejason/sark/synthetic/ensemble_synthetic_results

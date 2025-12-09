@@ -170,7 +170,165 @@ After hyperparameter optimization via Optuna with macro_f1 as the optimization m
 
 ---
 
-## 2. ResNet1D Model
+## 2. TCN (Temporal Convolutional Network) Model
+
+**Location**: `tcn/` directory
+
+### Data Specifications
+- **Dataset Size**: 651 samples (full dataset)
+- **Number of Classes**: 57 shark species
+- **Input Format**: 1D time series (fluorescence vs temperature)
+- **Sequence Length**: 3475 time steps (temperature points)
+- **Input Channels**: 1
+
+### Data Preprocessing & Augmentation
+
+#### Normalization (applied to all data):
+```python
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+```
+
+#### Training-Time Augmentation (enabled):
+```python
+# Small random noise
+noise = 0.01 * torch.randn_like(x)
+
+# Random scaling
+scale = 1 + 0.05 * torch.randn(1)
+x = x * scale + noise
+
+# Random time shift (±3 steps)
+shift = np.random.randint(-3, 4)
+if shift != 0:
+    x = torch.roll(x, shifts=shift, dims=-1)
+```
+
+#### Validation/Test-Time (no augmentation):
+- StandardScaler normalization only
+
+### Model Architecture
+
+**Temporal Convolutional Network (TCN)**
+
+```
+Input (batch, 1, 3475)
+    ↓
+TemporalBlock (in_channels=1, out_channels=64, dilation=2^0=1)
+    ↓
+TemporalBlock (in_channels=64, out_channels=128, dilation=2^1=2)
+    ↓
+TemporalBlock (in_channels=128, out_channels=256, dilation=2^2=4)
+    ↓
+TemporalBlock (in_channels=256, out_channels=256, dilation=2^3=8)
+    ↓
+TemporalBlock (in_channels=256, out_channels=256, dilation=2^4=16)
+    ↓
+Global Average Pooling over time dimension
+    ↓
+Linear(256, 57) → Output
+```
+
+**Temporal Block Structure**:
+```
+CausalConv1d → BatchNorm → ReLU → Dropout
+    ↓
+CausalConv1d → BatchNorm → ReLU → Dropout
+    + Residual connection (with optional downsample)
+    ↓
+Output
+```
+
+**CausalConv1d**: Weight-normalized 1D convolution that removes future information to maintain causality
+
+Key features:
+- **Causal convolutions**: No future context leaked to past
+- **Dilated convolutions**: Exponential receptive field growth (2^0, 2^1, 2^2, 2^3, 2^4)
+- **Residual connections**: Improved gradient flow
+- **Weight normalization**: Stable training dynamics
+- **Reverse dilation**: Dilation decreases through layers for efficiency
+
+### Training Hyperparameters
+| Parameter | Value |
+|-----------|-------|
+| Batch Size | 16 |
+| Learning Rate | 0.0005 |
+| Weight Decay | 1e-04 |
+| Dropout | 0.15 |
+| Num Channels | [64, 128, 256, 256, 256] |
+| Kernel Size | 3 |
+| Epochs | 200 (with early stopping) |
+| Patience | 15 epochs |
+| Optimizer | AdamW |
+| Loss Function | CrossEntropyLoss |
+| LR Scheduler | ReduceLROnPlateau(mode='max', factor=0.5, patience=5) |
+
+### Cross-Validation Results (Multi-Seed)
+
+Trained with 5 different random seeds: [42, 123, 456, 789, 2024]
+
+| Seed | Val Accuracy | Test Accuracy | Best Epoch | Test F1 |
+|------|--------------|---------------|-----------|---------|
+| 42 | 96.50% | 93.30% | 70 | 0.9324 |
+| 123 | 96.50% | 93.85% | 67 | 0.9336 |
+| 456 | 95.10% | 92.74% | 111 | 0.9228 |
+| 789 | 96.50% | **95.53%** | 90 | 0.9511 |
+| 2024 | 92.31% | 92.18% | 114 | 0.9181 |
+| **Mean** | **95.38% ± 1.69%** | **93.52% ± 1.31%** | **90** | **0.9316** |
+
+**Best Model**: Seed 789 with 95.53% test accuracy
+
+### Training Procedure
+1. **Random Seed**: Set torch.manual_seed(seed), np.random.seed(seed)
+2. **Device**: CUDA if available, else CPU
+3. **Data Split**:
+   - Train/test split: 80/20 (random_state=8, stratified)
+   - Further split training into train/validation: 80/20 (per-seed random state, stratified)
+4. **Model Training**: One model trained per seed
+5. **Validation**: Every epoch on validation fold
+6. **Best Model Selection**: Save model with highest validation accuracy
+7. **Early Stopping**: Stop if no improvement for 15 epochs
+8. **Learning Rate Schedule**: ReduceLROnPlateau with factor=0.5, patience=5
+
+### Performance Metrics (Best Model - Seed 789)
+- **Validation Accuracy**: 96.50%
+- **Test Accuracy**: 95.53%
+- **Macro Avg F1**: 0.9511
+- **Weighted Avg F1**: 0.95
+- **Best Epoch**: 90
+
+### Performance Metrics (Average Across All Seeds)
+- **Mean Test Accuracy**: 93.52% ± 1.31%
+- **Mean Test F1**: 0.9316
+- **Mean Best Epoch**: 90
+
+### Stability Analysis
+The TCN model shows good stability across different seeds:
+- **Accuracy Range**: 92.18% - 95.53%
+- **Standard Deviation**: 1.31%
+- **Coefficient of Variation**: 1.40%
+
+### To Reproduce
+1. Load shark_dataset.csv from `../../data/`
+2. Extract all columns except "Species" as fluorescence values
+3. Reshape data to (n_samples, 1, 3475) for TCN input
+4. Normalize using StandardScaler (fit on entire dataset, then split)
+5. Create initial 80/20 train/test split with random_state=8, stratified
+6. For each seed in [42, 123, 456, 789, 2024]:
+   - Set torch.manual_seed(seed) and np.random.seed(seed)
+   - Split training data: 80/20 into train/val with seed-specific random_state, stratified
+   - Create TemporalConvNet with specified hyperparameters
+   - Use AdamW optimizer with lr=0.0005, weight_decay=1e-4
+   - Use ReduceLROnPlateau scheduler
+   - Train for up to 200 epochs with patience=15
+   - Apply augmentation during training only
+   - Save best model by validation accuracy
+   - Evaluate on test set
+7. Compute mean metrics across all seeds
+
+---
+
+## 3. ResNet1D Model
 
 **Location**: `resnet/` directory
 
@@ -338,7 +496,7 @@ torch.save(best_model_state, filename)
 
 ---
 
-## 3. RandomForest (ExtraTrees) Model
+## 4. RandomForest (ExtraTrees) Model
 
 **Location**: `randomforest/` directory
 
@@ -889,14 +1047,15 @@ When recreating any model:
 
 ### Performance Summary Table
 
-| Model | Architecture | Features | Val Accuracy | Test Accuracy | Optimization | Best Metric |
-|-------|--------------|----------|--------------|---------------|--------------|------------|
-| **CNN** (Optimized) | EfficientNet-B0 | Images (224×224) | 97.99% ± 0.90% | **99.24%** | Macro F1: 96.39% → 98.31% (+191.86%) | **Test: 99.24%** |
-| **ResNet1D** (Optimized) | 1D ResNet-18 | Time series (3475) | 95.24% ± 0.90% | — | Macro F1: 76.40% → 85.08% (+8.68%) | Baseline fold 4: 96.92% val |
-| **RandomForest** | ExtraTrees (900) | 16 engineered | 87.86% ± 1.49% | 87.02% | Stable CV | Fold 3: 90.00% |
-| Statistics | ExtraTrees (1700) + cal | 18 selected/36 total | 95.39% ± 1.29% | 96.18% | — | Best fold: 97.69% |
-| Gaussian | RandomForest (800) + cal | 12 from Gaussian fits | 88.94% ± 0.81% | 90.08% | — | Fold 1: 90.08% |
-| Rule-Based | ExtraTrees (790) | 14 engineered | 96.71% ± 1.18% | 96.33% | — | Fold 1: 98.08% val |
+| Model | Architecture | Features | Val Accuracy | Test Accuracy | Seeds | Best Metric |
+|-------|--------------|----------|--------------|---------------|-------|------------|
+| **CNN** (Optimized) | EfficientNet-B0 | Images (224×224) | 97.99% ± 0.90% | **99.24%** | 1 (seed 8) | **Test: 99.24%** |
+| **TCN** | Temporal ConvNet | Time series (3475) | 95.38% ± 1.69% | 93.52% ± 1.31% | 5 seeds [42,123,456,789,2024] | Best (seed 789): 95.53% test |
+| **ResNet1D** (Optimized) | 1D ResNet-18 | Time series (3475) | 95.24% ± 0.90% | — | 1 (seed 8) | Baseline fold 4: 96.92% val |
+| **RandomForest** | ExtraTrees (900) | 16 engineered | 87.86% ± 1.49% | 87.02% | 1 (seed 8) | Fold 3: 90.00% |
+| Statistics | ExtraTrees (1700) + cal | 18 selected/36 total | 95.39% ± 1.29% | 96.18% | 1 (seed 8) | Best fold: 97.69% |
+| Gaussian | RandomForest (800) + cal | 12 from Gaussian fits | 88.94% ± 0.81% | 90.08% | 1 (seed 8) | Fold 1: 90.08% |
+| Rule-Based | ExtraTrees (790) | 14 engineered | 96.71% ± 1.18% | 96.33% | 1 (seed 8) | Fold 1: 98.08% val |
 
 ---
 
@@ -912,6 +1071,18 @@ models/
 │   ├── scripts/
 │   ├── results/
 │   └── optuna_studies/
+├── tcn/
+│   ├── tcn.ipynb
+│   ├── tcn_training_results.png
+│   ├── tcn_training_results_multi.png
+│   ├── tcn_confusion_matrices.png
+│   ├── pure_dataset_results/
+│   │   ├── tcn_optuna_real.py
+│   │   └── optuna_tcn_real_study.db
+│   └── impure_optimization_results/
+│       ├── tcn_optuna.py
+│       ├── optuna_tcn_study.db
+│       └── logs/
 ├── resnet/
 │   ├── resnet.ipynb
 │   ├── optimize_resnet_colab.ipynb

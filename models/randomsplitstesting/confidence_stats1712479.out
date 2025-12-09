@@ -1,0 +1,129 @@
+================================================================================
+CONFIDENCE CALIBRATION ANALYSIS - STATISTICS MODEL
+================================================================================
+Testing seeds: [8, 42, 123]
+Output Directory: /home/cejason/sark/synthetic/confidence_analysis_stats_results
+================================================================================
+
+
+Confidence Calibration Analysis - Statistics Model
+Testing ExtraTrees model with 0/50/50 split (all synthetic training) across multiple seeds
+
+Configuration:
+  Model: ExtraTrees (Statistics with Feature Engineering)
+  Seeds to test: [8, 42, 123]
+  Max synthetic per species: 50
+
+Loading data...
+  Loaded 651 real samples
+
+Splitting real data 50/50...
+  Validation: 325 samples
+  Test: 326 samples
+  Number of classes: 57
+
+Loading synthetic data...
+  Loaded synthetic data for 57 species
+
+Creating synthetic training set...
+  Synthetic training: 2837 samples
+
+================================================================================
+TRAINING AND EVALUATING ACROSS SEEDS
+================================================================================
+
+================================================================================
+SEED 8
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Preparing features with seed 8...
+  Training ExtraTrees model...
+  Evaluating on test set...
+
+  Results for seed 8:
+    Accuracy: 0.9877
+    Macro F1: 0.9879
+    Avg Confidence: 0.9010
+    Confidence when correct: 0.9042
+    Confidence when wrong: 0.6413
+    Num wrong: 4
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.8587
+    Expected Calibration Error: 0.0867
+
+================================================================================
+SEED 42
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Preparing features with seed 42...
+  Training ExtraTrees model...
+  Evaluating on test set...
+
+  Results for seed 42:
+    Accuracy: 0.9877
+    Macro F1: 0.9879
+    Avg Confidence: 0.8994
+    Confidence when correct: 0.9027
+    Confidence when wrong: 0.6316
+    Num wrong: 4
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.8569
+    Expected Calibration Error: 0.0884
+
+================================================================================
+SEED 123
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Preparing features with seed 123...
+  Training ExtraTrees model...
+  Evaluating on test set...
+
+  Results for seed 123:
+    Accuracy: 0.9877
+    Macro F1: 0.9879
+    Avg Confidence: 0.9002
+    Confidence when correct: 0.9034
+    Confidence when wrong: 0.6357
+    Num wrong: 4
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.8575
+    Expected Calibration Error: 0.0876
+
+================================================================================
+SUMMARY ACROSS SEEDS
+================================================================================
+
+Accuracy:  0.9877 ± 0.0000
+Macro F1:  0.9879 ± 0.0000
+ECE:       0.0876 ± 0.0007
+
+Stability Check:
+  Accuracy range: 0.0000 (max - min)
+  F1 range: 0.0000 (max - min)
+  ✓ STABLE: Results are consistent across seeds (<2% variation)
+
+Calibration Check:
+  ⚠ POORLY CALIBRATED: ECE = 0.0876 > 0.05
+  Consider adding temperature scaling for better confidence estimates
+
+Generating visualizations...
+
+Saved confidence analysis plot to /home/cejason/sark/synthetic/confidence_analysis_stats_results/confidence_analysis_stats.png
+Saved calibration curve to /home/cejason/sark/synthetic/confidence_analysis_stats_results/calibration_curve_stats.png
+
+Results saved to /home/cejason/sark/synthetic/confidence_analysis_stats_results/confidence_analysis_stats_results.json
+
+================================================================================
+ANALYSIS COMPLETE
+================================================================================
+
+Check /home/cejason/sark/synthetic/confidence_analysis_stats_results for:
+  - confidence_analysis_stats.png (comparison across seeds)
+  - calibration_curve_stats.png (calibration curve)
+  - confidence_analysis_stats_results.json (detailed results)

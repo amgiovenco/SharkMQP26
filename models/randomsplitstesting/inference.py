@@ -1,41 +1,34 @@
 """
-Shark Species Classification Inference Module
+Inference Script for Shark Species Classification
 
-Loads trained CNN model and makes predictions on fluorescence curve data.
-Returns top-k predictions with confidence scores for all 57 shark species.
+Loads the trained CNN model and makes predictions on fluorescence curve data.
+Returns top-k predictions with confidence scores for all 57 species.
 
-INTERFACE CONTRACT:
-  Implements InferenceInterface and provides run_inference() for worker.py.
-  See inference_interface.py for the required interface that any replacement
-  model inference module must implement.
+Can predict from:
+  1. Fluorescence curve values (list or numpy array)
+  2. CSV row data (pandas Series)
 
-PRODUCTION USE:
-  worker.py imports and calls:
-    from worker.inference import run_inference
-    result = run_inference(filepath, sample_index, device)
+Usage:
+    from inference import SharkClassifier
 
-DEVELOPMENT USE:
-  from worker.inference import SharkClassifier
+    # Initialize classifier
+    classifier = SharkClassifier()
 
-  classifier = SharkClassifier()
+    # Method 1: Predict from fluorescence curve (list or numpy array)
+    predictions = classifier.predict(fluorescence_values, top_k=57)
 
-  # Method 1: Predict from fluorescence curve
-  predictions = classifier.predict(fluorescence_values, top_k=57)
+    # Method 2: Predict from CSV row
+    import pandas as pd
+    df = pd.read_csv('shark_dataset.csv')
+    predictions = classifier.predict_from_csv_row(df.iloc[0], top_k=57)
 
-  # Method 2: Predict from CSV row
-  import pandas as pd
-  df = pd.read_csv('shark_dataset.csv')
-  predictions = classifier.predict_from_csv_row(df.iloc[0], top_k=57)
-
-TO SWAP THIS MODEL:
-  1. Ensure your new inference.py implements InferenceInterface
-  2. Implement run_inference(filepath, sample_index, device) function
-  3. Place your model files in backend/worker/model/
-  4. Replace this inference.py file
-  5. No changes needed to worker.py - it will work automatically
+    # predictions will be a list of dicts:
+    # [{'rank': 1, 'species': 'Great White Shark', 'confidence': 0.998}, ...]
 """
 
+import json
 import pickle
+import hashlib
 from pathlib import Path
 from typing import List, Dict, Union, Optional
 from io import BytesIO
@@ -51,8 +44,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from torchvision.models import efficientnet_b0
-
-from .inference_interface import InferenceInterface
+import copy
 
 
 # ============================================================================
@@ -118,36 +110,36 @@ class FocalLoss(nn.Module):
 # CLASSIFIER
 # ============================================================================
 
-class SharkClassifier(InferenceInterface):
+class SharkClassifier:
     """
     Shark species classifier using CNN (EfficientNet-B0).
 
     Predicts shark species from fluorescence curve data.
-    Implements InferenceInterface for compatibility with worker.py.
     """
 
-    def __init__(self, model_dir: Optional[str] = None, device: Optional[str] = None, verbose: bool = False):
+    def __init__(self, model_dir: Optional[str] = None):
         """
         Initialize the classifier.
 
         Args:
             model_dir: Path to directory containing model files.
-                      If None, uses ./model/
-            device: Device to use ('cuda' or 'cpu'). If None, auto-detect.
-            verbose: Whether to print initialization messages.
+                      If None, uses ./final_model/
         """
         if model_dir is None:
-            model_dir = Path(__file__).parent / "model"
+            model_dir = Path(__file__).parent / "final_model"
         else:
             model_dir = Path(model_dir)
 
         self.model_dir = model_dir
-        self.verbose = verbose
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        if device is None:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        else:
-            self.device = torch.device(device)
+        # Load configuration
+        config_path = model_dir / "model_config.json"
+        if not config_path.exists():
+            raise FileNotFoundError(f"Model config not found at {config_path}")
+
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
 
         # Load label encoder
         label_encoder_path = model_dir / "label_encoder.pkl"
@@ -158,22 +150,12 @@ class SharkClassifier(InferenceInterface):
             self.label_encoder = pickle.load(f)
 
         # Load model (full model with architecture + weights)
-        model_path = model_dir / "model.pth"
+        model_path = model_dir / "shark_cnn_model.pth"
         if not model_path.exists():
             raise FileNotFoundError(f"Model not found at {model_path}")
 
         # PyTorch 2.6+ requires weights_only=False for full models (not just state_dict)
-        # Temporarily add this module to sys.modules under __main__ so pickle can find classes
-        import sys
-        current_module = sys.modules[__name__]
-        sys.modules['__main__'] = current_module
-        try:
-            self.model = torch.load(model_path, map_location=self.device, weights_only=False)
-        finally:
-            # Restore sys.modules
-            if '__main__' not in sys.modules or sys.modules['__main__'] is current_module:
-                del sys.modules['__main__']
-
+        self.model = torch.load(model_path, map_location=self.device, weights_only=False)
         self.model.to(self.device)
         self.model.eval()
 
@@ -184,10 +166,11 @@ class SharkClassifier(InferenceInterface):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        if self.verbose:
-            print(f"Loaded SharkClassifier")
-            print(f"  Classes: {len(self.label_encoder.classes_)}")
-            print(f"  Device: {self.device}")
+        print(f"Loaded SharkClassifier")
+        print(f"  Model: {self.config['model_type']}")
+        print(f"  Classes: {self.config['num_classes']}")
+        print(f"  Device: {self.device}")
+        print(f"  Trained on: {self.config['total_training_samples']} samples")
 
     def _fluorescence_to_image(self, fluorescence: Union[List[float], np.ndarray]) -> Image.Image:
         """
@@ -293,6 +276,10 @@ class SharkClassifier(InferenceInterface):
         """Get list of all species the model can predict."""
         return self.label_encoder.classes_.tolist()
 
+    def get_model_info(self) -> Dict:
+        """Get model configuration and metadata."""
+        return self.config
+
     def predict_from_csv_row(self, csv_row: Dict, top_k: int = 57) -> List[Dict[str, Union[str, float]]]:
         """
         Predict shark species from a single CSV row.
@@ -319,71 +306,129 @@ class SharkClassifier(InferenceInterface):
 
 
 # ============================================================================
-# PRODUCTION API - FOR WORKER
+# EXAMPLE USAGE
 # ============================================================================
 
-# Global classifier instance (lazy-loaded)
-_classifier = None
+if __name__ == '__main__':
+    print("=" * 80)
+    print("SHARK SPECIES CLASSIFIER - INFERENCE DEMO")
+    print("=" * 80)
+    print()
 
-def run_inference(filepath: str, sample_index: int = 0, device: Optional[str] = None) -> Dict:
-    """
-    Production inference function for the worker.
+    # Initialize classifier
+    try:
+        classifier = SharkClassifier()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("\nPlease run train_final_model.py first to train and save the model!")
+        exit(1)
 
-    Loads a CSV file, extracts a specific sample, and runs prediction.
+    print()
 
-    Args:
-        filepath: Path to CSV file with fluorescence data
-        sample_index: Index of sample in CSV to predict on (default: 0)
-        device: Device to use ('cuda' or 'cpu'). If None, auto-detect.
+    # Example 1: Load from CSV and predict
+    print("Example 1: Predict from real data")
+    print("-" * 80)
 
-    Returns:
-        Dict with keys:
-            - 'predictions': List of top predictions with rank, species, confidence
-            - 'true_species': The actual species from CSV (if Species column exists)
-            - 'sample_index': The sample index that was predicted
-            - 'success': Whether prediction was successful
+    # Try to load a sample from the dataset
+    data_path = Path(__file__).parent.parent / "data" / "shark_dataset.csv"
+    if data_path.exists():
+        df = pd.read_csv(data_path)
 
-    Raises:
-        FileNotFoundError: If CSV file or model files not found
-        ValueError: If sample_index out of range or invalid data
-    """
-    global _classifier
+        # Get a random sample
+        sample_idx = 0
+        sample_row = df.iloc[sample_idx]
+        true_species = sample_row['Species']
 
-    # Initialize classifier once (lazy load)
-    if _classifier is None:
-        _classifier = SharkClassifier(device=device, verbose=False)
+        # Extract fluorescence values (all columns except 'Species')
+        temp_cols = [col for col in df.columns if col != 'Species']
+        fluorescence = sample_row[temp_cols].values.astype(float)
 
-    # Load CSV
-    if not Path(filepath).exists():
-        raise FileNotFoundError(f"CSV file not found: {filepath}")
+        print(f"Sample #{sample_idx + 1}")
+        print(f"True species: {true_species}")
+        print(f"Fluorescence curve: {len(fluorescence)} temperature points")
+        print()
 
-    df = pd.read_csv(filepath)
+        # Get top-5 predictions
+        print("Top-5 Predictions:")
+        predictions = classifier.predict(fluorescence, top_k=5)
 
-    # Get sample
-    if sample_index >= len(df) or sample_index < 0:
-        raise ValueError(f"Sample index {sample_index} out of range for CSV with {len(df)} rows")
+        for pred in predictions:
+            confidence_pct = pred['confidence'] * 100
+            marker = "✓" if pred['species'] == true_species else " "
+            print(f"  {marker} {pred['rank']}. {pred['species']:<40} {confidence_pct:>6.2f}%")
 
-    sample_row = df.iloc[sample_index]
+        print()
 
-    # Extract fluorescence values (all columns except 'Species')
-    fluorescence_cols = [col for col in df.columns if col != 'Species']
-    fluorescence_values = sample_row[fluorescence_cols].values.astype(float)
+        # Get all predictions
+        print("Getting all 57 species predictions...")
+        all_predictions = classifier.predict(fluorescence, top_k=57)
+        print(f"Total predictions: {len(all_predictions)}")
+        print(f"Sum of confidences: {sum(p['confidence'] for p in all_predictions):.4f} (should be ~1.0)")
+        print()
 
-    # Get true species if available
-    true_species = sample_row.get('Species', None) if 'Species' in sample_row.index else None
+        # Show bottom 5 (least likely)
+        print("Bottom-5 Predictions (least likely):")
+        for pred in all_predictions[-5:]:
+            confidence_pct = pred['confidence'] * 100
+            print(f"  {pred['rank']}. {pred['species']:<40} {confidence_pct:>6.2f}%")
 
-    # Make prediction
-    predictions = _classifier.predict(fluorescence_values, top_k=57)
+    else:
+        print(f"Dataset not found at {data_path}")
+        print("Creating synthetic example instead...")
 
-    # Format result
-    result = {
-        'predictions': predictions,
-        'sample_index': sample_index,
-        'success': True,
-    }
+        # Create a dummy fluorescence curve
+        temps = np.linspace(20, 95, 76)
+        fluorescence = np.random.rand(76) * 100
 
-    if true_species is not None:
-        result['true_species'] = true_species
-        result['top_prediction_correct'] = predictions[0]['species'] == true_species
+        predictions = classifier.predict(fluorescence, top_k=5)
 
-    return result
+        print("\nTop-5 Predictions (on random data):")
+        for pred in predictions:
+            confidence_pct = pred['confidence'] * 100
+            print(f"  {pred['rank']}. {pred['species']:<40} {confidence_pct:>6.2f}%")
+
+    print()
+    print("-" * 80)
+    print("Example 2: Predict from CSV row")
+    print("-" * 80)
+
+    if data_path.exists():
+        df = pd.read_csv(data_path)
+        sample_row = df.iloc[0]
+
+        print(f"Predicting from CSV row 0...")
+        print(f"True species: {sample_row['Species']}")
+        print()
+
+        # Use the new predict_from_csv_row method
+        predictions = classifier.predict_from_csv_row(sample_row, top_k=5)
+
+        print("Top-5 Predictions from CSV row:")
+        for pred in predictions:
+            confidence_pct = pred['confidence'] * 100
+            marker = "✓" if pred['species'] == sample_row['Species'] else " "
+            print(f"  {marker} {pred['rank']}. {pred['species']:<40} {confidence_pct:>6.2f}%")
+
+    print()
+    print("=" * 80)
+    print("INFERENCE DEMO COMPLETE")
+    print("=" * 80)
+    print()
+    print("Usage in your code:")
+    print()
+    print("  from inference import SharkClassifier")
+    print()
+    print("  classifier = SharkClassifier()")
+    print()
+    print("  # Method 1: Predict from fluorescence values")
+    print("  predictions = classifier.predict(fluorescence_values, top_k=57)")
+    print()
+    print("  # Method 2: Predict from CSV row")
+    print("  import pandas as pd")
+    print("  df = pd.read_csv('shark_dataset.csv')")
+    print("  row = df.iloc[0]  # Get first row")
+    print("  predictions = classifier.predict_from_csv_row(row, top_k=57)")
+    print()
+    print("  # predictions[0] = top prediction")
+    print("  # predictions = all 57 species sorted by confidence")
+    print()

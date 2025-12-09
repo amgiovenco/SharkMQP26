@@ -1,0 +1,101 @@
+Loading python/3.10.16/gokvai4
+  Loading requirement: gcc-runtime/13.2.0/yimvxxm bzip2/1.0.8/itttwfv
+    gcc-runtime/13.2.0/s3f7i6x libmd/1.0.4/ngvfltj libbsd/0.12.1/6of6olc
+    expat/2.6.2/zoq445h ncurses/6.4/zqsx2w2 readline/8.2/hmsgdsx
+    gdbm/1.23/gtrssid libiconv/1.17/pmxhi4x xz/5.4.6/uxouxrg
+    zlib-ng/2.1.5/uctcqfl libxml2/2.10.3/vdqe2g3 pigz/2.8/pmmdaqf
+    zstd/1.5.5/juuobg2 tar/1.34/5prin2y gettext/0.22.4/iy5z4el
+    libffi/3.4.4/vqf2avv libxcrypt/4.4.35/vng2vef openssl/3.4.0/pholr53
+    sqlite/3.43.2/o22u32h util-linux-uuid/2.38.1/2x7vfxr
+/home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: 'Could not load this library: /home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/image.so'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+================================================================================
+PURE SYNTHETIC TRAINING (No Optimization)
+================================================================================
+Device: cuda
+GPU: NVIDIA A100-SXM4-80GB
+Random Seed: 8
+Output Directory: /home/cejason/sark/synthetic/pure_synthetic_results
+================================================================================
+
+
+Pure Synthetic Training - No Optimization
+Data split: 0% real training, 50% real validation, 50% real test
+All training data is 100% synthetic
+
+Configuration:
+  Models: CNN (EfficientNet-B0), TCN, Statistics (ExtraTrees)
+  Random Seed: 8
+  Device: cuda
+
+Loading data...
+Loaded 651 real samples
+Real data split: Val=520, Test=131 (0% used for training)
+Number of classes: 57
+
+Loading synthetic data...
+Loaded synthetic data for 57 species
+
+Creating synthetic training set with fixed optimal allocation:
+  n_very_low: 50
+  n_low: 50
+  n_medium: 50
+  n_high: 50
+  n_very_high: 50
+
+Total synthetic training samples: 2837
+
+================================================================================
+TRAINING MODELS WITH 5-FOLD CV ON SYNTHETIC DATA
+================================================================================
+
+--------------------------------------------------------------------------------
+Training CNN (EfficientNet-B0) with 5-fold CV...
+--------------------------------------------------------------------------------
+  Fold 1/5... F1=1.0000
+  Fold 2/5... F1=1.0000
+  Fold 3/5... F1=0.9982
+  Fold 4/5... F1=1.0000
+  Fold 5/5... F1=1.0000
+CNN Mean Macro F1: 0.9996
+
+--------------------------------------------------------------------------------
+Training TCN (Temporal Convolutional Network) with 5-fold CV...
+--------------------------------------------------------------------------------
+  Fold 1/5... F1=1.0000
+  Fold 2/5... F1=1.0000
+  Fold 3/5... F1=0.9982
+  Fold 4/5... F1=1.0000
+  Fold 5/5... F1=1.0000
+TCN Mean Macro F1: 0.9996
+
+--------------------------------------------------------------------------------
+Training Statistics (ExtraTrees) with 5-fold CV...
+--------------------------------------------------------------------------------
+  Fold 1/5... F1=0.9893
+  Fold 2/5... F1=1.0000
+  Fold 3/5... F1=0.9896
+  Fold 4/5... F1=0.9947
+  Fold 5/5... F1=0.9890
+Statistics Mean Macro F1: 0.9925
+
+================================================================================
+CV RESULTS (5-Fold Cross-Validation)
+================================================================================
+CNN F1:        0.9996
+TCN F1:        0.9996
+Statistics F1: 0.9925
+Average F1:    0.9973
+================================================================================
+
+================================================================================
+FINAL EVALUATION ON HELD-OUT TEST SET
+================================================================================
+Training final models on all synthetic data...
+Training data: 2837 samples (100% synthetic)
+Test data: 131 samples
+
+--------------------------------------------------------------------------------
+Training final CNN on synthetic data...
+--------------------------------------------------------------------------------
+slurmstepd: error: *** JOB 1712261 ON gpu-4-13 CANCELLED AT 2025-12-07T17:59:38 ***
