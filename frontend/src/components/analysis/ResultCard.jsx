@@ -84,7 +84,7 @@ const ResultCard = ({ result, batch }) => {
 
                 {expandedTopk && topk && (
                     <div className="space-y-1 bg-gray-50 rounded p-2">
-                        {topk.map((pred, idx) => (
+                        {topk.slice(0, 5).map((pred, idx) => (
                             <div key={idx} className="flex justify-between items-center">
                                 <span className="text-gray-700 flex-1">{idx + 1}. {pred.label}</span>
                                 <span className="text-gray-600 font-semibold">{(pred.prob * 100).toFixed(1)}%</span>

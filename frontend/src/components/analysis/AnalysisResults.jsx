@@ -82,12 +82,12 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                                     </p>
                                                 </div>
 
-                                                {/* All Predictions */}
+                                                {/* Top 5 Predictions */}
                                                 {job.result.predictions && job.result.predictions.length > 0 && (
                                                     <div>
-                                                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">All Predictions</p>
+                                                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Top 5 Predictions</p>
                                                         <div className="space-y-2">
-                                                            {job.result.predictions.map((pred, idx) => (
+                                                            {job.result.predictions.slice(0, 5).map((pred, idx) => (
                                                                 <div key={idx} className="space-y-1">
                                                                     <div className="flex items-center justify-between">
                                                                         <p className="text-xs font-medium text-gray-800 flex-1 truncate pr-2">
