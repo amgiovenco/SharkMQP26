@@ -263,11 +263,11 @@ class SharkClassifier(InferenceInterface):
 
         predictions = []
         for rank, idx in enumerate(top_indices, 1):
-            species = self.label_encoder.classes_[idx]
-            confidence = float(probabilities[idx])
+            species = str(self.label_encoder.classes_[idx])  # Ensure string
+            confidence = float(probabilities[idx])  # Ensure native Python float
 
             predictions.append({
-                'rank': rank,
+                'rank': int(rank),  # Ensure int
                 'species': species,
                 'confidence': confidence
             })
@@ -375,15 +375,40 @@ def run_inference(filepath: str, sample_index: int = 0, device: Optional[str] = 
     # Make prediction
     predictions = _classifier.predict(fluorescence_values, top_k=57)
 
-    # Format result
+    # Ensure all predictions are JSON-serializable (native Python types)
+    clean_predictions = []
+    for i, pred in enumerate(predictions):
+        rank = int(pred['rank'])
+        species = str(pred['species'])
+        confidence = float(pred['confidence'])
+
+        # Log suspicious values
+        if confidence != confidence:  # NaN check
+            print(f"[WARNING] NaN confidence detected at rank {rank}: {pred['confidence']} (raw type: {type(pred['confidence'])})")
+        elif confidence < 0 or confidence > 1:
+            print(f"[WARNING] Out-of-range confidence at rank {rank}: {confidence}")
+
+        clean_predictions.append({
+            'rank': rank,
+            'species': species,
+            'confidence': confidence
+        })
+
+        if i < 3:  # Log first 3
+            print(f"[inference] Prediction {i+1}: {species} = {confidence} (type: {type(confidence).__name__})")
+
+    # Format result with proper types
     result = {
-        'predictions': predictions,
-        'sample_index': sample_index,
+        'predictions': clean_predictions,
+        'sample_index': int(sample_index),
         'success': True,
     }
 
     if true_species is not None:
-        result['true_species'] = true_species
-        result['top_prediction_correct'] = predictions[0]['species'] == true_species
+        result['true_species'] = str(true_species)
+        result['top_prediction_correct'] = bool(clean_predictions[0]['species'] == true_species)
+
+    print(f"[inference] Result success: {result['success']}, num_predictions: {len(result['predictions'])}")
+    print(f"[inference] First 3 confidences: {[p['confidence'] for p in result['predictions'][:3]]}")
 
     return result

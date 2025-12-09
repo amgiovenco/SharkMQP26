@@ -37,7 +37,13 @@ const ResultCard = ({ result, batch }) => {
         return null;
     }
 
-    const { winner, confidence, topk, curve_data } = result.result;
+    // Extract top prediction from new backend format
+    const topPrediction = result.result.predictions?.[0];
+    const winner = topPrediction?.species || 'Unknown';
+    const confidence = topPrediction?.confidence || 0;
+    const topk = result.result.predictions?.map(p => ({ label: p.species, prob: p.confidence })) || [];
+    const curve_data = result.result.curve_data;
+
     const confidencePercent = (confidence * 100).toFixed(1);
     const confidenceColor = confidence > 0.8 ? 'bg-green-100 text-green-800' : confidence > 0.6 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800';
 

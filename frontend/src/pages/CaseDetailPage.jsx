@@ -314,12 +314,13 @@ const generateCSV = (results) => {
 
     results.forEach(r => {
         if (r.result) {
-            const topLabels = r.result.topk?.slice(1, 5).map(p => p.label).join(' | ') || '';
+            const topPrediction = r.result.predictions?.[0];
+            const topLabels = r.result.predictions?.slice(1, 5).map(p => p.species).join(' | ') || '';
             rows.push([
                 r.fileName,
                 r.sampleIndex + 1,
-                r.result.winner,
-                (r.result.confidence * 100).toFixed(2) + '%',
+                topPrediction?.species || 'Unknown',
+                ((topPrediction?.confidence || 0) * 100).toFixed(2) + '%',
                 topLabels,
             ].join(','));
         }

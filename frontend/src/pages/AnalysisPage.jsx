@@ -522,8 +522,8 @@ const AnalysisPage = () => {
                                                     <p>Sample {sampleIdx + 1}</p>
                                                     {isCompleted && (
                                                         <div className="mt-1">
-                                                            <p className="text-xs font-semibold truncate">{job.result?.winner || 'Unknown'}</p>
-                                                            <p className="text-xs opacity-75">{(job.result?.confidence * 100 || 0).toFixed(0)}%</p>
+                                                            <p className="text-xs font-semibold truncate">{job.result?.predictions?.[0]?.species || 'Unknown'}</p>
+                                                            <p className="text-xs opacity-75">{(job.result?.predictions?.[0]?.confidence * 100 || 0).toFixed(0)}%</p>
                                                         </div>
                                                     )}
                                                     {isRunning && (
