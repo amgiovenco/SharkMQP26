@@ -425,7 +425,7 @@ const AnalysisPage = () => {
                     {/* Overall Progress Summary */}
                     <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
                         {(() => {
-                            const completed = processingJobs.filter(j => j.status === 'completed').length;
+                            const completed = completedJobs.length;
                             const running = processingJobs.filter(j => j.status === 'running').length;
                             const queued = processingJobs.filter(j => j.status === 'queued').length;
                             const progress = totalSamplesCount > 0 ? (completed / totalSamplesCount) * 100 : 0;
