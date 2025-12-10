@@ -193,6 +193,15 @@ def write_outputs(dfs: List[pd.DataFrame], output_path: Path) -> None:
             df.columns = [h for _, h in valid_headers]
         else:
             df = df.iloc[1:].reset_index(drop=True)
+        # Filter out rows that are completely NaN or empty (empty wells with no data)
+        # Also remove rows where all values are 0 or NaN (invalid wells)
+        df = df.dropna(how='all')
+        valid_rows = []
+        for idx, row in df.iterrows():
+            valid_values = row.notna() & (row != 0) & (row != '')
+            if valid_values.sum() > len(row) * 0.5:  # At least 50% non-zero values
+                valid_rows.append(idx)
+        df = df.loc[valid_rows].reset_index(drop=True)
         df.to_csv(output_path, index=False, header=True)
     else:
         stem = output_path.stem
@@ -210,6 +219,15 @@ def write_outputs(dfs: List[pd.DataFrame], output_path: Path) -> None:
                 df_copy.columns = [h for _, h in valid_headers]
             else:
                 df_copy = df_copy.iloc[1:].reset_index(drop=True)
+            # Filter out rows that are completely NaN or empty (empty wells with no data)
+            # Also remove rows where all values are 0 or NaN (invalid wells)
+            df_copy = df_copy.dropna(how='all')
+            valid_rows = []
+            for idx, row in df_copy.iterrows():
+                valid_values = row.notna() & (row != 0) & (row != '')
+                if valid_values.sum() > len(row) * 0.5:  # At least 50% non-zero values
+                    valid_rows.append(idx)
+            df_copy = df_copy.loc[valid_rows].reset_index(drop=True)
             out = folder / f"{stem}_run{i}{suffix}"
             df_copy.to_csv(out, index=False, header=True)
 
