@@ -46,13 +46,9 @@ FOCAL_GAMMA = 1.5
 MIXUP_ALPHA = 0.4
 USE_MIXUP = True
 
-# Output directory for results
-RESULTS_DIR = Path(__file__).parent / "results"
-RESULTS_DIR.mkdir(exist_ok=True)
-
 # Optuna persistent storage
 STUDY_NAME = "cnn_efficientnet"
-STORAGE_PATH = RESULTS_DIR / "optuna_studies"
+STORAGE_PATH = Path("./optuna_studies")
 STORAGE_PATH.mkdir(exist_ok=True)
 STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
 
@@ -476,10 +472,10 @@ results_dict = {
     }
 }
 
-with open(RESULTS_DIR / "optimization_results.json", 'w') as f:
+with open("./optimization_results.json", 'w') as f:
     json.dump(results_dict, f, indent=2)
 
-print(f"\nSaved optimization results to {RESULTS_DIR / 'optimization_results.json'}")
+print(f"\nSaved optimization results to ./optimization_results.json")
 
 # Train final model on all data
 print("\n" + "="*60)
@@ -512,7 +508,7 @@ for epoch in range(EPOCHS):
     scheduler.step()
 
 # Save entire model (architecture + weights)
-torch.save(final_model.state_dict(), RESULTS_DIR / "cnn_final.pth")
+torch.save(final_model.state_dict(), "./cnn_final.pth")
 
 bundle = {
     "model": final_model,
@@ -521,8 +517,8 @@ bundle = {
     "params": best_overall_params
 }
 
-joblib.dump(bundle, RESULTS_DIR / "cnn_bundle.pkl")
-print(f"Saved optimized model to {RESULTS_DIR / 'cnn_final.pth'} and {RESULTS_DIR / 'cnn_bundle.pkl'}")
+joblib.dump(bundle, "./cnn_bundle.pkl")
+print(f"Saved optimized model to ./cnn_final.pth and ./cnn_bundle.pkl")
 
 print("\n" + "="*60)
 print("SUMMARY")

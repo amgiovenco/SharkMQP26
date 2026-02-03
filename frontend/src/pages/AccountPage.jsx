@@ -1,5 +1,5 @@
 // view account details and edit them
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { apiFetch } from '../utility/ApiFetch';
 
@@ -15,6 +15,16 @@ const AccountPage = () => {
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showPasswordFields, setShowPasswordFields] = useState(false);
+
+    // Update form when auth data loads (handles page refresh)
+    useEffect(() => {
+        setForm((prev) => ({
+            ...prev,
+            first_name: auth.first_name || '',
+            last_name: auth.last_name || '',
+            job_title: auth.job_title || '',
+        }));
+    }, [auth.first_name, auth.last_name, auth.job_title]);
 
     // Handle input changes
     const handleInputChange = (e) => {

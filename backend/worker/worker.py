@@ -12,7 +12,7 @@ from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
-from worker.inference import run_inference as ml_inference
+from worker.inference import run_inference as ml_inference, CNNModel
 from worker.extract_melt_block import process_file as extract_melt_block
 
 logger = get_logger(__name__)
@@ -81,6 +81,9 @@ def run_inference(filepath: str, sample_index: int = 0):
 
         # Log result structure
         logger.info(f"[run_inference] Got result, success={result['success']}")
+        if not result['success']:
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"[run_inference] Inference failed: {error_msg}")
         logger.info(f"[run_inference] Num predictions: {len(result['predictions'])}")
         if result['predictions']:
             top_conf = result['predictions'][0]['confidence']

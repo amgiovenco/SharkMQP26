@@ -38,7 +38,9 @@ export const useInitializeApp = () => {
                     userData.role,
                     userData.first_name,
                     userData.last_name,
-                    userData.job_title
+                    userData.job_title,
+                    userData.is_system_admin,
+                    userData.organizations
                 );
 
                 // Fetch fresh cases data

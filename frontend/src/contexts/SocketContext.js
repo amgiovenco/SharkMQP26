@@ -7,7 +7,7 @@ const SocketContext = createContext(null);
 export const useSocket = () => useContext(SocketContext);
 
 const getSocketUrl = () => {
-    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
     return apiBaseUrl.replace(/\/api\/?$/, '');
 };
 

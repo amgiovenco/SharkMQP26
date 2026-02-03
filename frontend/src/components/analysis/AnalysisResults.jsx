@@ -1,3 +1,5 @@
+import MeltingCurveChart from './MeltingCurveChart';
+
 // Display analysis results
 const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
     // Group completed jobs by batch
@@ -81,6 +83,17 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                                         ).toFixed(1)}%
                                                     </p>
                                                 </div>
+
+                                                {/* Melting Curve Chart */}
+                                                {job.result.curve_data && (
+                                                    <div className="w-full" style={{ height: '200px' }}>
+                                                        <MeltingCurveChart
+                                                            frequencies={job.result.curve_data.frequencies}
+                                                            signal={job.result.curve_data.signal}
+                                                            predictedSpecies={job.result.predictions?.[0]?.species || 'Unknown'}
+                                                        />
+                                                    </div>
+                                                )}
 
                                                 {/* Top 5 Predictions */}
                                                 {job.result.predictions && job.result.predictions.length > 0 && (

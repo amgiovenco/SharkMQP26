@@ -28,6 +28,17 @@ class RegisterResponse(BaseModel):
     username: str
     role: str
 
+class PublicRegisterRequest(BaseModel):
+    username: constr(strip_whitespace=True, min_length=3, max_length=80)
+    password: constr(min_length=8, max_length=200)
+    registration_code: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+class PublicRegisterResponse(BaseModel):
+    message: str
+    username: str
+
 class UpdateProfileRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None

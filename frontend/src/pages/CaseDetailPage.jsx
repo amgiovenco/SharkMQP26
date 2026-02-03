@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { apiFetch } from '../utility/ApiFetch';
 import { useSocket } from '../contexts/SocketContext';
 import ResultCard from '../components/analysis/ResultCard';
@@ -45,7 +46,7 @@ const CaseDetailPage = () => {
                     if (!batchMap[batchId]) {
                         batchMap[batchId] = {
                             batchId,
-                            fileName: job.file_path?.split('/').pop() || 'Unknown',
+                            fileName: job.original_filename || job.file_path?.split('/').pop() || 'Unknown',
                             jobIds: [],
                         };
                     }
@@ -188,6 +189,60 @@ const CaseDetailPage = () => {
         });
     };
 
+    // Rerun handlers
+    const handleRerunJob = (rerunResponse) => {
+        const { new_job_id, original_job_id } = rerunResponse;
+
+        // Find original result to get batch info
+        const originalResult = results.find(r => r.id === original_job_id);
+        if (!originalResult) return;
+
+        // Add new result as queued
+        const newResult = {
+            id: new_job_id,
+            batchId: originalResult.batchId,
+            sampleIndex: originalResult.sampleIndex,
+            fileName: originalResult.fileName,
+            status: 'queued',
+            result: null,
+            batchInfo: originalResult.batchInfo,
+        };
+
+        setResults(prev => [...prev, newResult]);
+    };
+
+    const handleRerunBatch = async (batchId) => {
+        if (!window.confirm('Rerun all samples in this batch? This will create new analysis jobs.')) {
+            return;
+        }
+
+        setError(null);
+        try {
+            const response = await apiFetch(`/jobs/batch/${batchId}/rerun`, {
+                method: 'POST',
+            });
+
+            const { new_job_ids, num_jobs } = response;
+            const batchInfo = uploadedBatches.find(b => b.batchId === batchId);
+
+            // Add new results as queued
+            const newResults = new_job_ids.map((jobId, idx) => ({
+                id: jobId,
+                batchId: batchId,
+                sampleIndex: idx,
+                fileName: batchInfo?.fileName || 'Unknown',
+                status: 'queued',
+                result: null,
+                batchInfo: batchInfo,
+            }));
+
+            setResults(prev => [...prev, ...newResults]);
+            toast.success(`Successfully queued ${num_jobs} samples for rerun`);
+        } catch (err) {
+            setError(`Failed to rerun batch: ${err.message}`);
+        }
+    };
+
     // Export results
     const handleExportAll = () => {
         const csv = generateCSV(results);
@@ -275,12 +330,21 @@ const CaseDetailPage = () => {
                                 <h2 className="text-xl font-semibold">{batch.fileName}</h2>
                                 <p className="text-sm text-gray-600">{batch.numSamples} samples</p>
                             </div>
-                            <button
-                                onClick={() => handleExportBatch(batch.batchId)}
-                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                            >
-                                Export
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleRerunBatch(batch.batchId)}
+                                    className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700"
+                                    title="Rerun all samples in this batch"
+                                >
+                                    ↻ Rerun Batch
+                                </button>
+                                <button
+                                    onClick={() => handleExportBatch(batch.batchId)}
+                                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                >
+                                    Export
+                                </button>
+                            </div>
                         </div>
 
                         {/* Results grid - 3 columns */}
@@ -289,7 +353,7 @@ const CaseDetailPage = () => {
                                 .filter(r => r.batchId === batch.batchId)
                                 .sort((a, b) => a.sampleIndex - b.sampleIndex)
                                 .map(result => (
-                                    <ResultCard key={result.id} result={result} batch={batch} />
+                                    <ResultCard key={result.id} result={result} batch={batch} onRerun={handleRerunJob} />
                                 ))}
                         </div>
                     </div>

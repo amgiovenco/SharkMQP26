@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import MeltingCurveChart from './MeltingCurveChart';
+import { apiFetch } from '../../utility/ApiFetch';
 
-const ResultCard = ({ result, batch }) => {
+const ResultCard = ({ result, batch, onRerun }) => {
     const [expandedTopk, setExpandedTopk] = useState(false);
+    const [isRerunning, setIsRerunning] = useState(false);
 
     if (result.status === 'queued' || result.status === 'running') {
         return (
@@ -18,12 +21,44 @@ const ResultCard = ({ result, batch }) => {
         );
     }
 
+    const handleRerun = async () => {
+        if (isRerunning) return;
+
+        setIsRerunning(true);
+        try {
+            const response = await apiFetch(`/jobs/${result.id}/rerun`, {
+                method: 'POST',
+            });
+
+            toast.success('Analysis queued for rerun');
+
+            if (onRerun) {
+                onRerun(response);
+            }
+        } catch (error) {
+            console.error('Failed to rerun analysis:', error);
+            toast.error(`Failed to rerun analysis: ${error.message}`);
+        } finally {
+            setIsRerunning(false);
+        }
+    };
+
     if (result.status === 'error') {
         return (
             <div className="border border-red-300 rounded p-4 bg-red-50 h-full">
-                <p className="text-sm font-semibold text-gray-700 mb-2">
-                    Sample {result.sampleIndex + 1}/{batch.numSamples}
-                </p>
+                <div className="flex items-start justify-between mb-2">
+                    <p className="text-sm font-semibold text-gray-700">
+                        Sample {result.sampleIndex + 1}/{batch.numSamples}
+                    </p>
+                    <button
+                        onClick={handleRerun}
+                        disabled={isRerunning}
+                        className="text-xs px-2 py-0.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded border border-orange-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Rerun this analysis"
+                    >
+                        {isRerunning ? '...' : '↻ Retry'}
+                    </button>
+                </div>
                 <div className="p-3 border border-red-300 bg-red-50 rounded">
                     <p className="text-red-700 text-xs">
                         <strong>Error:</strong> {result.result?.error || 'Processing failed'}
@@ -51,9 +86,19 @@ const ResultCard = ({ result, batch }) => {
         <div className="border rounded p-4 bg-white shadow-sm hover:shadow-md transition h-full flex flex-col">
             {/* Header */}
             <div className="mb-3 pb-3 border-b">
-                <p className="text-xs font-semibold text-gray-600 mb-1">
-                    Sample {result.sampleIndex + 1}/{batch.numSamples}
-                </p>
+                <div className="flex items-start justify-between mb-1">
+                    <p className="text-xs font-semibold text-gray-600">
+                        Sample {result.sampleIndex + 1}/{batch.numSamples}
+                    </p>
+                    <button
+                        onClick={handleRerun}
+                        disabled={isRerunning}
+                        className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Rerun this analysis"
+                    >
+                        {isRerunning ? '...' : '↻ Rerun'}
+                    </button>
+                </div>
                 <div className="flex items-start justify-between gap-2">
                     <h3 className="font-bold text-sm flex-1 text-gray-900">{winner}</h3>
                     <span className={`text-xs font-bold px-2 py-1 rounded whitespace-nowrap ${confidenceColor}`}>

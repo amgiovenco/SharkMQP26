@@ -39,7 +39,9 @@ const LoginPage = () => {
                 user.role,
                 user.first_name,
                 user.last_name,
-                user.job_title
+                user.job_title,
+                user.is_system_admin || false,
+                user.organizations || []
             );
 
             // Fetch cases after login

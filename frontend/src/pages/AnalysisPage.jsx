@@ -6,10 +6,12 @@ import { usePredictionStore } from '../stores/predictionStore';
 import { useJobStatusListener } from '../components/analysis/useJobStatusListener';
 import AnalysisResults from '../components/analysis/AnalysisResults';
 import FileUploader from '../components/analysis/FileUploader';
+import { usePermissions } from '../hooks/usePermissions';
 
 const AnalysisPage = () => {
     const { cases, addCase } = useCasesStore();
     const { addPrediction } = usePredictionStore();
+    const { canCreateCase } = usePermissions();
 
     // Step state: 'select-case' | 'upload-files' | 'processing' | 'results'
     const [step, setStep] = useState('select-case');
@@ -295,13 +297,19 @@ const AnalysisPage = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : canCreateCase ? (
                         <button
                             onClick={() => setIsCreatingCase(true)}
                             className="mb-8 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
                         >
                             + Create New Case
                         </button>
+                    ) : (
+                        <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-yellow-800">
+                                You don't have permission to create cases. Please contact your organization admin.
+                            </p>
+                        </div>
                     )}
 
                     {cases.length > 0 ? (
