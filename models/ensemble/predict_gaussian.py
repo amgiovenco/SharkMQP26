@@ -1,17 +1,17 @@
-"""Gaussian curve model prediction."""
+"""Gaussian curve model prediction from local models directory."""
 
 import pickle
-import glob
+import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from scipy.signal import savgol_filter, find_peaks, peak_widths
 from scipy.optimize import curve_fit
+import warnings
+warnings.filterwarnings('ignore')
+from sklearn.ensemble import ExtraTreesClassifier
 
 
-# =============================================================================
-# GAUSSIAN FITTING FUNCTIONS (mirrored from GaussianCurve.ipynb)
-# =============================================================================
 
 def gaussian(x, amp, mu, sigma):
     """Single Gaussian function."""
@@ -27,16 +27,21 @@ def gaussian_sum(x, *p):
     return y
 
 
-def preprocess_curve(x, y):
-    """Smooth + quadratic baseline removal + normalization."""
+def preprocess_curve(x, y, params=None):
+    """Smooth + baseline removal + normalization."""
+    if params is None:
+        params = {
+            'savgol_win_temp': 1.5, 'polyorder': 3,
+            'baseline_quantile': 0.3, 'scale_quantile': 0.99
+        }
     y = np.asarray(y, float)
     dx = x[1] - x[0]
-    win = max(7, int(round(1.5 / dx)) | 1)      # ~1.5°C window, odd
-    if win >= len(y):                            # safety
+    win = max(7, int(round(params['savgol_win_temp'] / dx)) | 1)
+    if win >= len(y):
         win = max(7, (len(y)//2)*2 - 1)
-    y_s = savgol_filter(y, window_length=max(7, win), polyorder=3, mode="interp")
+    y_s = savgol_filter(y, window_length=win, polyorder=params['polyorder'], mode="interp")
 
-    q = np.quantile(y_s, 0.3)
+    q = np.quantile(y_s, params['baseline_quantile'])
     mask = y_s <= q
     if mask.sum() >= 10:
         coeffs = np.polyfit(x[mask], y_s[mask], deg=2)
@@ -45,7 +50,7 @@ def preprocess_curve(x, y):
     else:
         y_b = y_s - np.min(y_s)
 
-    scale = np.quantile(y_b, 0.99)
+    scale = np.quantile(y_b, params['scale_quantile'])
     if scale > 0:
         y_b = y_b / scale
     y_b = np.maximum(y_b, 0.0)
@@ -57,11 +62,17 @@ def decimate(x, y, step=8):
     return x[::step], y[::step]
 
 
-def seed_peaks(x, y, k):
-    """Robust peak seeds: use prominence from spread, clamp widths."""
+def seed_peaks(x, y, k, params=None):
+    """Robust peak seeds."""
+    if params is None:
+        params = {
+            'prom_factor': 0.15, 'distance_divisor': 150, 'rel_height': 0.5,
+            'min_w_temp': 0.2, 'min_w_factor': 4, 'max_w_divisor': 3.0
+        }
     spread = max(np.quantile(y, 0.90) - np.quantile(y, 0.10), 1e-6)
-    prom = spread * 0.15
-    peaks, props = find_peaks(y, prominence=prom, distance=max(1, len(x)//150))
+    prom = spread * params['prom_factor']
+    distance = max(1, len(x) // params['distance_divisor'])
+    peaks, props = find_peaks(y, prominence=prom, distance=distance)
     if len(peaks) == 0:
         peaks = np.argsort(y)[::-1][:k]
         prominences = y[peaks] - np.min(y)
@@ -69,13 +80,14 @@ def seed_peaks(x, y, k):
         prominences = props["prominences"]
 
     if len(peaks) > 0:
-        w_idx = peak_widths(y, peaks, rel_height=0.5)[0]
-        w_c = w_idx * (x[1] - x[0])  # °C
+        w_idx = peak_widths(y, peaks, rel_height=params['rel_height'])[0]
+        w_c = w_idx * (x[1] - x[0])
     else:
         w_c = np.array([(x[-1]-x[0])/(3*k) ]*k)
 
-    min_w = max(0.2, 4*(x[1]-x[0]))
-    max_w = (x[-1]-x[0]) / 3.0
+    dx = x[1] - x[0]
+    min_w = max(params['min_w_temp'], params['min_w_factor']*dx)
+    max_w = (x[-1]-x[0]) / params['max_w_divisor']
     if np.ndim(w_c) == 0:
         w_c = np.array([w_c])
     w_c = np.clip(w_c, min_w, max_w)
@@ -88,9 +100,11 @@ def seed_peaks(x, y, k):
     return peaks[sort_lr], w_c[sort_lr]
 
 
-def fit_k(x, y, k):
-    """Fit k Gaussians to curve."""
-    peaks, w_c = seed_peaks(x, y, k)
+def fit_k(x, y, k, params=None):
+    """Fit k Gaussians."""
+    if params is None:
+        params = {'mu_bound_mult': 3, 'amp_hi_mult': 5.0}
+    peaks, w_c = seed_peaks(x, y, k, params)
     p0, lo, hi = [], [], []
     y_max = max(np.max(y), 1e-6)
     for j, pk in enumerate(peaks):
@@ -98,9 +112,9 @@ def fit_k(x, y, k):
         amp0 = float(max(y[pk], 1e-6))
         sigma0 = float(max(w_c[j] / (2*np.sqrt(2*np.log(2))), (x[1]-x[0])*2))
         p0 += [amp0, mu0, sigma0]
-        lo += [0.0,   mu0 - 3*sigma0, (x[1]-x[0])*1e-3]
-        hi += [y_max*5 + 1e-6, mu0 + 3*sigma0, (x[-1]-x[0])]
-    popt, _ = curve_fit(gaussian_sum, x, y, p0=p0, bounds=(lo, hi), maxfev=15000)
+        lo += [0.0, mu0 - params['mu_bound_mult']*sigma0, (x[1]-x[0])*1e-3]
+        hi += [y_max*params['amp_hi_mult'] + 1e-6, mu0 + params['mu_bound_mult']*sigma0, (x[-1]-x[0])]
+    popt, _ = curve_fit(gaussian_sum, x, y, p0=p0, bounds=(lo, hi), maxfev=5000)
     return popt
 
 
@@ -109,12 +123,15 @@ def BIC(n_params, rss, n):
     return np.log(n)*n_params + n*np.log(rss/n + 1e-12)
 
 
-def fit_best_K(x, y, K=(1, 5)):
+def fit_best_K(x, y, params=None, K=(1, 5)):
     """Fit 1..K Gaussians and select best by BIC."""
+    if params is None:
+        params = {'k_max': 5}
+    k_max = params.get('k_max', 5)
     best = None
-    for k in range(K[0], K[1]+1):
+    for k in range(1, k_max + 1):
         try:
-            popt = fit_k(x, y, k)
+            popt = fit_k(x, y, k, params)
             yhat = gaussian_sum(x, *popt)
             rss = float(np.sum((y - yhat)**2))
             bic = float(BIC(3*k, rss, len(x)))
@@ -126,7 +143,7 @@ def fit_best_K(x, y, K=(1, 5)):
 
 
 def peaks_to_features(popt, k_keep=2):
-    """Extract peak features from fit parameters."""
+    """Extract peak features."""
     peaks = [{"amp": float(popt[i]), "mu": float(popt[i+1]), "sigma": abs(float(popt[i+2]))}
              for i in range(0, len(popt), 3)]
     peaks.sort(key=lambda d: d["amp"], reverse=True)
@@ -144,15 +161,13 @@ def peaks_to_features(popt, k_keep=2):
 
 
 def extra_features_from_fit(x, y, popt):
-    """Extract additional features from Gaussian fit."""
-    # area per peak ~ amp * sigma * sqrt(2π)
+    """Extract additional features."""
     areas = []
     for i in range(0, len(popt), 3):
         amp, mu, sigma = float(popt[i]), float(popt[i+1]), abs(float(popt[i+2]))
         areas.append(amp * sigma * np.sqrt(2*np.pi))
     total_area = float(np.sum(areas)) if areas else 0.0
 
-    # asymmetry around main peak from the preprocessed y
     main_mu = float(popt[1]) if len(popt)>=2 else x[np.argmax(y)]
     left  = y[(x >= main_mu-0.5) & (x <  main_mu)]
     right = y[(x >  main_mu)     & (x <= main_mu+0.5)]
@@ -160,7 +175,7 @@ def extra_features_from_fit(x, y, popt):
     return {"total_area": total_area, "asym_0p5C": asym}
 
 
-def extract_features_for_row(row_vals, X_axis, K_RANGE=(1, 6), DECIMATE_STEP=6):
+def extract_features_for_row(row_vals, X_axis, K_RANGE=(1, 5), DECIMATE_STEP=5):
     """Extract Gaussian features for a single curve."""
     y0 = preprocess_curve(X_axis, np.asarray(row_vals, float))
     x, y = decimate(X_axis, y0, step=DECIMATE_STEP)
@@ -180,98 +195,108 @@ def extract_features_for_row(row_vals, X_axis, K_RANGE=(1, 6), DECIMATE_STEP=6):
     return feats
 
 
-# =============================================================================
-# PREDICTION FUNCTION
-# =============================================================================
-
 def get_gaussian_predictions(X_raw: pd.DataFrame, models_dir: str = "./models") -> np.ndarray:
-    """Get Gaussian curve model predictions from a single model file."""
+    """Get Gaussian curve model predictions from local models directory."""
     try:
-        # Find the gaussian model file (expects exactly one gaussian*.pkl file)
-        files = glob.glob(f"{models_dir}/gaussian*.pkl")
-        # Filter out summary files
-        files = [f for f in files if "summary" not in f.lower()]
-
-        if not files:
-            print("  gaussian...[FAIL] not found")
+        model_path = Path(models_dir) / "GAUSSIAN_optimized_model.pkl"
+        if not model_path.exists():
+            print("  gaussian...[FAIL] GAUSSIAN_optimized_model.pkl not found in ./models/")
             return None
 
-        if len(files) > 1:
-            # If multiple files, use the most recent one
-            model_path = max(files, key=lambda p: Path(p).stat().st_mtime)
-        else:
-            model_path = files[0]
+        # Try loading with joblib first (best for sklearn models)
+        bundle = None
+        try:
+            bundle = joblib.load(model_path)
+        except Exception as joblib_err:
+            # Fallback to pickle with proper sklearn imports available
+            try:
+                with open(model_path, 'rb') as f:
+                    bundle = pickle.load(f)
+            except Exception as pickle_err:
+                print(f"  gaussian...[FAIL] could not load model: {pickle_err}")
+                return None
 
-        # Extract temperature columns (same as in GaussianCurve.ipynb)
+        if bundle is None:
+            print("  gaussian...[FAIL] model bundle is empty")
+            return None
+
+        # Extract temperature columns
         temp_cols = sorted([c for c in X_raw.columns], key=lambda c: float(c))
         X_axis = np.array([float(c) for c in temp_cols], dtype=float)
 
-        # Extract features for all samples
+        # Extract best parameters from bundle
+        params = bundle.get('best_params', {})
+        if not params:
+            print("  gaussian...[WARN] no best_params in bundle, using defaults")
+            params = {
+                'decimate_step': 5, 'savgol_win_temp': 1.5, 'polyorder': 3,
+                'baseline_quantile': 0.3, 'scale_quantile': 0.99,
+                'prom_factor': 0.15, 'distance_divisor': 150, 'rel_height': 0.5,
+                'min_w_temp': 0.2, 'min_w_factor': 4, 'max_w_divisor': 3.0,
+                'mu_bound_mult': 3, 'k_max': 5, 'asym_width': 0.5, 'amp_hi_mult': 5.0
+            }
+
+        # Extract features for all samples using the tuned parameters
         features_list = []
         for idx, row in X_raw.iterrows():
-            feat_dict = extract_features_for_row(row.values, X_axis)
+            # Use parametrized feature extraction matching training
+            y0 = preprocess_curve(X_axis, np.asarray(row.values, float), params)
+            x, y = decimate(X_axis, y0, step=params.get('decimate_step', 5))
+            best = fit_best_K(x, y, params)
+            if best is None:
+                feat_dict = {
+                    "peak1_mu":0,"peak1_amp":0,"peak1_sigma":0,
+                    "peak2_mu":0,"peak2_amp":0,"peak2_sigma":0,
+                    "delta_mu_12":0,"amp_ratio_12":0,"best_K":0,
+                    "total_area":0.0,"asym_0p5C":0.0,"total_amp":0.0
+                }
+            else:
+                popt = best["popt"]
+                peaks = [{"amp": float(popt[i]), "mu": float(popt[i+1]), "sigma": abs(float(popt[i+2]))}
+                         for i in range(0, len(popt), 3)]
+                peaks.sort(key=lambda d: d["amp"], reverse=True)
+
+                feat_dict = {}
+                for i in range(2):
+                    if i < len(peaks):
+                        feat_dict[f"peak{i+1}_mu"] = peaks[i]["mu"]
+                        feat_dict[f"peak{i+1}_amp"] = peaks[i]["amp"]
+                        feat_dict[f"peak{i+1}_sigma"] = peaks[i]["sigma"]
+                    else:
+                        feat_dict[f"peak{i+1}_mu"] = 0.0
+                        feat_dict[f"peak{i+1}_amp"] = 0.0
+                        feat_dict[f"peak{i+1}_sigma"] = 0.0
+
+                feat_dict["delta_mu_12"] = feat_dict["peak1_mu"] - feat_dict["peak2_mu"]
+                feat_dict["amp_ratio_12"] = (feat_dict["peak1_amp"]+1e-9)/(feat_dict["peak2_amp"]+1e-9) if feat_dict["peak2_amp"]>0 else 1e9
+
+                areas = [p["amp"] * p["sigma"] * np.sqrt(2*np.pi) for p in peaks]
+                feat_dict["total_area"] = float(np.sum(areas)) if areas else 0.0
+                feat_dict["total_amp"] = sum(p["amp"] for p in peaks)
+                feat_dict["best_K"] = best["k"]
+
+                main_mu = float(popt[1]) if len(popt) >= 2 else x[np.argmax(y)]
+                left = y[(x >= main_mu - params.get('asym_width', 0.5)) & (x < main_mu)]
+                right = y[(x > main_mu) & (x <= main_mu + params.get('asym_width', 0.5))]
+                feat_dict["asym_0p5C"] = float((right.mean() - left.mean()) if (len(left) > 3 and len(right) > 3) else 0.0)
+
             features_list.append(feat_dict)
 
         X_eng = pd.DataFrame(features_list)
 
-        # Load the single model
-        # Try joblib first (used in training notebook), fall back to pickle
-        try:
-            import joblib
-            bundle = joblib.load(model_path)
-            print(f"    [debug] loaded with joblib")
-        except:
-            with open(model_path, 'rb') as f:
-                bundle = pickle.load(f)
-            print(f"    [debug] loaded with pickle")
-
-        print(f"    [debug] bundle type: {type(bundle)}")
-
-        # Handle case where bundle itself is the model (not a dict wrapper)
+        # Handle case where bundle itself is the model
         if isinstance(bundle, dict):
-            model = bundle["model"]
-            feature_names = bundle.get("feature_names", None)
+            model = bundle.get("model", bundle)
         else:
-            # bundle is the model directly
             model = bundle
-            feature_names = None
-            print(f"    [debug] bundle is model directly, not a dict")
 
-        # Debug: print what we got from the bundle
-        if feature_names is not None:
-            print(f"    [debug] feature_names from bundle: type={type(feature_names)}, len={len(feature_names)}")
-            print(f"    [debug] first 3 names: {[str(f) for f in list(feature_names)[:3]]}")
-
-        # If no feature names in bundle, use all columns from X_eng
-        if feature_names is None:
-            feature_names = X_eng.columns.tolist()
-            print(f"    [debug] no feature_names in bundle, using all X_eng columns: {feature_names}")
-        else:
-            # Convert to list of native Python strings (handles numpy string arrays)
-            feature_names = [str(f) for f in feature_names]
-
-            # Filter to only columns that exist in X_eng
-            X_eng_cols = X_eng.columns.tolist()
-            existing_cols = [f for f in feature_names if f in X_eng_cols]
-            if len(existing_cols) < len(feature_names):
-                missing = [f for f in feature_names if f not in X_eng_cols]
-                print(f"    [warning] missing columns: {missing}, using available columns")
-            feature_names = existing_cols if existing_cols else X_eng_cols
-
-        # Use only the feature columns that the model was trained on
-        X_subset = X_eng[feature_names]
-        proba = model.predict_proba(X_subset)
+        proba = model.predict_proba(X_eng)
 
         print(f"  gaussian...[OK] ({proba.shape})")
         return proba
 
     except Exception as e:
-        import traceback
         print(f"  gaussian...[FAIL] error: {e}")
+        import traceback
         traceback.print_exc()
-        print(f"    debug: feature_names in locals: {'feature_names' in locals()}")
-        if 'feature_names' in locals():
-            print(f"    debug: feature_names type: {type(feature_names)}")
-        print(f"    debug: X_eng shape: {X_eng.shape if 'X_eng' in locals() else 'not set'}")
-        print(f"    debug: X_eng columns: {list(X_eng.columns)[:5] if 'X_eng' in locals() else 'not set'}...")
         return None

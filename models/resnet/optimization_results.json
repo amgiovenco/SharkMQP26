@@ -1,0 +1,14 @@
+{
+  "metric": "macro_f1_score",
+  "baseline_cv_macro_f1": 0.7640361625981926,
+  "best_model": "resnet1d",
+  "best_cv_macro_f1": 0.8508039134354926,
+  "best_params": {
+    "initial_filters": 128,
+    "dropout": 0.2297762256462723,
+    "learning_rate": 0.0001464213993082976,
+    "batch_size": 16,
+    "weight_decay": 2.8607285116257016e-05
+  },
+  "improvement_percentage": 8.676775083729993
+}

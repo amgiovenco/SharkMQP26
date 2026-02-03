@@ -1,0 +1,148 @@
+================================================================================
+CONFIDENCE CALIBRATION ANALYSIS - TCN MODEL
+================================================================================
+Device: cuda
+GPU: Tesla V100-PCIE-32GB
+Testing seeds: [8, 42, 123]
+Output Directory: /home/cejason/sark/synthetic/confidence_analysis_tcn_results
+================================================================================
+
+
+Confidence Calibration Analysis - TCN Model
+Testing TCN model with 0/50/50 split (all synthetic training) across multiple seeds
+
+Configuration:
+  Model: TCN (Temporal Convolutional Network)
+  Seeds to test: [8, 42, 123]
+  Max synthetic per species: 50
+  Device: cuda
+
+Loading data...
+  Loaded 651 real samples
+
+Splitting real data 50/50...
+  Validation: 325 samples
+  Test: 326 samples
+  Number of classes: 57
+
+Loading synthetic data...
+  Loaded synthetic data for 57 species
+
+Creating synthetic training set...
+  Synthetic training: 2837 samples
+
+================================================================================
+TRAINING AND EVALUATING ACROSS SEEDS
+================================================================================
+
+================================================================================
+SEED 8
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Training with seed 8...
+    Epoch 20/200, Loss: 0.0765, Patience: 1/30
+    Epoch 40/200, Loss: 0.0099, Patience: 5/30
+    Epoch 60/200, Loss: 0.0420, Patience: 6/30
+    Epoch 80/200, Loss: 0.0003, Patience: 0/30
+    Epoch 100/200, Loss: 0.0012, Patience: 5/30
+    Epoch 120/200, Loss: 0.0004, Patience: 25/30
+    Epoch 140/200, Loss: 0.0037, Patience: 16/30
+    Early stopping at epoch 154
+  Evaluating on test set...
+
+  Results for seed 8:
+    Accuracy: 0.9908
+    Macro F1: 0.9946
+    Avg Confidence: 0.9964
+    Confidence when correct: 0.9980
+    Confidence when wrong: 0.8292
+    Num wrong: 3
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.9933
+    Expected Calibration Error: 0.0065
+
+================================================================================
+SEED 42
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Training with seed 42...
+    Epoch 20/200, Loss: 0.0168, Patience: 0/30
+    Epoch 40/200, Loss: 0.0055, Patience: 8/30
+    Epoch 60/200, Loss: 0.0024, Patience: 14/30
+    Epoch 80/200, Loss: 0.0005, Patience: 0/30
+    Epoch 100/200, Loss: 0.0006, Patience: 17/30
+    Early stopping at epoch 113
+  Evaluating on test set...
+
+  Results for seed 42:
+    Accuracy: 0.9908
+    Macro F1: 0.9916
+    Avg Confidence: 0.9957
+    Confidence when correct: 0.9967
+    Confidence when wrong: 0.8890
+    Num wrong: 3
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.9920
+    Expected Calibration Error: 0.0069
+
+================================================================================
+SEED 123
+================================================================================
+  Training data: 2837 samples (all synthetic)
+  Test data: 326 samples (real)
+  Training with seed 123...
+    Epoch 20/200, Loss: 0.0685, Patience: 2/30
+    Epoch 40/200, Loss: 0.0015, Patience: 0/30
+    Epoch 60/200, Loss: 0.0085, Patience: 20/30
+    Epoch 80/200, Loss: 0.0005, Patience: 1/30
+    Epoch 100/200, Loss: 0.0004, Patience: 21/30
+    Early stopping at epoch 109
+  Evaluating on test set...
+
+  Results for seed 123:
+    Accuracy: 0.9847
+    Macro F1: 0.9884
+    Avg Confidence: 0.9934
+    Confidence when correct: 0.9978
+    Confidence when wrong: 0.7127
+    Num wrong: 5
+    Top-3 Accuracy: 1.0000
+    Top-5 Accuracy: 1.0000
+    Confidence Gap (1st vs 2nd): 0.9880
+    Expected Calibration Error: 0.0088
+
+================================================================================
+SUMMARY ACROSS SEEDS
+================================================================================
+
+Accuracy:  0.9888 ± 0.0029
+Macro F1:  0.9915 ± 0.0025
+ECE:       0.0074 ± 0.0010
+
+Stability Check:
+  Accuracy range: 0.0061 (max - min)
+  F1 range: 0.0062 (max - min)
+  ✓ STABLE: Results are consistent across seeds (<2% variation)
+
+Calibration Check:
+  ✓ WELL CALIBRATED: ECE = 0.0074 < 0.05
+
+Generating visualizations...
+
+Saved confidence analysis plot to /home/cejason/sark/synthetic/confidence_analysis_tcn_results/confidence_analysis_tcn.png
+Saved calibration curve to /home/cejason/sark/synthetic/confidence_analysis_tcn_results/calibration_curve_tcn.png
+
+Results saved to /home/cejason/sark/synthetic/confidence_analysis_tcn_results/confidence_analysis_tcn_results.json
+
+================================================================================
+ANALYSIS COMPLETE
+================================================================================
+
+Check /home/cejason/sark/synthetic/confidence_analysis_tcn_results for:
+  - confidence_analysis_tcn.png (comparison across seeds)
+  - calibration_curve_tcn.png (calibration curve)
+  - confidence_analysis_tcn_results.json (detailed results)

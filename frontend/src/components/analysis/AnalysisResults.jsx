@@ -1,3 +1,5 @@
+import MeltingCurveChart from './MeltingCurveChart';
+
 // Display analysis results
 const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
     // Group completed jobs by batch
@@ -74,27 +76,38 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                                 {/* Top Prediction */}
                                                 <div className="text-center py-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
                                                     <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Top Prediction</p>
-                                                    <p className="text-2xl font-bold text-green-700 truncate px-2">{job.result.winner}</p>
+                                                    <p className="text-2xl font-bold text-green-700 truncate px-2">{job.result.predictions?.[0]?.species || 'Unknown'}</p>
                                                     <p className="text-xl font-bold text-green-600 mt-2">
                                                         {(
-                                                            (job.result.confidence || (job.result.topk?.[0]?.prob ?? 0)) * 100
+                                                            (job.result.predictions?.[0]?.confidence ?? 0) * 100
                                                         ).toFixed(1)}%
                                                     </p>
                                                 </div>
 
+                                                {/* Melting Curve Chart */}
+                                                {job.result.curve_data && (
+                                                    <div className="w-full" style={{ height: '200px' }}>
+                                                        <MeltingCurveChart
+                                                            frequencies={job.result.curve_data.frequencies}
+                                                            signal={job.result.curve_data.signal}
+                                                            predictedSpecies={job.result.predictions?.[0]?.species || 'Unknown'}
+                                                        />
+                                                    </div>
+                                                )}
+
                                                 {/* Top 5 Predictions */}
-                                                {job.result.topk && job.result.topk.length > 0 && (
+                                                {job.result.predictions && job.result.predictions.length > 0 && (
                                                     <div>
-                                                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">All Predictions</p>
+                                                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Top 5 Predictions</p>
                                                         <div className="space-y-2">
-                                                            {job.result.topk.map((pred, idx) => (
+                                                            {job.result.predictions.slice(0, 5).map((pred, idx) => (
                                                                 <div key={idx} className="space-y-1">
                                                                     <div className="flex items-center justify-between">
                                                                         <p className="text-xs font-medium text-gray-800 flex-1 truncate pr-2">
-                                                                            {idx + 1}. {pred.label}
+                                                                            {idx + 1}. {pred.species}
                                                                         </p>
                                                                         <p className="text-xs font-bold text-gray-700 whitespace-nowrap">
-                                                                            {(pred.prob * 100).toFixed(1)}%
+                                                                            {(pred.confidence * 100).toFixed(1)}%
                                                                         </p>
                                                                     </div>
                                                                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -105,7 +118,7 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                                                                 idx === 2 ? 'bg-purple-500' :
                                                                                 'bg-gray-400'
                                                                             }`}
-                                                                            style={{ width: `${pred.prob * 100}%` }}
+                                                                            style={{ width: `${pred.confidence * 100}%` }}
                                                                         />
                                                                     </div>
                                                                 </div>

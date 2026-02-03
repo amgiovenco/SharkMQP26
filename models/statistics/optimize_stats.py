@@ -1,6 +1,6 @@
 """
 Optimize Statistical model with proper 5-fold CV on train+val (80%)
-Baseline: 5-fold CV on 80%
+Baseline: 5-fold CV on 80% with fixed ExtraTrees params
 Optuna: 5-fold CV (train 4 folds → val 1 fold) → avg val acc
 Final model: train+val (80%) → test (20%)
 """
@@ -13,13 +13,12 @@ from scipy.signal import savgol_filter, find_peaks
 from scipy.stats import entropy
 from scipy.fft import fft
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 import optuna
-import lightgbm as lgb
-import xgboost as xgb
+from optuna.storages import RDBStorage
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -27,10 +26,17 @@ warnings.filterwarnings('ignore')
 CSV_PATH = "../../data/shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 100
+N_TRIALS = 500
 N_CV_FOLDS = 5
-results_dir = Path("results")
-results_dir.mkdir(exist_ok=True)
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
+
+# Optuna persistent storage
+STORAGE_PATH = RESULTS_DIR / "optuna_studies"
+STORAGE_PATH.mkdir(exist_ok=True)
+STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
+storage = RDBStorage(STORAGE_URL)
 
 TOP_FEATURES = [
     'peak_max_x', 'max_slope', 'y_middle_std', 'mean_abs_curvature',
@@ -116,8 +122,6 @@ def extract_features(x, y):
         feat[f"fft_power_{i}"] = float(fft_power[idx])
     feat["fft_total_power"] = float(np.sum(fft_power))
     feat["fft_entropy"] = float(entropy(fft_power + 1e-10))
-    feat["cv"] = feat["std"] / (feat["mean"] + 1e-10)
-    feat["peak_to_mean_ratio"] = feat["max"] / (feat["mean"] + 1e-10)
     return feat
 
 print("Extracting features...")
@@ -153,119 +157,85 @@ cv = StratifiedKFold(n_splits=N_CV_FOLDS, shuffle=True, random_state=RANDOM_STAT
 
 # ============================= BASELINE: 5-FOLD CV ON TRAIN+VAL =============================
 print("\n" + "="*60)
-print("BASELINE: Random Forest (5-fold CV on 80%)")
+print("BASELINE: ExtraTrees (5-fold CV on 80%)")
 print("="*60)
 
-base_rf = RandomForestClassifier(
-    n_estimators=800,
-    random_state=RANDOM_STATE,
-    class_weight="balanced_subsample",
+base_et = ExtraTreesClassifier(
+    n_estimators=1700,
     max_depth=None,
+    min_samples_split=9,
     min_samples_leaf=1,
-    n_jobs=-1
+    max_features=0.7,
+    class_weight='balanced',
+    random_state=RANDOM_STATE,
+    n_jobs=8
 )
 
 fold_scores = []
 for train_idx, val_idx in cv.split(X_train_val, y_train_val):
     X_tr, X_va = X_train_val[train_idx], X_train_val[val_idx]
     y_tr, y_va = y_train_val[train_idx], y_train_val[val_idx]
-    base_rf.fit(X_tr, y_tr)
-    fold_scores.append(accuracy_score(y_va, base_rf.predict(X_va)))
+    base_et.fit(X_tr, y_tr)
+    fold_scores.append(f1_score(y_va, base_et.predict(X_va), average='macro'))
 
 base_cv_mean = np.mean(fold_scores)
 base_cv_std = np.std(fold_scores)
 print(f"Fold scores: {[f'{s:.4f}' for s in fold_scores]}")
-print(f"Mean CV accuracy: {base_cv_mean:.4f} ± {base_cv_std:.4f}")
+print(f"Mean CV macro F1: {base_cv_mean:.4f} ± {base_cv_std:.4f}")
 
 # Also fit on full train+val for final test eval
-base_rf.fit(X_train_val, y_train_val)
-base_test_score = accuracy_score(y_test, base_rf.predict(X_test))
-print(f"Test accuracy (baseline): {base_test_score:.4f}")
+base_et.fit(X_train_val, y_train_val)
+base_test_score = f1_score(y_test, base_et.predict(X_test), average='macro')
+print(f"Test macro F1 (baseline): {base_test_score:.4f}")
 
 best_overall_score = base_cv_mean
-best_overall_model = "baseline_rf"
+best_overall_model = "baseline_et"
 best_overall_params = {
-    "n_estimators": 800,
-    "class_weight": "balanced_subsample",
+    "n_estimators": 1700,
     "max_depth": None,
-    "min_samples_leaf": 1
+    "min_samples_split": 9,
+    "min_samples_leaf": 1,
+    "max_features": 0.7,
+    "class_weight": "balanced"
 }
 
 # ============================= OPTUNA: 5-FOLD CV ON TRAIN+VAL =============================
 def create_objective(model_cls, is_xgb=False):
     def objective(trial):
-        if model_cls == RandomForestClassifier:
-            params = {
-                'n_estimators': trial.suggest_int('rf_n_estimators', 500, 2000, step=100),
-                'max_depth': trial.suggest_categorical('rf_max_depth', [None, 20, 30, 40, 50]),
-                'min_samples_split': trial.suggest_int('rf_min_samples_split', 2, 20),
-                'min_samples_leaf': trial.suggest_int('rf_min_samples_leaf', 1, 10),
-                'max_features': trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', 0.5, 0.7]),
-                'class_weight': trial.suggest_categorical('rf_class_weight', ['balanced', 'balanced_subsample']),
-                'random_state': RANDOM_STATE,
-                'n_jobs': -1
-            }
-        elif model_cls == ExtraTreesClassifier:
-            params = {
-                'n_estimators': trial.suggest_int('et_n_estimators', 500, 2000, step=100),
-                'max_depth': trial.suggest_categorical('et_max_depth', [None, 20, 30, 40, 50]),
-                'min_samples_split': trial.suggest_int('et_min_samples_split', 2, 20),
-                'min_samples_leaf': trial.suggest_int('et_min_samples_leaf', 1, 10),
-                'max_features': trial.suggest_categorical('et_max_features', ['sqrt', 'log2', 0.5, 0.7]),
-                'class_weight': trial.suggest_categorical('et_class_weight', ['balanced', 'balanced_subsample']),
-                'random_state': RANDOM_STATE,
-                'n_jobs': -1
-            }
-        elif model_cls == lgb.LGBMClassifier:
-            params = {
-                'n_estimators': trial.suggest_int('lgb_n_estimators', 300, 1500, step=100),
-                'max_depth': trial.suggest_int('lgb_max_depth', 3, 12),
-                'learning_rate': trial.suggest_float('lgb_learning_rate', 0.01, 0.3, log=True),
-                'num_leaves': trial.suggest_int('lgb_num_leaves', 20, 150),
-                'subsample': trial.suggest_float('lgb_subsample', 0.6, 1.0),
-                'colsample_bytree': trial.suggest_float('lgb_colsample_bytree', 0.6, 1.0),
-                'min_child_samples': trial.suggest_int('lgb_min_child_samples', 5, 50),
-                'reg_alpha': trial.suggest_float('lgb_reg_alpha', 1e-8, 10.0, log=True),
-                'reg_lambda': trial.suggest_float('lgb_reg_lambda', 1e-8, 10.0, log=True),
-                'random_state': RANDOM_STATE,
-                'verbose': -1,
-                'n_jobs': -1
-            }
-        elif model_cls == xgb.XGBClassifier:
-            params = {
-                'n_estimators': trial.suggest_int('xgb_n_estimators', 300, 1500, step=100),
-                'max_depth': trial.suggest_int('xgb_max_depth', 3, 12),
-                'learning_rate': trial.suggest_float('xgb_learning_rate', 0.01, 0.3, log=True),
-                'subsample': trial.suggest_float('xgb_subsample', 0.6, 1.0),
-                'colsample_bytree': trial.suggest_float('xgb_colsample_bytree', 0.6, 1.0),
-                'min_child_weight': trial.suggest_int('xgb_min_child_weight', 1, 10),
-                'reg_alpha': trial.suggest_float('xgb_reg_alpha', 1e-8, 10.0, log=True),
-                'reg_lambda': trial.suggest_float('xgb_reg_lambda', 1e-8, 10.0, log=True),
-                'random_state': RANDOM_STATE,
-                'verbosity': 0,
-                'n_jobs': -1
-            }
+        params = {
+            'n_estimators': trial.suggest_int('et_n_estimators', 800, 3000, step=100),
+            'max_depth': trial.suggest_categorical('et_max_depth', [None, 20, 30, 40, 50, 60, 80]),
+            'min_samples_split': trial.suggest_int('et_min_samples_split', 2, 20),
+            'min_samples_leaf': trial.suggest_int('et_min_samples_leaf', 1, 10),
+            'max_features': trial.suggest_categorical('et_max_features', ['sqrt', 'log2', 0.5, 0.6, 0.7, 0.8, 0.9]),
+            'class_weight': trial.suggest_categorical('et_class_weight', ['balanced', 'balanced_subsample']),
+            'bootstrap': trial.suggest_categorical('et_bootstrap', [True, False]),
+            'max_samples': trial.suggest_float('et_max_samples', 0.5, 1.0) if trial.params.get('et_bootstrap') else None,
+            'ccp_alpha': trial.suggest_float('et_ccp_alpha', 0.0, 0.05, step=0.001),
+            'random_state': RANDOM_STATE,
+            'n_jobs': 8
+        }
+
+        # Remove max_samples if bootstrap=False
+        if not params['bootstrap']:
+            params.pop('max_samples', None)
 
         val_scores = []
         for train_idx, val_idx in cv.split(X_train_val, y_train_val):
             X_tr, X_va = X_train_val[train_idx], X_train_val[val_idx]
-            y_tr = y_train_val_encoded[train_idx] if is_xgb else y_train_val[train_idx]
-            y_va = y_train_val_encoded[val_idx] if is_xgb else y_train_val[val_idx]
+            y_tr, y_va = y_train_val[train_idx], y_train_val[val_idx]
 
             clf = model_cls(**params)
             clf.fit(X_tr, y_tr)
             pred = clf.predict(X_va)
-            val_scores.append(accuracy_score(y_va, pred))
+            val_scores.append(f1_score(y_va, pred, average='macro'))
 
         return np.mean(val_scores)
     return objective
 
 # ============================= RUN OPTIMIZATION =============================
 models = [
-    ("Random Forest", RandomForestClassifier, False, "rf"),
-    ("ExtraTrees", ExtraTreesClassifier, False, "et"),
-    ("LightGBM", lgb.LGBMClassifier, False, "lgb"),
-    ("XGBoost", xgb.XGBClassifier, True, "xgb")
+    ("ExtraTrees", ExtraTreesClassifier, False, "et")
 ]
 
 for name, cls, is_xgb, prefix in models:
@@ -276,11 +246,16 @@ for name, cls, is_xgb, prefix in models:
     objective = create_objective(cls, is_xgb)
     study = optuna.create_study(
         direction='maximize',
-        sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE)
+        sampler=optuna.samplers.TPESampler(seed=RANDOM_STATE),
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=15),
+        storage=storage,
+        study_name=f"statistics_{prefix}",
+        load_if_exists=True
     )
+    print(f"Study: statistics_{prefix} | Completed trials: {len(study.trials)}")
     study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
 
-    print(f"Best {name} CV accuracy: {study.best_value:.4f}")
+    print(f"Best {name} CV macro F1: {study.best_value:.4f}")
     print(f"Best params: {study.best_params}")
 
     if study.best_value > best_overall_score:
@@ -293,42 +268,30 @@ print("\n" + "="*60)
 print("FINAL RESULTS")
 print("="*60)
 print(f"Best model: {best_overall_model}")
-print(f"Best CV accuracy (on 80%): {best_overall_score:.4f}")
+print(f"Best CV macro F1 (on 80%): {best_overall_score:.4f}")
 
 def clean_params(params, prefix):
     return {k[len(prefix)+1:] if k.startswith(prefix + '_') else k: v for k, v in params.items()}
 
 # Refit best model on full train+val
-if best_overall_model == "optimized_rf":
-    params = clean_params(best_overall_params, 'rf')
-    final_model = RandomForestClassifier(**params, n_jobs=-1)
-    final_model.fit(X_train_val, y_train_val)
-    test_score = accuracy_score(y_test, final_model.predict(X_test))
-elif best_overall_model == "optimized_extratrees":
+if best_overall_model == "baseline_et":
+    final_model = base_et
+    test_score = base_test_score
+elif best_overall_model == "optimized_et":
     params = clean_params(best_overall_params, 'et')
-    final_model = ExtraTreesClassifier(**params, n_jobs=-1)
+    final_model = ExtraTreesClassifier(**params, n_jobs=8)
     final_model.fit(X_train_val, y_train_val)
-    test_score = accuracy_score(y_test, final_model.predict(X_test))
-elif best_overall_model == "optimized_lightgbm":
-    params = clean_params(best_overall_params, 'lgb')
-    final_model = lgb.LGBMClassifier(**params, n_jobs=-1)
-    final_model.fit(X_train_val, y_train_val)
-    test_score = accuracy_score(y_test, final_model.predict(X_test))
-elif best_overall_model == "optimized_xgboost":
-    params = clean_params(best_overall_params, 'xgb')
-    final_model = xgb.XGBClassifier(**params, n_jobs=-1)
-    final_model.fit(X_train_val, y_train_val_encoded)
-    test_score = accuracy_score(y_test_encoded, final_model.predict(X_test))
+    test_score = f1_score(y_test, final_model.predict(X_test), average='macro')
 else:
-    final_model = base_rf
+    final_model = base_et
     test_score = base_test_score
 
-print(f"Test accuracy: {test_score:.4f}")
+print(f"Test macro F1: {test_score:.4f}")
 print(f"CV → Test gap: {(best_overall_score - test_score)*100:.2f} pp")
 
 # ============================= CALIBRATE & SAVE =============================
 calibrated_model = CalibratedClassifierCV(final_model, cv=3, method="isotonic")
-calibrated_model.fit(X_train_val, y_train_val if 'xgb' not in best_overall_model else y_train_val_encoded)
+calibrated_model.fit(X_train_val, y_train_val)
 
 bundle = {
     "model": calibrated_model,
@@ -339,9 +302,9 @@ bundle = {
     "params": clean_params(best_overall_params, best_overall_model.split('_')[1]) if 'optimized' in best_overall_model else best_overall_params
 }
 
-with open(results_dir / "statistics_final.pkl", 'wb') as f:
+with open(RESULTS_DIR / "statistics_final.pkl", 'wb') as f:
     pickle.dump(bundle, f)
-print(f"Saved model to {results_dir}/statistics_final.pkl")
+print(f"Saved model to {RESULTS_DIR / 'statistics_final.pkl'}")
 
 # ============================= EXPORT RESULTS =============================
 results_dict = {
@@ -361,9 +324,9 @@ results_dict = {
     }
 }
 
-with open("./optimization_results.json", 'w') as f:
+with open(RESULTS_DIR / "optimization_results.json", 'w') as f:
     json.dump(results_dict, f, indent=2)
-print("Saved results to ./optimization_results.json")
+print(f"Saved results to {RESULTS_DIR / 'optimization_results.json'}")
 
 # ============================= SUMMARY =============================
 print("\n" + "="*60)

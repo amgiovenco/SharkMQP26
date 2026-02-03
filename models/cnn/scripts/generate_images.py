@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 
 # Configuration
 CSV_FILE = '../../../data/shark_dataset.csv'
-OUTPUT_DIR = Path('../../../data/shark_images')
+OUTPUT_DIR = Path('../../../data/images')
 IMAGE_SIZE = (224, 224)
 DPI = 100
 
@@ -33,7 +33,7 @@ def generate_line_plot(time_values, signal_values, species_name, output_path):
     plt.close(fig)
 
 def main():
-    """Generate images from CSV dataset for use in training."""
+    """Generate images from CSV dataset."""
     print("Loading shark dataset...")
 
     csv_path = Path(CSV_FILE)
@@ -50,7 +50,7 @@ def main():
     time_values = np.array([float(col) for col in time_columns])
 
     print(f"Dataset shape: {df.shape}")
-    print(f"Number of species: {len(df)}")
+    print(f"Number of samples: {len(df)}")
     print(f"Time points: {len(time_values)}")
 
     # Get unique species
@@ -60,23 +60,21 @@ def main():
     # Create output directory
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Create subdirectory for each species
-    species_dirs = {}
-    for species in species_list:
-        species_dir = OUTPUT_DIR / species.replace(' ', '_').replace('/', '_')
-        species_dir.mkdir(parents=True, exist_ok=True)
-        species_dirs[species] = species_dir
-
     print(f"\nGenerating images...")
 
-    # Generate images for each sample
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating images"):
+    # Generate images for all samples
+    for idx in tqdm(range(len(df)), desc="Creating images"):
+        row = df.iloc[idx]
         species = row['Species']
         signal_values = row[time_columns].values.astype(float)
 
-        # Create filename
+        # Create class subfolder for this species
         species_clean = species.replace(' ', '_').replace('/', '_')
-        output_path = species_dirs[species] / f"{species_clean}_{idx:04d}.png"
+        species_dir = OUTPUT_DIR / species_clean
+        species_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create filename inside class subfolder
+        output_path = species_dir / f"{idx:04d}.png"
 
         # Generate the plot
         generate_line_plot(time_values, signal_values, species, output_path)
@@ -84,14 +82,15 @@ def main():
     print(f"\nImage generation complete!")
     print(f"Images saved to: {OUTPUT_DIR.absolute()}")
 
-    # Print summary
+    # Print summary statistics
     print(f"\nSummary:")
-    for species in species_list[:10]:  # Show first 10
-        species_dir = species_dirs[species]
-        count = len(list(species_dir.glob('*.png')))
+    print(f"  Total images: {len(df)}")
+    print(f"\nBreakdown by species:")
+    for species in sorted(species_list):
+        species_clean = species.replace(' ', '_').replace('/', '_')
+        species_dir = OUTPUT_DIR / species_clean
+        count = len(list(species_dir.glob("*.png"))) if species_dir.exists() else 0
         print(f"  {species}: {count} images")
-    if len(species_list) > 10:
-        print(f"  ... and {len(species_list) - 10} more species")
 
 if __name__ == '__main__':
     main()

@@ -6,10 +6,12 @@ import { usePredictionStore } from '../stores/predictionStore';
 import { useJobStatusListener } from '../components/analysis/useJobStatusListener';
 import AnalysisResults from '../components/analysis/AnalysisResults';
 import FileUploader from '../components/analysis/FileUploader';
+import { usePermissions } from '../hooks/usePermissions';
 
 const AnalysisPage = () => {
     const { cases, addCase } = useCasesStore();
     const { addPrediction } = usePredictionStore();
+    const { canCreateCase } = usePermissions();
 
     // Step state: 'select-case' | 'upload-files' | 'processing' | 'results'
     const [step, setStep] = useState('select-case');
@@ -295,13 +297,19 @@ const AnalysisPage = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : canCreateCase ? (
                         <button
                             onClick={() => setIsCreatingCase(true)}
                             className="mb-8 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
                         >
                             + Create New Case
                         </button>
+                    ) : (
+                        <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-yellow-800">
+                                You don't have permission to create cases. Please contact your organization admin.
+                            </p>
+                        </div>
                     )}
 
                     {cases.length > 0 ? (
@@ -425,7 +433,7 @@ const AnalysisPage = () => {
                     {/* Overall Progress Summary */}
                     <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
                         {(() => {
-                            const completed = processingJobs.filter(j => j.status === 'completed').length;
+                            const completed = completedJobs.length;
                             const running = processingJobs.filter(j => j.status === 'running').length;
                             const queued = processingJobs.filter(j => j.status === 'queued').length;
                             const progress = totalSamplesCount > 0 ? (completed / totalSamplesCount) * 100 : 0;
@@ -522,8 +530,8 @@ const AnalysisPage = () => {
                                                     <p>Sample {sampleIdx + 1}</p>
                                                     {isCompleted && (
                                                         <div className="mt-1">
-                                                            <p className="text-xs font-semibold truncate">{job.result?.winner || 'Unknown'}</p>
-                                                            <p className="text-xs opacity-75">{(job.result?.confidence * 100 || 0).toFixed(0)}%</p>
+                                                            <p className="text-xs font-semibold truncate">{job.result?.predictions?.[0]?.species || 'Unknown'}</p>
+                                                            <p className="text-xs opacity-75">{(job.result?.predictions?.[0]?.confidence * 100 || 0).toFixed(0)}%</p>
                                                         </div>
                                                     )}
                                                     {isRunning && (

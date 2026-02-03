@@ -1,4 +1,4 @@
-import Plot from 'react-plotly.js';
+import Plotly from 'react-plotly.js';
 
 const MeltingCurveChart = ({ frequencies, signal, predictedSpecies }) => {
     // Handle missing data
@@ -19,7 +19,7 @@ const MeltingCurveChart = ({ frequencies, signal, predictedSpecies }) => {
             color: '#2E86AB',
             width: 2,
         },
-        hovertemplate: '<b>%{x:.2f}</b><br>Signal: %{y:.4f}<extra></extra>',
+        hovertemplate: '<b>%{x:.2f}°C</b><br>Fluorescence: %{y:.4f}<extra></extra>',
     };
 
     const layout = {
@@ -28,13 +28,13 @@ const MeltingCurveChart = ({ frequencies, signal, predictedSpecies }) => {
             font: { size: 12 },
         },
         xaxis: {
-            title: 'Frequency',
+            title: 'Temperature (°C)',
             showgrid: true,
             gridwidth: 1,
             gridcolor: '#e5e7eb',
         },
         yaxis: {
-            title: 'Signal',
+            title: 'Fluorescence',
             showgrid: true,
             gridwidth: 1,
             gridcolor: '#e5e7eb',
@@ -53,7 +53,7 @@ const MeltingCurveChart = ({ frequencies, signal, predictedSpecies }) => {
 
     return (
         <div className="w-full h-48">
-            <Plot
+            <Plotly
                 data={[trace]}
                 layout={layout}
                 config={config}

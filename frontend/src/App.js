@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import MainLayout from "./utility/MainLayout";
 import ProtectedRoute from "./utility/ProtectedRoute";
 import { useInitializeApp } from "./hooks/useInitializeApp";
@@ -13,6 +14,7 @@ import AnalysisPage from "./pages/AnalysisPage";
 import AnalysisHistoryPage from "./pages/AnalysisHistoryPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import AccountPage from "./pages/AccountPage";
+import { TeamManagementPage } from "./pages/TeamManagementPage";
 
 const App = () => {
     // Initialize app on mount - fetches fresh user data and cases
@@ -20,6 +22,30 @@ const App = () => {
 
     return (
         <div className="App h-full">
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: '#363636',
+                        color: '#fff',
+                    },
+                    success: {
+                        duration: 3000,
+                        iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#fff',
+                        },
+                    },
+                    error: {
+                        duration: 5000,
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                        },
+                    },
+                }}
+            />
             <Routes>
                 {/* Public (no navbar) */}
                 <Route path="/" element={<LoginPage />} />
@@ -76,6 +102,15 @@ const App = () => {
                     element={
                     <ProtectedRoute>
                         <AccountPage />
+                    </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/team"
+                    element={
+                    <ProtectedRoute>
+                        <TeamManagementPage />
                     </ProtectedRoute>
                     }
                 />

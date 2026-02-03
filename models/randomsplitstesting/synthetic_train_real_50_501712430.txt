@@ -1,0 +1,265 @@
+Loading python/3.10.16/gokvai4
+  Loading requirement: gcc-runtime/13.2.0/yimvxxm bzip2/1.0.8/itttwfv
+    gcc-runtime/13.2.0/s3f7i6x libmd/1.0.4/ngvfltj libbsd/0.12.1/6of6olc
+    expat/2.6.2/zoq445h ncurses/6.4/zqsx2w2 readline/8.2/hmsgdsx
+    gdbm/1.23/gtrssid libiconv/1.17/pmxhi4x xz/5.4.6/uxouxrg
+    zlib-ng/2.1.5/uctcqfl libxml2/2.10.3/vdqe2g3 pigz/2.8/pmmdaqf
+    zstd/1.5.5/juuobg2 tar/1.34/5prin2y gettext/0.22.4/iy5z4el
+    libffi/3.4.4/vqf2avv libxcrypt/4.4.35/vng2vef openssl/3.4.0/pholr53
+    sqlite/3.43.2/o22u32h util-linux-uuid/2.38.1/2x7vfxr
+Loading numpy...
+Loading pandas...
+Loading matplotlib...
+Loading PIL...
+Loading scipy...
+Loading torch...
+Loading torchvision...
+/home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: 'Could not load this library: /home/cejason/sark/.venv/lib/python3.10/site-packages/torchvision/image.so'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+Loading sklearn...
+All imports loaded successfully!
+Setting random seeds...
+================================================================================
+ENSEMBLE SYNTHETIC DATA TRAINING WITH 5-FOLD CV
+================================================================================
+Device: cuda
+GPU: Tesla V100-PCIE-32GB
+Random Seed: 8
+Output Directory: /home/cejason/sark/synthetic/ensemble_synthetic_cv_results
+Synthetic per species: 50
+CV Folds: 5
+================================================================================
+
+
+Loading data...
+Real data: 651 samples, 57 species
+Splitting real data 50/50...
+  Validation set (for CV): 325 samples
+  Test set (hold-out): 326 samples
+
+Loading synthetic data...
+  Loaded Arabian smooth-hound: 50 samples
+  Loaded Atlantic Sharpnose shark: 50 samples
+  Loaded Blackchin guitarfish: 50 samples
+  Loaded Blacknose shark: 50 samples
+  Loaded Blackspotted smooth-hound: 50 samples
+  Loaded Blacktip reef shark: 50 samples
+  Loaded Blacktip shark: 49 samples
+  Loaded Blue shark: 50 samples
+  Loaded Bonnethead shark: 50 samples
+  Loaded Bowmouth guitarfish: 50 samples
+  Loaded Brownbanded bamboo shark: 50 samples
+  Loaded Bull shark: 42 samples
+  Loaded Caribbean reef shark: 50 samples
+  Loaded Common thresher shark: 50 samples
+  Loaded Copper shark: 50 samples
+  Loaded Dusky shark: 50 samples
+  Loaded Finetooth shark: 50 samples
+  Loaded Great hammerhead shark: 50 samples
+  Loaded Great white shark: 50 samples
+  Loaded Grey reef shark: 46 samples
+  Loaded Gulper shark: 50 samples
+  Loaded Gummy shark: 50 samples
+  Loaded Halavi guitarfish: 50 samples
+  Loaded Hooktooth shark: 50 samples
+  Loaded Japanese topeshark: 50 samples
+  Loaded Java shark: 50 samples
+  Loaded Lemon shark: 50 samples
+  Loaded Longtail stingray: 50 samples
+  Loaded Milk shark: 50 samples
+  Loaded Narrownose smooth-hound: 50 samples
+  Loaded Night shark: 50 samples
+  Loaded Nurse shark: 50 samples
+  Loaded Oceanic whitetip shark: 50 samples
+  Loaded Pacific bonnethead shark: 50 samples
+  Loaded Pacific guitarfish: 50 samples
+  Loaded Pacific smalltail shark: 50 samples
+  Loaded Pelagic thresher shark: 50 samples
+  Loaded Porbeagle shark: 50 samples
+  Loaded Roughskin dogfish: 50 samples
+  Loaded Sandbar shark: 50 samples
+  Loaded Sandtiger shark: 50 samples
+  Loaded Scalloped bonnethead shark: 50 samples
+  Loaded Scalloped hammerhead shark: 50 samples
+  Loaded Shortfin mako: 50 samples
+  Loaded Silky shark: 50 samples
+  Loaded Silvertip shark: 50 samples
+  Loaded Small tail shark: 50 samples
+  Loaded Smooth hammerhead shark: 50 samples
+  Loaded Spadenose stingray: 50 samples
+  Loaded Spinner shark: 50 samples
+  Loaded Spot-tail shark: 50 samples
+  Loaded Spotted Eagleray: 50 samples
+  Loaded Thornback ray: 50 samples
+  Loaded Tiger shark: 50 samples
+  Loaded Tope shark: 50 samples
+  Loaded Whitecheeck shark: 50 samples
+  Loaded Zebra shark: 50 samples
+Creating synthetic training set...
+Synthetic training set: 2837 samples
+Number of classes: 57
+
+================================================================================
+TRAINING ALL 3 MODELS
+================================================================================
+
+================================================================================
+CNN (EfficientNet-B0)
+================================================================================
+Pregenerating synthetic images...
+Pregenerating 2837 CNN images...
+  Generated 50/2837 images
+  Generated 100/2837 images
+  Generated 150/2837 images
+  Generated 200/2837 images
+  Generated 250/2837 images
+  Generated 300/2837 images
+  Generated 350/2837 images
+  Generated 400/2837 images
+  Generated 450/2837 images
+  Generated 500/2837 images
+  Generated 550/2837 images
+  Generated 600/2837 images
+  Generated 650/2837 images
+  Generated 700/2837 images
+  Generated 750/2837 images
+  Generated 800/2837 images
+  Generated 850/2837 images
+  Generated 900/2837 images
+  Generated 950/2837 images
+  Generated 1000/2837 images
+  Generated 1050/2837 images
+  Generated 1100/2837 images
+  Generated 1150/2837 images
+  Generated 1200/2837 images
+  Generated 1250/2837 images
+  Generated 1300/2837 images
+  Generated 1350/2837 images
+  Generated 1400/2837 images
+  Generated 1450/2837 images
+  Generated 1500/2837 images
+  Generated 1550/2837 images
+  Generated 1600/2837 images
+  Generated 1650/2837 images
+  Generated 1700/2837 images
+  Generated 1750/2837 images
+  Generated 1800/2837 images
+  Generated 1850/2837 images
+  Generated 1900/2837 images
+  Generated 1950/2837 images
+  Generated 2000/2837 images
+  Generated 2050/2837 images
+  Generated 2100/2837 images
+  Generated 2150/2837 images
+  Generated 2200/2837 images
+  Generated 2250/2837 images
+  Generated 2300/2837 images
+  Generated 2350/2837 images
+  Generated 2400/2837 images
+  Generated 2450/2837 images
+  Generated 2500/2837 images
+  Generated 2550/2837 images
+  Generated 2600/2837 images
+  Generated 2650/2837 images
+  Generated 2700/2837 images
+  Generated 2750/2837 images
+  Generated 2800/2837 images
+All 2837 images cached!
+Pregenerating validation images...
+Pregenerating 325 CNN images...
+  Generated 50/325 images
+  Generated 100/325 images
+  Generated 150/325 images
+  Generated 200/325 images
+  Generated 250/325 images
+  Generated 300/325 images
+All 325 images cached!
+Pregenerating test images...
+Pregenerating 326 CNN images...
+  Generated 50/326 images
+  Generated 100/326 images
+  Generated 150/326 images
+  Generated 200/326 images
+  Generated 250/326 images
+  Generated 300/326 images
+All 326 images cached!
+
+Training...
+  Epoch 20: Val F1=0.9848
+  Epoch 40: Val F1=0.9761
+  Stopped at epoch 56 (patience)
+
+================================================================================
+CNN RESULTS
+================================================================================
+Validation Set:
+  Accuracy: 0.9877
+  Precision (Macro): 0.9870
+  Recall (Macro): 0.9810
+  F1-Score (Macro): 0.9817
+  F1-Score (Weighted): 0.9874
+
+Test Set:
+  Accuracy: 0.9969
+  Precision (Macro): 0.9956
+  Recall (Macro): 0.9981
+  F1-Score (Macro): 0.9965
+  F1-Score (Weighted): 0.9971
+================================================================================
+
+================================================================================
+TCN (Temporal Convolutional Network)
+================================================================================
+Training...
+  Epoch 20: Val F1=0.9950
+  Epoch 40: Val F1=0.9669
+  Epoch 60: Val F1=0.9900
+  Stopped at epoch 75 (patience)
+
+================================================================================
+TCN RESULTS
+================================================================================
+Validation Set:
+  Accuracy: 0.9877
+  Precision (Macro): 0.9860
+  Recall (Macro): 0.9959
+  F1-Score (Macro): 0.9900
+  F1-Score (Weighted): 0.9880
+
+Test Set:
+  Accuracy: 0.9969
+  Precision (Macro): 0.9981
+  Recall (Macro): 0.9988
+  F1-Score (Macro): 0.9984
+  F1-Score (Weighted): 0.9970
+================================================================================
+
+================================================================================
+STATISTICS (ExtraTrees)
+================================================================================
+Training...
+
+================================================================================
+STATISTICS RESULTS
+================================================================================
+Validation Set:
+  Accuracy: 0.9846
+  Precision (Macro): 0.9855
+  Recall (Macro): 0.9913
+  F1-Score (Macro): 0.9876
+  F1-Score (Weighted): 0.9848
+
+Test Set:
+  Accuracy: 0.9877
+  Precision (Macro): 0.9877
+  Recall (Macro): 0.9908
+  F1-Score (Macro): 0.9879
+  F1-Score (Weighted): 0.9880
+================================================================================
+
+================================================================================
+FINAL SUMMARY
+================================================================================
+
+Results saved to /home/cejason/sark/synthetic/ensemble_synthetic_cv_results/results.json
+================================================================================

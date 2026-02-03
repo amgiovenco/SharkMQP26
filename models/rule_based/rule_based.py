@@ -125,9 +125,9 @@ def engineer_features(X_raw: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 # 3) Train a quick baseline
 # ----------------------------
 
-def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "et", seed: int = 8):
+def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "rf", seed: int = 8):
     """
-    Train ExtraTreesClassifier (optimized), RF, or LR on engineered features.
+    Train RandomForestClassifier (optimized), ExtraTreesClassifier, or LR on engineered features.
     Splits: 60% train, 20% val, 20% test (stratified).
     """
     le = LabelEncoder()
@@ -140,8 +140,26 @@ def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "et", seed: int 
         Xtr_te, ytr_te, test_size=0.25, random_state=seed, stratify=ytr_te
     )  # 0.25 of 0.8 = 0.2
 
-    if model == "et":
-        # Optimized ExtraTreesClassifier with best hyperparameters
+    if model == "rf":
+        # Optimized RandomForestClassifier with best hyperparameters (cv_macro_f1: 0.9292)
+        clf = make_pipeline(
+            StandardScaler(),
+            RandomForestClassifier(
+                n_estimators=800,
+                max_depth=20,
+                min_samples_split=5,
+                min_samples_leaf=1,
+                max_features=0.8,
+                class_weight="balanced_subsample",
+                criterion="gini",
+                bootstrap=False,
+                ccp_alpha=0.005,
+                warm_start=False,
+                random_state=seed,
+                n_jobs=-1
+            )
+        )
+    elif model == "et":
         clf = make_pipeline(
             StandardScaler(),
             ExtraTreesClassifier(
@@ -149,16 +167,6 @@ def train_baseline(Xf: pd.DataFrame, y: pd.Series, model: str = "et", seed: int 
                 min_samples_leaf=1,
                 max_depth=15,
                 max_features=None,
-                random_state=seed,
-                n_jobs=-1
-            )
-        )
-    elif model == "rf":
-        clf = make_pipeline(
-            StandardScaler(),
-            RandomForestClassifier(
-                n_estimators=300,
-                min_samples_leaf=2,
                 random_state=seed,
                 n_jobs=-1
             )
@@ -408,19 +416,27 @@ if __name__ == "__main__":
             X_test_scaled = scaler.transform(X_test)
 
             # Model
-            if args.model == "et":
+            if args.model == "rf":
+                clf = RandomForestClassifier(
+                    n_estimators=800,
+                    max_depth=20,
+                    min_samples_split=5,
+                    min_samples_leaf=1,
+                    max_features=0.8,
+                    class_weight="balanced_subsample",
+                    criterion="gini",
+                    bootstrap=False,
+                    ccp_alpha=0.005,
+                    warm_start=False,
+                    random_state=8,
+                    n_jobs=-1
+                )
+            elif args.model == "et":
                 clf = ExtraTreesClassifier(
                     n_estimators=790,
                     min_samples_leaf=1,
                     max_depth=15,
                     max_features=None,
-                    random_state=8,
-                    n_jobs=-1
-                )
-            elif args.model == "rf":
-                clf = RandomForestClassifier(
-                    n_estimators=300,
-                    min_samples_leaf=2,
                     random_state=8,
                     n_jobs=-1
                 )

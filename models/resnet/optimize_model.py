@@ -9,41 +9,98 @@ import json
 from pathlib import Path
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import f1_score
 import optuna
 from optuna.storages import RDBStorage
 import warnings
 warnings.filterwarnings('ignore')
 
-try:
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from torch.utils.data import DataLoader, TensorDataset
-    TORCH_AVAILABLE = True
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {DEVICE}")
-    if torch.cuda.is_available():
-        print(f"CUDA device: {torch.cuda.get_device_name(0)}")
-        # Optional: enable cuDNN benchmark for faster convolutions
-        torch.backends.cudnn.benchmark = True
-except ImportError:
-    TORCH_AVAILABLE = False
-    DEVICE = None
-    print("PyTorch not available!")
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
+if torch.cuda.is_available():
+    print(f"CUDA device: {torch.cuda.get_device_name(0)}")
 
 # Config
-CSV_PATH = "../../data/shark_dataset.csv"
+DATA_DIR = Path(__file__).parent.parent / "data"
+CSV_PATH = DATA_DIR / "shark_dataset.csv"
 SPECIES_COL = "Species"
 RANDOM_STATE = 8
-N_TRIALS = 200
-NUM_EPOCHS = 100
+torch.manual_seed(RANDOM_STATE)
+np.random.seed(RANDOM_STATE)
+N_TRIALS = 300
+NUM_EPOCHS = 150
 PATIENCE = 15
+
+# Output directory for results
+RESULTS_DIR = Path(__file__).parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
 
 # Optuna persistent storage
 STUDY_NAME = "resnet1d"
-STORAGE_PATH = Path("./optuna_studies")
+STORAGE_PATH = RESULTS_DIR / "optuna_studies"
 STORAGE_PATH.mkdir(exist_ok=True)
 STORAGE_URL = f"sqlite:///{STORAGE_PATH}/optuna_studies.db"
+
+# Custom Dataset Class with Augmentation
+class SharkFluorescenceDataset(Dataset):
+    """Custom dataset for shark fluorescence data with optional augmentation."""
+    def __init__(self, data_df, augment=False, mean=None, std=None):
+        # Extract species names (labels) from first column
+        self.species = data_df.iloc[:, 0].values
+
+        # Extract fluorescence values (all columns except first)
+        # Shape: (num_samples, num_time_steps)
+        self.fluorescence = data_df.iloc[:, 1:].values.astype(np.float32)
+
+        # Normalization
+        if mean is None or std is None:
+            # Calculate mean and std from this data (for training set)
+            self.mean = self.fluorescence.mean()
+            self.std = self.fluorescence.std()
+        else:
+            # Use provided mean and std (for val/test sets)
+            self.mean = mean
+            self.std = std
+
+        # Apply normalization: (x - mean) / std
+        self.fluorescence = (self.fluorescence - self.mean) / (self.std + 1e-8)
+
+        # Encode species names to numeric labels
+        self.label_encoder = LabelEncoder()
+        self.labels = self.label_encoder.fit_transform(self.species)
+
+        self.num_classes = len(self.label_encoder.classes_)
+        self.augment = augment
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        # Get fluorescence values and add channel dimension
+        # Shape: (1, num_time_steps) - 1D conv expects (channels, length)
+        x = torch.FloatTensor(self.fluorescence[idx]).unsqueeze(0)
+
+        # Apply augmentation if enabled
+        if self.augment:
+            # Small random noise
+            noise = torch.randn_like(x) * 0.01
+            x = x + noise
+            # Random scaling
+            scale = 1 + torch.FloatTensor([np.random.uniform(-0.05, 0.05)])
+            x = x * scale
+            # Random shift along time axis (small horizontal shift)
+            shift = np.random.randint(-5, 6)
+            if shift != 0:
+                x = torch.roll(x, shifts=shift, dims=1)
+
+        # Get label
+        y = torch.LongTensor([self.labels[idx]])[0]
+
+        return x, y
 
 # ResNet1D model (from predict_resnet.py)
 class ResidualBlock1D(nn.Module):
@@ -61,18 +118,26 @@ class ResidualBlock1D(nn.Module):
 
     def forward(self, x):
         identity = x
-        out = self.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
         if self.downsample is not None:
             identity = self.downsample(x)
+
         out += identity
-        out = self.relu(out)
+        out = self.relu(out)  # ReLU AFTER addition (critical)
+
         return out
 
 
 class ResNet1D(nn.Module):
     """1d residual network for sequence processing."""
-    def __init__(self, num_classes, input_channels=1, initial_filters=64, dropout=0.5):
+    def __init__(self, num_classes, input_channels=1, initial_filters=64, dropout=0.65):
         super(ResNet1D, self).__init__()
         self.conv1 = nn.Conv1d(input_channels, initial_filters, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm1d(initial_filters)
@@ -99,42 +164,57 @@ class ResNet1D(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        x = self.dropout(x)  # Dropout before FC layer (critical)
         x = self.fc(x)
         return x
 
 
-def train_resnet(X, y, initial_filters, dropout, learning_rate, batch_size, weight_decay):
-    """Train ResNet1D with early stopping."""
+def train_resnet(initial_filters, dropout, learning_rate, batch_size, weight_decay):
+    """Train ResNet1D with early stopping using per-fold normalization."""
+    # Load data
+    df = pd.read_csv(CSV_PATH)
+    y = df.iloc[:, 0].astype(str)
+    X_raw = df.iloc[:, 1:]
+
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
+    num_classes = len(np.unique(y_encoded))
 
     # Create stratified k-fold splits for CV
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
     fold_scores = []
 
-    X_tensor = torch.FloatTensor(X).to(DEVICE)
-    y_tensor = torch.LongTensor(y_encoded).to(DEVICE)
+    for train_idx, val_idx in skf.split(X_raw, y_encoded):
+        # Split data by fold indices
+        train_df = pd.concat([y.iloc[train_idx], X_raw.iloc[train_idx]], axis=1)
+        val_df = pd.concat([y.iloc[val_idx], X_raw.iloc[val_idx]], axis=1)
 
-    for train_idx, val_idx in skf.split(X, y_encoded):
-        X_train = X_tensor[train_idx]
-        y_train = y_tensor[train_idx]
-        X_val = X_tensor[val_idx]
-        y_val = y_tensor[val_idx]
+        # Create datasets with per-fold normalization (no data leakage)
+        train_dataset = SharkFluorescenceDataset(train_df, augment=True)
+        val_dataset = SharkFluorescenceDataset(
+            val_df,
+            augment=False,
+            mean=train_dataset.mean,
+            std=train_dataset.std
+        )
 
         # Create dataloaders
-        train_dataset = TensorDataset(X_train, y_train)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         # Model
         model = ResNet1D(
-            num_classes=len(np.unique(y_encoded)),
+            num_classes=num_classes,
             input_channels=1,
             initial_filters=initial_filters,
             dropout=dropout
@@ -151,36 +231,49 @@ def train_resnet(X, y, initial_filters, dropout, learning_rate, batch_size, weig
         criterion = nn.CrossEntropyLoss()
 
         # Early stopping
-        best_val_acc = 0.0
+        best_val_f1 = 0.0
         patience_counter = 0
         min_val_loss = float('inf')
 
-        for epoch in range(NUM_EPOCHS):
-            # Train
+        for _ in range(NUM_EPOCHS):
+            # === TRAIN EPOCH ===
             model.train()
             train_loss = 0.0
-            for X_batch, y_batch in train_loader:
+            for inputs, labels in train_loader:
+                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
                 optimizer.zero_grad()
-                outputs = model(X_batch)
-                loss = criterion(outputs, y_batch)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                train_loss += loss.item()
 
-            # Validate
+                train_loss += loss.item() * inputs.size(0)
+
+            train_loss /= len(train_dataset)
+
+            # === VALIDATION ===
             model.eval()
+            val_loss = 0.0
+            all_preds = []
+            all_labels = []
             with torch.no_grad():
-                outputs = model(X_val)
-                val_preds = torch.argmax(outputs, dim=1)
-                val_acc = (val_preds == y_val).float().mean().item()
-                val_loss = criterion(outputs, y_val).item()
+                for inputs, labels in val_loader:
+                    inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+                    outputs = model(inputs)
+                    loss = criterion(outputs, labels)
+                    val_loss += loss.item() * inputs.size(0)
+                    _, predicted = torch.max(outputs, 1)
+                    all_preds.extend(predicted.cpu().numpy())
+                    all_labels.extend(labels.cpu().numpy())
 
-            # Update learning rate based on validation loss
+            val_loss /= len(val_dataset)
+            val_f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
+
             scheduler.step(val_loss)
 
-            # Track best validation accuracy
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
+            # Track best validation F1 score
+            if val_f1 > best_val_f1:
+                best_val_f1 = val_f1
 
             # Early stopping based on validation loss
             if val_loss < min_val_loss:
@@ -192,40 +285,29 @@ def train_resnet(X, y, initial_filters, dropout, learning_rate, batch_size, weig
             if patience_counter >= PATIENCE:
                 break
 
-        fold_scores.append(best_val_acc)
+        fold_scores.append(best_val_f1)
 
     return np.mean(fold_scores)
 
 
-# Load data
-print("Loading data...")
-df = pd.read_csv(CSV_PATH)
-X_raw = df.drop(columns=[SPECIES_COL])
-y = df[SPECIES_COL].astype(str)
-
-# Normalize X
-X = (X_raw - X_raw.mean().values) / (X_raw.std().values + 1e-8)
-X = X.fillna(0).astype(np.float32).values
-X = np.expand_dims(X, axis=1)
-
-le = LabelEncoder()
-y_encoded = le.fit_transform(y)
-
-print(f"Data shape: {X.shape}")
-print(f"Classes: {len(np.unique(y_encoded))}")
-
 # Baseline
 print("\n" + "="*60)
-print("BASELINE: ResNet1D")
+print("BASELINE: ResNet1D (Macro F1 Score)")
 print("="*60)
 
-base_score = train_resnet(X, y, initial_filters=64, dropout=0.5, learning_rate=0.001, batch_size=32, weight_decay=0.0001)
-print(f"Baseline CV accuracy: {base_score:.4f}")
+base_score = train_resnet(
+    initial_filters=64,
+    dropout=0.65,
+    learning_rate=0.001,
+    batch_size=32,
+    weight_decay=0.0001
+)
+print(f"Baseline CV macro F1: {base_score:.4f}")
 
 best_overall_score = base_score
 best_overall_params = {
     "initial_filters": 64,
-    "dropout": 0.5,
+    "dropout": 0.65,
     "learning_rate": 0.001,
     "batch_size": 32,
     "weight_decay": 0.0001
@@ -239,12 +321,18 @@ def objective(trial):
     batch_size = trial.suggest_categorical('batch_size', [16, 32, 64, 128])
     weight_decay = trial.suggest_float('weight_decay', 1e-5, 1e-3, log=True)
 
-    cv_score = train_resnet(X, y, initial_filters, dropout, learning_rate, batch_size, weight_decay)
+    cv_score = train_resnet(
+        initial_filters=initial_filters,
+        dropout=dropout,
+        learning_rate=learning_rate,
+        batch_size=int(batch_size),
+        weight_decay=weight_decay
+    )
     return cv_score
 
 
 print("\n" + "="*60)
-print("OPTIMIZING: ResNet1D hyperparameters")
+print("OPTIMIZING: ResNet1D hyperparameters (Macro F1 Score)")
 print("="*60)
 
 storage = RDBStorage(STORAGE_URL)
@@ -258,7 +346,7 @@ study = optuna.create_study(
 print(f"Study: {STUDY_NAME} | Completed trials: {len(study.trials)}")
 study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
 
-print(f"\nBest CV accuracy: {study.best_value:.4f}")
+print(f"\nBest CV macro F1: {study.best_value:.4f}")
 print(f"Best params: {study.best_params}")
 
 if study.best_value > best_overall_score:
@@ -267,73 +355,87 @@ if study.best_value > best_overall_score:
 
 # Results
 print("\n" + "="*60)
-print("FINAL RESULTS")
+print("FINAL RESULTS (Macro F1 Score)")
 print("="*60)
-print(f"\nBest CV accuracy: {best_overall_score:.4f}")
+print(f"\nBest CV macro F1: {best_overall_score:.4f}")
 print(f"Best params: {best_overall_params}")
 print(f"Improvement over baseline: {(best_overall_score - base_score)*100:.2f}%")
 
 # Export results to JSON
 results_dict = {
-    "baseline_cv_accuracy": float(base_score),
+    "metric": "macro_f1_score",
+    "baseline_cv_macro_f1": float(base_score),
     "best_model": "resnet1d",
-    "best_cv_accuracy": float(best_overall_score),
+    "best_cv_macro_f1": float(best_overall_score),
     "best_params": {k: (float(v) if isinstance(v, (np.floating, np.integer)) else v) for k, v in best_overall_params.items()},
     "improvement_percentage": float((best_overall_score - base_score) * 100)
 }
 
-with open("./optimization_results.json", 'w') as f:
+with open(RESULTS_DIR / "optimization_results.json", 'w') as f:
     json.dump(results_dict, f, indent=2)
 
-print(f"\nSaved optimization results to ./optimization_results.json")
+print(f"\nSaved optimization results to {RESULTS_DIR / 'optimization_results.json'}")
 
 # Train final model on all data
 print("\n" + "="*60)
 print("Training final model on all data...")
 print("="*60)
 
-X_tensor = torch.FloatTensor(X).to(DEVICE)
-y_tensor = torch.LongTensor(y_encoded).to(DEVICE)
+# Load all data for final training
+df_final = pd.read_csv(CSV_PATH)
+y_all = df_final.iloc[:, 0].astype(str)
+X_all = df_final.iloc[:, 1:]
 
-train_dataset = TensorDataset(X_tensor, y_tensor)
-train_loader = DataLoader(train_dataset, batch_size=best_overall_params['batch_size'], shuffle=True)
+# Create dataset with augmentation on full data
+full_dataset = SharkFluorescenceDataset(df_final, augment=True)
+train_loader_final = DataLoader(
+    full_dataset,
+    batch_size=int(best_overall_params['batch_size']),
+    shuffle=True
+)
 
+# Create final model with best parameters
 final_model = ResNet1D(
-    num_classes=len(np.unique(y_encoded)),
+    num_classes=full_dataset.num_classes,
     input_channels=1,
-    initial_filters=best_overall_params['initial_filters'],
+    initial_filters=int(best_overall_params['initial_filters']),
     dropout=best_overall_params['dropout']
 ).to(DEVICE)
 
-optimizer = optim.Adam(final_model.parameters(), lr=best_overall_params['learning_rate'],
-                       weight_decay=best_overall_params['weight_decay'])
+optimizer = optim.Adam(
+    final_model.parameters(),
+    lr=best_overall_params['learning_rate'],
+    weight_decay=best_overall_params['weight_decay']
+)
 criterion = nn.CrossEntropyLoss()
 
-for epoch in range(NUM_EPOCHS):
+# Train for 200 epochs on full data
+for _ in range(200):
     final_model.train()
-    for X_batch, y_batch in train_loader:
+    for inputs, labels in train_loader_final:
+        inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
         optimizer.zero_grad()
-        outputs = final_model(X_batch)
-        loss = criterion(outputs, y_batch)
+        outputs = final_model(inputs)
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
 # Save model
-torch.save(final_model.state_dict(), "./resnet1d_optimized.pth")
+torch.save(final_model.state_dict(), RESULTS_DIR / "resnet1d_optimized.pth")
 
 bundle = {
     "model": final_model,
-    "label_encoder": le,
+    "label_encoder": full_dataset.label_encoder,
     "cv_accuracy": best_overall_score,
     "params": best_overall_params
 }
 
-joblib.dump(bundle, "./optimized_resnet_model.pkl")
-print(f"Saved optimized model to ./resnet1d_optimized.pth and ./optimized_resnet_model.pkl")
+joblib.dump(bundle, RESULTS_DIR / "optimized_resnet_model.pkl")
+print(f"Saved optimized model to {RESULTS_DIR / 'resnet1d_optimized.pth'} and {RESULTS_DIR / 'optimized_resnet_model.pkl'}")
 
 print("\n" + "="*60)
-print("SUMMARY")
+print("SUMMARY (Macro F1 Score)")
 print("="*60)
-print(f"Final CV accuracy: {best_overall_score:.4f}")
+print(f"Final CV macro F1: {best_overall_score:.4f}")
 print(f"Improvement: {(best_overall_score - base_score)*100:.2f}%")
 print("\nDone!")

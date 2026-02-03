@@ -1,0 +1,31 @@
+{
+  "logistic_regression": {
+    "train_accuracy": 0.9923076923076923,
+    "train_f1_macro": 0.989323160947875,
+    "holdout_accuracy": 1.0,
+    "holdout_f1_macro": 1.0,
+    "holdout_precision": 1.0,
+    "holdout_recall": 1.0,
+    "hyperparameters": {
+      "C": 5.04016517719054,
+      "max_iter": 404,
+      "solver": "saga"
+    },
+    "cv_score": 0.9619873547505126
+  },
+  "neural_network": {
+    "train_accuracy": 0.9923076923076923,
+    "train_f1_macro": 0.989323160947875,
+    "holdout_accuracy": 1.0,
+    "holdout_f1_macro": 1.0,
+    "holdout_precision": 1.0,
+    "holdout_recall": 1.0,
+    "hyperparameters": {
+      "hidden_dim": 384,
+      "learning_rate": 0.00016861349002244918,
+      "batch_size": 128,
+      "dropout_rate": 0.30000000000000004
+    },
+    "cv_score": 0.9731631055753862
+  }
+}

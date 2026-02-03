@@ -298,7 +298,7 @@ const CasePage = () => {
                                                     )}
                                                 </div>
                                                 <p className="font-medium text-sm mb-1">
-                                                    {job.file_path ? job.file_path.split('/').pop() : 'Unknown file'}
+                                                    {job.original_filename || (job.file_path ? job.file_path.split('/').pop() : 'Unknown file')}
                                                 </p>
                                             </div>
                                             <p className="text-xs text-gray-400 font-mono">

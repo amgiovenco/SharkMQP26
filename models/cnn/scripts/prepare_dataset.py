@@ -10,7 +10,6 @@ def prepare_dataset():
     Load pre-split dataset from data/ directory.
     Expected structure:
     - data/train/
-    - data/val/
     - data/test/
     Each containing species subdirectories with images.
     """
@@ -18,17 +17,16 @@ def prepare_dataset():
 
     # Check if splits exist in data/
     splits_found = []
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'test']:
         split_dir = DATA_DIR / split
         if split_dir.exists() and split_dir.is_dir():
             splits_found.append(split)
 
     if not splits_found:
         raise FileNotFoundError(
-            f"No train/val/test directories found in {DATA_DIR.absolute()}\n"
+            f"No train/test directories found in {DATA_DIR.absolute()}\n"
             f"Expected structure:\n"
             f"  {DATA_DIR}/train/\n"
-            f"  {DATA_DIR}/val/\n"
             f"  {DATA_DIR}/test/\n"
             f"Each containing species subdirectories with images."
         )
@@ -43,7 +41,7 @@ def prepare_dataset():
     all_classes = set()
 
     # Gather all classes from all splits
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'test']:
         split_dir = DATA_DIR / split
         if split_dir.exists():
             species_dirs = [d for d in split_dir.iterdir() if d.is_dir()]
@@ -54,7 +52,7 @@ def prepare_dataset():
         class_to_idx[class_name] = idx
 
     # Collect statistics for each split
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'test']:
         split_dir = DATA_DIR / split
         dataset_stats[split] = {}
 
@@ -79,7 +77,7 @@ def prepare_dataset():
     print(f"Class mapping saved to: {class_mapping_file.absolute()}")
     print(f"Split stats saved to: {stats_file.absolute()}")
     print(f"\nSplit summary:")
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'test']:
         if split in dataset_stats:
             total = sum(dataset_stats[split].values())
             print(f"  {split.capitalize()}: {total} images")

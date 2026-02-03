@@ -1,0 +1,1013 @@
+Loading python/3.10.16/gokvai4
+  Loading requirement: gcc-runtime/13.2.0/yimvxxm bzip2/1.0.8/itttwfv
+    gcc-runtime/13.2.0/s3f7i6x libmd/1.0.4/ngvfltj libbsd/0.12.1/6of6olc
+    expat/2.6.2/zoq445h ncurses/6.4/zqsx2w2 readline/8.2/hmsgdsx
+    gdbm/1.23/gtrssid libiconv/1.17/pmxhi4x xz/5.4.6/uxouxrg
+    zlib-ng/2.1.5/uctcqfl libxml2/2.10.3/vdqe2g3 pigz/2.8/pmmdaqf
+    zstd/1.5.5/juuobg2 tar/1.34/5prin2y gettext/0.22.4/iy5z4el
+    libffi/3.4.4/vqf2avv libxcrypt/4.4.35/vng2vef openssl/3.4.0/pholr53
+    sqlite/3.43.2/o22u32h util-linux-uuid/2.38.1/2x7vfxr
+[I 2025-11-17 18:43:53,682] A new study created in RDB with name: tcn_shark_classification
+
+  0%|          | 0/200 [00:00<?, ?it/s]
+                                       
+
+  0%|          | 0/200 [00:41<?, ?it/s]
+Best trial: 0. Best value: 0.286308:   0%|          | 0/200 [00:41<?, ?it/s]
+Best trial: 0. Best value: 0.286308:   0%|          | 1/200 [00:41<2:19:13, 41.98s/it]
+                                                                                      
+
+Best trial: 0. Best value: 0.286308:   0%|          | 1/200 [01:03<2:19:13, 41.98s/it]
+Best trial: 0. Best value: 0.286308:   0%|          | 1/200 [01:03<2:19:13, 41.98s/it]
+Best trial: 0. Best value: 0.286308:   1%|          | 2/200 [01:03<1:38:33, 29.87s/it]
+                                                                                      
+
+Best trial: 0. Best value: 0.286308:   1%|          | 2/200 [01:43<1:38:33, 29.87s/it]
+Best trial: 2. Best value: 0.798273:   1%|          | 2/200 [01:43<1:38:33, 29.87s/it]
+Best trial: 2. Best value: 0.798273:   2%|▏         | 3/200 [01:43<1:54:05, 34.75s/it]
+                                                                                      
+
+Best trial: 2. Best value: 0.798273:   2%|▏         | 3/200 [02:03<1:54:05, 34.75s/it]
+Best trial: 2. Best value: 0.798273:   2%|▏         | 3/200 [02:03<1:54:05, 34.75s/it]
+Best trial: 2. Best value: 0.798273:   2%|▏         | 4/200 [02:03<1:33:33, 28.64s/it]
+                                                                                      
+
+Best trial: 2. Best value: 0.798273:   2%|▏         | 4/200 [04:09<1:33:33, 28.64s/it]
+Best trial: 4. Best value: 0.968811:   2%|▏         | 4/200 [04:09<1:33:33, 28.64s/it]
+Best trial: 4. Best value: 0.968811:   2%|▎         | 5/200 [04:09<3:27:51, 63.96s/it]
+                                                                                      
+
+Best trial: 4. Best value: 0.968811:   2%|▎         | 5/200 [07:41<3:27:51, 63.96s/it]
+Best trial: 4. Best value: 0.968811:   2%|▎         | 5/200 [07:41<3:27:51, 63.96s/it]
+Best trial: 4. Best value: 0.968811:   3%|▎         | 6/200 [07:41<6:09:40, 114.33s/it]
+                                                                                       
+
+Best trial: 4. Best value: 0.968811:   3%|▎         | 6/200 [17:45<6:09:40, 114.33s/it]
+Best trial: 4. Best value: 0.968811:   3%|▎         | 6/200 [17:45<6:09:40, 114.33s/it]
+Best trial: 4. Best value: 0.968811:   4%|▎         | 7/200 [17:45<14:42:10, 274.25s/it]
+                                                                                        
+
+Best trial: 4. Best value: 0.968811:   4%|▎         | 7/200 [22:18<14:42:10, 274.25s/it]
+Best trial: 4. Best value: 0.968811:   4%|▎         | 7/200 [22:18<14:42:10, 274.25s/it]
+Best trial: 4. Best value: 0.968811:   4%|▍         | 8/200 [22:18<14:36:02, 273.76s/it]
+                                                                                        
+
+Best trial: 4. Best value: 0.968811:   4%|▍         | 8/200 [22:24<14:36:02, 273.76s/it]
+Best trial: 4. Best value: 0.968811:   4%|▍         | 8/200 [22:24<14:36:02, 273.76s/it]
+Best trial: 4. Best value: 0.968811:   4%|▍         | 9/200 [22:24<10:05:32, 190.22s/it]
+                                                                                        
+
+Best trial: 4. Best value: 0.968811:   4%|▍         | 9/200 [23:45<10:05:32, 190.22s/it]
+Best trial: 4. Best value: 0.968811:   4%|▍         | 9/200 [23:45<10:05:32, 190.22s/it]
+Best trial: 4. Best value: 0.968811:   5%|▌         | 10/200 [23:45<8:15:02, 156.33s/it]
+                                                                                        
+
+Best trial: 4. Best value: 0.968811:   5%|▌         | 10/200 [26:07<8:15:02, 156.33s/it]
+Best trial: 4. Best value: 0.968811:   5%|▌         | 10/200 [26:07<8:15:02, 156.33s/it]
+Best trial: 4. Best value: 0.968811:   6%|▌         | 11/200 [26:07<7:58:38, 151.95s/it]
+                                                                                        
+
+Best trial: 4. Best value: 0.968811:   6%|▌         | 11/200 [36:01<7:58:38, 151.95s/it]
+Best trial: 11. Best value: 1:   6%|▌         | 11/200 [36:01<7:58:38, 151.95s/it]      
+Best trial: 11. Best value: 1:   6%|▌         | 12/200 [36:01<14:57:46, 286.52s/it]
+                                                                                   
+
+Best trial: 11. Best value: 1:   6%|▌         | 12/200 [56:04<14:57:46, 286.52s/it]
+Best trial: 11. Best value: 1:   6%|▌         | 12/200 [56:04<14:57:46, 286.52s/it]
+Best trial: 11. Best value: 1:   6%|▋         | 13/200 [56:04<29:18:14, 564.14s/it]
+                                                                                   
+
+Best trial: 11. Best value: 1:   6%|▋         | 13/200 [1:07:38<29:18:14, 564.14s/it]
+Best trial: 11. Best value: 1:   6%|▋         | 13/200 [1:07:38<29:18:14, 564.14s/it]
+Best trial: 11. Best value: 1:   7%|▋         | 14/200 [1:07:38<31:10:54, 603.52s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:   7%|▋         | 14/200 [1:10:24<31:10:54, 603.52s/it]
+Best trial: 11. Best value: 1:   7%|▋         | 14/200 [1:10:24<31:10:54, 603.52s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 15/200 [1:10:24<24:13:43, 471.48s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:   8%|▊         | 15/200 [1:31:18<24:13:43, 471.48s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 15/200 [1:31:18<24:13:43, 471.48s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 16/200 [1:31:18<36:08:27, 707.11s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:   8%|▊         | 16/200 [1:38:24<36:08:27, 707.11s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 16/200 [1:38:24<36:08:27, 707.11s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 17/200 [1:38:24<31:38:47, 622.55s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:   8%|▊         | 17/200 [1:39:33<31:38:47, 622.55s/it]
+Best trial: 11. Best value: 1:   8%|▊         | 17/200 [1:39:33<31:38:47, 622.55s/it]
+Best trial: 11. Best value: 1:   9%|▉         | 18/200 [1:39:33<23:03:28, 456.09s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:   9%|▉         | 18/200 [1:48:54<23:03:28, 456.09s/it]
+Best trial: 11. Best value: 1:   9%|▉         | 18/200 [1:48:54<23:03:28, 456.09s/it]
+Best trial: 11. Best value: 1:  10%|▉         | 19/200 [1:48:54<24:30:58, 487.62s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  10%|▉         | 19/200 [1:57:51<24:30:58, 487.62s/it]
+Best trial: 11. Best value: 1:  10%|▉         | 19/200 [1:57:51<24:30:58, 487.62s/it]
+Best trial: 11. Best value: 1:  10%|█         | 20/200 [1:57:51<25:07:51, 502.62s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  10%|█         | 20/200 [2:03:27<25:07:51, 502.62s/it]
+Best trial: 11. Best value: 1:  10%|█         | 20/200 [2:03:27<25:07:51, 502.62s/it]
+Best trial: 11. Best value: 1:  10%|█         | 21/200 [2:03:27<22:30:24, 452.65s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  10%|█         | 21/200 [2:11:53<22:30:24, 452.65s/it]
+Best trial: 11. Best value: 1:  10%|█         | 21/200 [2:11:53<22:30:24, 452.65s/it]
+Best trial: 11. Best value: 1:  11%|█         | 22/200 [2:11:53<23:09:47, 468.47s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  11%|█         | 22/200 [2:20:19<23:09:47, 468.47s/it]
+Best trial: 11. Best value: 1:  11%|█         | 22/200 [2:20:19<23:09:47, 468.47s/it]
+Best trial: 11. Best value: 1:  12%|█▏        | 23/200 [2:20:19<23:35:00, 479.66s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  12%|█▏        | 23/200 [2:34:54<23:35:00, 479.66s/it]
+Best trial: 11. Best value: 1:  12%|█▏        | 23/200 [2:34:54<23:35:00, 479.66s/it]
+Best trial: 11. Best value: 1:  12%|█▏        | 24/200 [2:34:54<29:15:18, 598.40s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  12%|█▏        | 24/200 [2:51:15<29:15:18, 598.40s/it]
+Best trial: 11. Best value: 1:  12%|█▏        | 24/200 [2:51:15<29:15:18, 598.40s/it]
+Best trial: 11. Best value: 1:  12%|█▎        | 25/200 [2:51:15<34:40:04, 713.17s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  12%|█▎        | 25/200 [3:05:49<34:40:04, 713.17s/it]
+Best trial: 11. Best value: 1:  12%|█▎        | 25/200 [3:05:49<34:40:04, 713.17s/it]
+Best trial: 11. Best value: 1:  13%|█▎        | 26/200 [3:05:49<36:48:39, 761.61s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  13%|█▎        | 26/200 [3:22:12<36:48:39, 761.61s/it]
+Best trial: 11. Best value: 1:  13%|█▎        | 26/200 [3:22:12<36:48:39, 761.61s/it]
+Best trial: 11. Best value: 1:  14%|█▎        | 27/200 [3:22:12<39:46:47, 827.79s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  14%|█▎        | 27/200 [3:24:53<39:46:47, 827.79s/it]
+Best trial: 11. Best value: 1:  14%|█▎        | 27/200 [3:24:53<39:46:47, 827.79s/it]
+Best trial: 11. Best value: 1:  14%|█▍        | 28/200 [3:24:53<29:59:24, 627.70s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  14%|█▍        | 28/200 [3:26:58<29:59:24, 627.70s/it]
+Best trial: 11. Best value: 1:  14%|█▍        | 28/200 [3:26:58<29:59:24, 627.70s/it]
+Best trial: 11. Best value: 1:  14%|█▍        | 29/200 [3:26:58<22:39:39, 477.07s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  14%|█▍        | 29/200 [3:27:18<22:39:39, 477.07s/it]
+Best trial: 11. Best value: 1:  14%|█▍        | 29/200 [3:27:18<22:39:39, 477.07s/it]
+Best trial: 11. Best value: 1:  15%|█▌        | 30/200 [3:27:18<16:02:44, 339.79s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  15%|█▌        | 30/200 [3:27:25<16:02:44, 339.79s/it]
+Best trial: 11. Best value: 1:  15%|█▌        | 30/200 [3:27:25<16:02:44, 339.79s/it]
+Best trial: 11. Best value: 1:  16%|█▌        | 31/200 [3:27:25<11:15:57, 239.99s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  16%|█▌        | 31/200 [3:42:13<11:15:57, 239.99s/it]
+Best trial: 11. Best value: 1:  16%|█▌        | 31/200 [3:42:13<11:15:57, 239.99s/it]
+Best trial: 11. Best value: 1:  16%|█▌        | 32/200 [3:42:13<20:16:07, 434.33s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  16%|█▌        | 32/200 [3:46:18<20:16:07, 434.33s/it]
+Best trial: 11. Best value: 1:  16%|█▌        | 32/200 [3:46:18<20:16:07, 434.33s/it]
+Best trial: 11. Best value: 1:  16%|█▋        | 33/200 [3:46:18<17:30:56, 377.58s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  16%|█▋        | 33/200 [3:59:42<17:30:56, 377.58s/it]
+Best trial: 11. Best value: 1:  16%|█▋        | 33/200 [3:59:42<17:30:56, 377.58s/it]
+Best trial: 11. Best value: 1:  17%|█▋        | 34/200 [3:59:42<23:18:59, 505.66s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  17%|█▋        | 34/200 [4:03:01<23:18:59, 505.66s/it]
+Best trial: 11. Best value: 1:  17%|█▋        | 34/200 [4:03:01<23:18:59, 505.66s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 35/200 [4:03:01<18:57:04, 413.48s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  18%|█▊        | 35/200 [4:05:50<18:57:04, 413.48s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 35/200 [4:05:50<18:57:04, 413.48s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 36/200 [4:05:50<15:29:59, 340.24s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  18%|█▊        | 36/200 [4:05:56<15:29:59, 340.24s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 36/200 [4:05:56<15:29:59, 340.24s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 37/200 [4:05:56<10:51:38, 239.87s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  18%|█▊        | 37/200 [4:08:38<10:51:38, 239.87s/it]
+Best trial: 11. Best value: 1:  18%|█▊        | 37/200 [4:08:38<10:51:38, 239.87s/it]
+Best trial: 11. Best value: 1:  19%|█▉        | 38/200 [4:08:38<9:45:03, 216.69s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  19%|█▉        | 38/200 [4:10:56<9:45:03, 216.69s/it]
+Best trial: 11. Best value: 1:  19%|█▉        | 38/200 [4:10:56<9:45:03, 216.69s/it]
+Best trial: 11. Best value: 1:  20%|█▉        | 39/200 [4:10:56<8:38:01, 193.05s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  20%|█▉        | 39/200 [4:11:32<8:38:01, 193.05s/it]
+Best trial: 11. Best value: 1:  20%|█▉        | 39/200 [4:11:32<8:38:01, 193.05s/it]
+Best trial: 11. Best value: 1:  20%|██        | 40/200 [4:11:32<6:28:48, 145.81s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  20%|██        | 40/200 [4:11:47<6:28:48, 145.81s/it]
+Best trial: 11. Best value: 1:  20%|██        | 40/200 [4:11:47<6:28:48, 145.81s/it]
+Best trial: 11. Best value: 1:  20%|██        | 41/200 [4:11:47<4:42:45, 106.70s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  20%|██        | 41/200 [4:15:53<4:42:45, 106.70s/it]
+Best trial: 11. Best value: 1:  20%|██        | 41/200 [4:15:53<4:42:45, 106.70s/it]
+Best trial: 11. Best value: 1:  21%|██        | 42/200 [4:15:53<6:30:42, 148.37s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  21%|██        | 42/200 [4:30:40<6:30:42, 148.37s/it]
+Best trial: 11. Best value: 1:  21%|██        | 42/200 [4:30:40<6:30:42, 148.37s/it]
+Best trial: 11. Best value: 1:  22%|██▏       | 43/200 [4:30:40<16:08:15, 370.04s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  22%|██▏       | 43/200 [4:34:44<16:08:15, 370.04s/it]
+Best trial: 11. Best value: 1:  22%|██▏       | 43/200 [4:34:44<16:08:15, 370.04s/it]
+Best trial: 11. Best value: 1:  22%|██▏       | 44/200 [4:34:44<14:23:40, 332.18s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  22%|██▏       | 44/200 [4:46:23<14:23:40, 332.18s/it]
+Best trial: 11. Best value: 1:  22%|██▏       | 44/200 [4:46:23<14:23:40, 332.18s/it]
+Best trial: 11. Best value: 1:  22%|██▎       | 45/200 [4:46:23<19:02:10, 442.14s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  22%|██▎       | 45/200 [4:50:11<19:02:10, 442.14s/it]
+Best trial: 11. Best value: 1:  22%|██▎       | 45/200 [4:50:11<19:02:10, 442.14s/it]
+Best trial: 11. Best value: 1:  23%|██▎       | 46/200 [4:50:11<16:10:13, 378.01s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  23%|██▎       | 46/200 [4:53:02<16:10:13, 378.01s/it]
+Best trial: 11. Best value: 1:  23%|██▎       | 46/200 [4:53:02<16:10:13, 378.01s/it]
+Best trial: 11. Best value: 1:  24%|██▎       | 47/200 [4:53:02<13:25:54, 316.04s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  24%|██▎       | 47/200 [4:53:17<13:25:54, 316.04s/it]
+Best trial: 11. Best value: 1:  24%|██▎       | 47/200 [4:53:17<13:25:54, 316.04s/it]
+Best trial: 11. Best value: 1:  24%|██▍       | 48/200 [4:53:17<9:31:29, 225.59s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  24%|██▍       | 48/200 [4:56:51<9:31:29, 225.59s/it]
+Best trial: 11. Best value: 1:  24%|██▍       | 48/200 [4:56:51<9:31:29, 225.59s/it]
+Best trial: 11. Best value: 1:  24%|██▍       | 49/200 [4:56:51<9:18:58, 222.11s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  24%|██▍       | 49/200 [4:57:10<9:18:58, 222.11s/it]
+Best trial: 11. Best value: 1:  24%|██▍       | 49/200 [4:57:10<9:18:58, 222.11s/it]
+Best trial: 11. Best value: 1:  25%|██▌       | 50/200 [4:57:10<6:43:01, 161.21s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  25%|██▌       | 50/200 [4:58:09<6:43:01, 161.21s/it]
+Best trial: 11. Best value: 1:  25%|██▌       | 50/200 [4:58:09<6:43:01, 161.21s/it]
+Best trial: 11. Best value: 1:  26%|██▌       | 51/200 [4:58:09<5:24:24, 130.63s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  26%|██▌       | 51/200 [5:12:44<5:24:24, 130.63s/it]
+Best trial: 11. Best value: 1:  26%|██▌       | 51/200 [5:12:44<5:24:24, 130.63s/it]
+Best trial: 11. Best value: 1:  26%|██▌       | 52/200 [5:12:44<14:32:57, 353.91s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  26%|██▌       | 52/200 [5:26:34<14:32:57, 353.91s/it]
+Best trial: 11. Best value: 1:  26%|██▌       | 52/200 [5:26:34<14:32:57, 353.91s/it]
+Best trial: 11. Best value: 1:  26%|██▋       | 53/200 [5:26:34<20:17:02, 496.75s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  26%|██▋       | 53/200 [5:30:40<20:17:02, 496.75s/it]
+Best trial: 11. Best value: 1:  26%|██▋       | 53/200 [5:30:40<20:17:02, 496.75s/it]
+Best trial: 11. Best value: 1:  27%|██▋       | 54/200 [5:30:40<17:05:12, 421.32s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  27%|██▋       | 54/200 [5:42:41<17:05:12, 421.32s/it]
+Best trial: 11. Best value: 1:  27%|██▋       | 54/200 [5:42:41<17:05:12, 421.32s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 55/200 [5:42:41<20:35:55, 511.41s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  28%|██▊       | 55/200 [5:45:02<20:35:55, 511.41s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 55/200 [5:45:02<20:35:55, 511.41s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 56/200 [5:45:02<16:00:32, 400.22s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  28%|██▊       | 56/200 [6:04:11<16:00:32, 400.22s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 56/200 [6:04:11<16:00:32, 400.22s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 57/200 [6:04:11<24:49:36, 625.01s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  28%|██▊       | 57/200 [6:08:51<24:49:36, 625.01s/it]
+Best trial: 11. Best value: 1:  28%|██▊       | 57/200 [6:08:51<24:49:36, 625.01s/it]
+Best trial: 11. Best value: 1:  29%|██▉       | 58/200 [6:08:51<20:33:54, 521.37s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  29%|██▉       | 58/200 [6:10:16<20:33:54, 521.37s/it]
+Best trial: 11. Best value: 1:  29%|██▉       | 58/200 [6:10:16<20:33:54, 521.37s/it]
+Best trial: 11. Best value: 1:  30%|██▉       | 59/200 [6:10:16<15:17:16, 390.33s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  30%|██▉       | 59/200 [6:13:33<15:17:16, 390.33s/it]
+Best trial: 11. Best value: 1:  30%|██▉       | 59/200 [6:13:33<15:17:16, 390.33s/it]
+Best trial: 11. Best value: 1:  30%|███       | 60/200 [6:13:33<12:55:45, 332.47s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  30%|███       | 60/200 [6:13:47<12:55:45, 332.47s/it]
+Best trial: 11. Best value: 1:  30%|███       | 60/200 [6:13:47<12:55:45, 332.47s/it]
+Best trial: 11. Best value: 1:  30%|███       | 61/200 [6:13:47<9:08:32, 236.78s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  30%|███       | 61/200 [6:27:13<9:08:32, 236.78s/it]
+Best trial: 11. Best value: 1:  30%|███       | 61/200 [6:27:13<9:08:32, 236.78s/it]
+Best trial: 11. Best value: 1:  31%|███       | 62/200 [6:27:13<15:37:34, 407.64s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  31%|███       | 62/200 [6:38:12<15:37:34, 407.64s/it]
+Best trial: 11. Best value: 1:  31%|███       | 62/200 [6:38:12<15:37:34, 407.64s/it]
+Best trial: 11. Best value: 1:  32%|███▏      | 63/200 [6:38:12<18:22:50, 482.99s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  32%|███▏      | 63/200 [6:49:18<18:22:50, 482.99s/it]
+Best trial: 11. Best value: 1:  32%|███▏      | 63/200 [6:49:18<18:22:50, 482.99s/it]
+Best trial: 11. Best value: 1:  32%|███▏      | 64/200 [6:49:18<20:19:32, 538.04s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  32%|███▏      | 64/200 [7:01:45<20:19:32, 538.04s/it]
+Best trial: 11. Best value: 1:  32%|███▏      | 64/200 [7:01:45<20:19:32, 538.04s/it]
+Best trial: 11. Best value: 1:  32%|███▎      | 65/200 [7:01:45<22:31:34, 600.70s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  32%|███▎      | 65/200 [7:05:50<22:31:34, 600.70s/it]
+Best trial: 11. Best value: 1:  32%|███▎      | 65/200 [7:05:50<22:31:34, 600.70s/it]
+Best trial: 11. Best value: 1:  33%|███▎      | 66/200 [7:05:50<18:23:23, 494.05s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  33%|███▎      | 66/200 [7:06:02<18:23:23, 494.05s/it]
+Best trial: 11. Best value: 1:  33%|███▎      | 66/200 [7:06:02<18:23:23, 494.05s/it]
+Best trial: 11. Best value: 1:  34%|███▎      | 67/200 [7:06:02<12:54:23, 349.35s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  34%|███▎      | 67/200 [7:12:45<12:54:23, 349.35s/it]
+Best trial: 11. Best value: 1:  34%|███▎      | 67/200 [7:12:45<12:54:23, 349.35s/it]
+Best trial: 11. Best value: 1:  34%|███▍      | 68/200 [7:12:45<13:23:40, 365.30s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  34%|███▍      | 68/200 [7:16:51<13:23:40, 365.30s/it]
+Best trial: 11. Best value: 1:  34%|███▍      | 68/200 [7:16:51<13:23:40, 365.30s/it]
+Best trial: 11. Best value: 1:  34%|███▍      | 69/200 [7:16:51<11:59:52, 329.71s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  34%|███▍      | 69/200 [7:24:11<11:59:52, 329.71s/it]
+Best trial: 11. Best value: 1:  34%|███▍      | 69/200 [7:24:11<11:59:52, 329.71s/it]
+Best trial: 11. Best value: 1:  35%|███▌      | 70/200 [7:24:11<13:06:03, 362.80s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  35%|███▌      | 70/200 [7:25:42<13:06:03, 362.80s/it]
+Best trial: 11. Best value: 1:  35%|███▌      | 70/200 [7:25:42<13:06:03, 362.80s/it]
+Best trial: 11. Best value: 1:  36%|███▌      | 71/200 [7:25:42<10:04:18, 281.07s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  36%|███▌      | 71/200 [7:39:32<10:04:18, 281.07s/it]
+Best trial: 11. Best value: 1:  36%|███▌      | 71/200 [7:39:32<10:04:18, 281.07s/it]
+Best trial: 11. Best value: 1:  36%|███▌      | 72/200 [7:39:32<15:51:08, 445.85s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  36%|███▌      | 72/200 [7:50:14<15:51:08, 445.85s/it]
+Best trial: 11. Best value: 1:  36%|███▌      | 72/200 [7:50:14<15:51:08, 445.85s/it]
+Best trial: 11. Best value: 1:  36%|███▋      | 73/200 [7:50:14<17:48:36, 504.85s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  36%|███▋      | 73/200 [8:03:29<17:48:36, 504.85s/it]
+Best trial: 11. Best value: 1:  36%|███▋      | 73/200 [8:03:29<17:48:36, 504.85s/it]
+Best trial: 11. Best value: 1:  37%|███▋      | 74/200 [8:03:29<20:42:38, 591.73s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  37%|███▋      | 74/200 [8:07:55<20:42:38, 591.73s/it]
+Best trial: 11. Best value: 1:  37%|███▋      | 74/200 [8:07:55<20:42:38, 591.73s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 75/200 [8:07:55<17:09:30, 494.17s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  38%|███▊      | 75/200 [8:11:35<17:09:30, 494.17s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 75/200 [8:11:35<17:09:30, 494.17s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 76/200 [8:11:35<14:11:11, 411.87s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  38%|███▊      | 76/200 [8:12:21<14:11:11, 411.87s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 76/200 [8:12:22<14:11:11, 411.87s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 77/200 [8:12:22<10:19:29, 302.19s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  38%|███▊      | 77/200 [8:13:00<10:19:29, 302.19s/it]
+Best trial: 11. Best value: 1:  38%|███▊      | 77/200 [8:13:00<10:19:29, 302.19s/it]
+Best trial: 11. Best value: 1:  39%|███▉      | 78/200 [8:13:00<7:33:43, 223.14s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  39%|███▉      | 78/200 [8:13:27<7:33:43, 223.14s/it]
+Best trial: 11. Best value: 1:  39%|███▉      | 78/200 [8:13:27<7:33:43, 223.14s/it]
+Best trial: 11. Best value: 1:  40%|███▉      | 79/200 [8:13:27<5:31:04, 164.17s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  40%|███▉      | 79/200 [8:16:20<5:31:04, 164.17s/it]
+Best trial: 11. Best value: 1:  40%|███▉      | 79/200 [8:16:20<5:31:04, 164.17s/it]
+Best trial: 11. Best value: 1:  40%|████      | 80/200 [8:16:20<5:34:00, 167.00s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  40%|████      | 80/200 [8:26:49<5:34:00, 167.00s/it]
+Best trial: 11. Best value: 1:  40%|████      | 80/200 [8:26:49<5:34:00, 167.00s/it]
+Best trial: 11. Best value: 1:  40%|████      | 81/200 [8:26:49<10:05:48, 305.45s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  40%|████      | 81/200 [8:30:55<10:05:48, 305.45s/it]
+Best trial: 11. Best value: 1:  40%|████      | 81/200 [8:30:55<10:05:48, 305.45s/it]
+Best trial: 11. Best value: 1:  41%|████      | 82/200 [8:30:55<9:25:34, 287.58s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  41%|████      | 82/200 [8:35:01<9:25:34, 287.58s/it]
+Best trial: 11. Best value: 1:  41%|████      | 82/200 [8:35:01<9:25:34, 287.58s/it]
+Best trial: 11. Best value: 1:  42%|████▏     | 83/200 [8:35:01<8:56:20, 275.05s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  42%|████▏     | 83/200 [8:48:15<8:56:20, 275.05s/it]
+Best trial: 11. Best value: 1:  42%|████▏     | 83/200 [8:48:15<8:56:20, 275.05s/it]
+Best trial: 11. Best value: 1:  42%|████▏     | 84/200 [8:48:15<13:53:15, 430.99s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  42%|████▏     | 84/200 [8:52:21<13:53:15, 430.99s/it]
+Best trial: 11. Best value: 1:  42%|████▏     | 84/200 [8:52:21<13:53:15, 430.99s/it]
+Best trial: 11. Best value: 1:  42%|████▎     | 85/200 [8:52:21<11:59:24, 375.34s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  42%|████▎     | 85/200 [8:56:27<11:59:24, 375.34s/it]
+Best trial: 11. Best value: 1:  42%|████▎     | 85/200 [8:56:27<11:59:24, 375.34s/it]
+Best trial: 11. Best value: 1:  43%|████▎     | 86/200 [8:56:27<10:39:20, 336.50s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  43%|████▎     | 86/200 [9:03:21<10:39:20, 336.50s/it]
+Best trial: 11. Best value: 1:  43%|████▎     | 86/200 [9:03:21<10:39:20, 336.50s/it]
+Best trial: 11. Best value: 1:  44%|████▎     | 87/200 [9:03:21<11:17:55, 359.96s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  44%|████▎     | 87/200 [9:04:21<11:17:55, 359.96s/it]
+Best trial: 11. Best value: 1:  44%|████▎     | 87/200 [9:04:21<11:17:55, 359.96s/it]
+Best trial: 11. Best value: 1:  44%|████▍     | 88/200 [9:04:21<8:23:32, 269.76s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  44%|████▍     | 88/200 [9:15:02<8:23:32, 269.76s/it]
+Best trial: 11. Best value: 1:  44%|████▍     | 88/200 [9:15:02<8:23:32, 269.76s/it]
+Best trial: 11. Best value: 1:  44%|████▍     | 89/200 [9:15:02<11:45:26, 381.32s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  44%|████▍     | 89/200 [9:16:15<11:45:26, 381.32s/it]
+Best trial: 11. Best value: 1:  44%|████▍     | 89/200 [9:16:15<11:45:26, 381.32s/it]
+Best trial: 11. Best value: 1:  45%|████▌     | 90/200 [9:16:15<8:49:23, 288.76s/it] 
+                                                                                    
+
+Best trial: 11. Best value: 1:  45%|████▌     | 90/200 [9:16:41<8:49:23, 288.76s/it]
+Best trial: 11. Best value: 1:  45%|████▌     | 90/200 [9:16:41<8:49:23, 288.76s/it]
+Best trial: 11. Best value: 1:  46%|████▌     | 91/200 [9:16:41<6:21:31, 210.02s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  46%|████▌     | 91/200 [9:31:18<6:21:31, 210.02s/it]
+Best trial: 11. Best value: 1:  46%|████▌     | 91/200 [9:31:18<6:21:31, 210.02s/it]
+Best trial: 11. Best value: 1:  46%|████▌     | 92/200 [9:31:18<12:18:07, 410.07s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  46%|████▌     | 92/200 [9:42:02<12:18:07, 410.07s/it]
+Best trial: 11. Best value: 1:  46%|████▌     | 92/200 [9:42:02<12:18:07, 410.07s/it]
+Best trial: 11. Best value: 1:  46%|████▋     | 93/200 [9:42:02<14:16:09, 480.09s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  46%|████▋     | 93/200 [9:56:04<14:16:09, 480.09s/it]
+Best trial: 11. Best value: 1:  46%|████▋     | 93/200 [9:56:04<14:16:09, 480.09s/it]
+Best trial: 11. Best value: 1:  47%|████▋     | 94/200 [9:56:04<17:20:04, 588.73s/it]
+                                                                                     
+
+Best trial: 11. Best value: 1:  47%|████▋     | 94/200 [10:10:03<17:20:04, 588.73s/it]
+Best trial: 11. Best value: 1:  47%|████▋     | 94/200 [10:10:03<17:20:04, 588.73s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 95/200 [10:10:03<19:21:37, 663.78s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  48%|████▊     | 95/200 [10:14:30<19:21:37, 663.78s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 95/200 [10:14:30<19:21:37, 663.78s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 96/200 [10:14:30<15:44:08, 544.69s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  48%|████▊     | 96/200 [10:14:57<15:44:08, 544.69s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 96/200 [10:14:57<15:44:08, 544.69s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 97/200 [10:14:57<11:08:30, 389.43s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  48%|████▊     | 97/200 [10:18:37<11:08:30, 389.43s/it]
+Best trial: 11. Best value: 1:  48%|████▊     | 97/200 [10:18:37<11:08:30, 389.43s/it]
+Best trial: 11. Best value: 1:  49%|████▉     | 98/200 [10:18:37<9:35:33, 338.57s/it] 
+                                                                                     
+
+Best trial: 11. Best value: 1:  49%|████▉     | 98/200 [10:28:33<9:35:33, 338.57s/it]
+Best trial: 11. Best value: 1:  49%|████▉     | 98/200 [10:28:33<9:35:33, 338.57s/it]
+Best trial: 11. Best value: 1:  50%|████▉     | 99/200 [10:28:33<11:39:47, 415.72s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  50%|████▉     | 99/200 [10:32:40<11:39:47, 415.72s/it]
+Best trial: 11. Best value: 1:  50%|████▉     | 99/200 [10:32:40<11:39:47, 415.72s/it]
+Best trial: 11. Best value: 1:  50%|█████     | 100/200 [10:32:40<10:08:59, 365.40s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  50%|█████     | 100/200 [10:34:08<10:08:59, 365.40s/it]
+Best trial: 11. Best value: 1:  50%|█████     | 100/200 [10:34:08<10:08:59, 365.40s/it]
+Best trial: 11. Best value: 1:  50%|█████     | 101/200 [10:34:08<7:45:32, 282.14s/it] 
+                                                                                      
+
+Best trial: 11. Best value: 1:  50%|█████     | 101/200 [10:44:54<7:45:32, 282.14s/it]
+Best trial: 11. Best value: 1:  50%|█████     | 101/200 [10:44:54<7:45:32, 282.14s/it]
+Best trial: 11. Best value: 1:  51%|█████     | 102/200 [10:44:54<10:39:05, 391.28s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  51%|█████     | 102/200 [10:59:18<10:39:05, 391.28s/it]
+Best trial: 11. Best value: 1:  51%|█████     | 102/200 [10:59:18<10:39:05, 391.28s/it]
+Best trial: 11. Best value: 1:  52%|█████▏    | 103/200 [10:59:18<14:21:27, 532.86s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  52%|█████▏    | 103/200 [11:10:53<14:21:27, 532.86s/it]
+Best trial: 11. Best value: 1:  52%|█████▏    | 103/200 [11:10:53<14:21:27, 532.86s/it]
+Best trial: 11. Best value: 1:  52%|█████▏    | 104/200 [11:10:53<15:30:33, 581.60s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  52%|█████▏    | 104/200 [11:21:35<15:30:33, 581.60s/it]
+Best trial: 11. Best value: 1:  52%|█████▏    | 104/200 [11:21:35<15:30:33, 581.60s/it]
+Best trial: 11. Best value: 1:  52%|█████▎    | 105/200 [11:21:35<15:49:23, 599.62s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  52%|█████▎    | 105/200 [11:24:10<15:49:23, 599.62s/it]
+Best trial: 11. Best value: 1:  52%|█████▎    | 105/200 [11:24:10<15:49:23, 599.62s/it]
+Best trial: 11. Best value: 1:  53%|█████▎    | 106/200 [11:24:10<12:10:47, 466.46s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  53%|█████▎    | 106/200 [11:35:35<12:10:47, 466.46s/it]
+Best trial: 11. Best value: 1:  53%|█████▎    | 106/200 [11:35:35<12:10:47, 466.46s/it]
+Best trial: 11. Best value: 1:  54%|█████▎    | 107/200 [11:35:35<13:44:27, 531.91s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  54%|█████▎    | 107/200 [11:39:40<13:44:27, 531.91s/it]
+Best trial: 11. Best value: 1:  54%|█████▎    | 107/200 [11:39:40<13:44:27, 531.91s/it]
+Best trial: 11. Best value: 1:  54%|█████▍    | 108/200 [11:39:40<11:23:47, 445.95s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  54%|█████▍    | 108/200 [11:40:53<11:23:47, 445.95s/it]
+Best trial: 11. Best value: 1:  54%|█████▍    | 108/200 [11:40:54<11:23:47, 445.95s/it]
+Best trial: 11. Best value: 1:  55%|█████▍    | 109/200 [11:40:54<8:26:46, 334.13s/it] 
+                                                                                      
+
+Best trial: 11. Best value: 1:  55%|█████▍    | 109/200 [11:51:15<8:26:46, 334.13s/it]
+Best trial: 11. Best value: 1:  55%|█████▍    | 109/200 [11:51:15<8:26:46, 334.13s/it]
+Best trial: 11. Best value: 1:  55%|█████▌    | 110/200 [11:51:15<10:30:23, 420.26s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  55%|█████▌    | 110/200 [11:51:43<10:30:23, 420.26s/it]
+Best trial: 11. Best value: 1:  55%|█████▌    | 110/200 [11:51:43<10:30:23, 420.26s/it]
+Best trial: 11. Best value: 1:  56%|█████▌    | 111/200 [11:51:43<7:28:47, 302.56s/it] 
+                                                                                      
+
+Best trial: 11. Best value: 1:  56%|█████▌    | 111/200 [11:55:48<7:28:47, 302.56s/it]
+Best trial: 11. Best value: 1:  56%|█████▌    | 111/200 [11:55:48<7:28:47, 302.56s/it]
+Best trial: 11. Best value: 1:  56%|█████▌    | 112/200 [11:55:48<6:58:29, 285.33s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  56%|█████▌    | 112/200 [12:06:28<6:58:29, 285.33s/it]
+Best trial: 11. Best value: 1:  56%|█████▌    | 112/200 [12:06:28<6:58:29, 285.33s/it]
+Best trial: 11. Best value: 1:  56%|█████▋    | 113/200 [12:06:28<9:28:15, 391.90s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  56%|█████▋    | 113/200 [12:10:34<9:28:15, 391.90s/it]
+Best trial: 11. Best value: 1:  56%|█████▋    | 113/200 [12:10:34<9:28:15, 391.90s/it]
+Best trial: 11. Best value: 1:  57%|█████▋    | 114/200 [12:10:34<8:18:44, 347.96s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  57%|█████▋    | 114/200 [12:14:39<8:18:44, 347.96s/it]
+Best trial: 11. Best value: 1:  57%|█████▋    | 114/200 [12:14:39<8:18:44, 347.96s/it]
+Best trial: 11. Best value: 1:  57%|█████▊    | 115/200 [12:14:39<7:29:11, 317.08s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  57%|█████▊    | 115/200 [12:15:11<7:29:11, 317.08s/it]
+Best trial: 11. Best value: 1:  57%|█████▊    | 115/200 [12:15:11<7:29:11, 317.08s/it]
+Best trial: 11. Best value: 1:  58%|█████▊    | 116/200 [12:15:11<5:24:20, 231.67s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  58%|█████▊    | 116/200 [12:19:37<5:24:20, 231.67s/it]
+Best trial: 11. Best value: 1:  58%|█████▊    | 116/200 [12:19:37<5:24:20, 231.67s/it]
+Best trial: 11. Best value: 1:  58%|█████▊    | 117/200 [12:19:37<5:34:50, 242.05s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  58%|█████▊    | 117/200 [12:23:19<5:34:50, 242.05s/it]
+Best trial: 11. Best value: 1:  58%|█████▊    | 117/200 [12:23:19<5:34:50, 242.05s/it]
+Best trial: 11. Best value: 1:  59%|█████▉    | 118/200 [12:23:19<5:22:21, 235.87s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  59%|█████▉    | 118/200 [12:27:12<5:22:21, 235.87s/it]
+Best trial: 11. Best value: 1:  59%|█████▉    | 118/200 [12:27:12<5:22:21, 235.87s/it]
+Best trial: 11. Best value: 1:  60%|█████▉    | 119/200 [12:27:12<5:17:11, 234.95s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  60%|█████▉    | 119/200 [12:29:54<5:17:11, 234.95s/it]
+Best trial: 11. Best value: 1:  60%|█████▉    | 119/200 [12:29:54<5:17:11, 234.95s/it]
+Best trial: 11. Best value: 1:  60%|██████    | 120/200 [12:29:54<4:44:01, 213.02s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  60%|██████    | 120/200 [12:34:20<4:44:01, 213.02s/it]
+Best trial: 11. Best value: 1:  60%|██████    | 120/200 [12:34:20<4:44:01, 213.02s/it]
+Best trial: 11. Best value: 1:  60%|██████    | 121/200 [12:34:20<5:01:44, 229.18s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  60%|██████    | 121/200 [12:44:16<5:01:44, 229.18s/it]
+Best trial: 11. Best value: 1:  60%|██████    | 121/200 [12:44:16<5:01:44, 229.18s/it]
+Best trial: 11. Best value: 1:  61%|██████    | 122/200 [12:44:16<7:20:57, 339.20s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  61%|██████    | 122/200 [12:48:22<7:20:57, 339.20s/it]
+Best trial: 11. Best value: 1:  61%|██████    | 122/200 [12:48:22<7:20:57, 339.20s/it]
+Best trial: 11. Best value: 1:  62%|██████▏   | 123/200 [12:48:22<6:39:17, 311.13s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  62%|██████▏   | 123/200 [12:52:28<6:39:17, 311.13s/it]
+Best trial: 11. Best value: 1:  62%|██████▏   | 123/200 [12:52:28<6:39:17, 311.13s/it]
+Best trial: 11. Best value: 1:  62%|██████▏   | 124/200 [12:52:28<6:09:15, 291.52s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  62%|██████▏   | 124/200 [13:02:24<6:09:15, 291.52s/it]
+Best trial: 11. Best value: 1:  62%|██████▏   | 124/200 [13:02:24<6:09:15, 291.52s/it]
+Best trial: 11. Best value: 1:  62%|██████▎   | 125/200 [13:02:24<7:58:48, 383.05s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  62%|██████▎   | 125/200 [13:05:00<7:58:48, 383.05s/it]
+Best trial: 11. Best value: 1:  62%|██████▎   | 125/200 [13:05:00<7:58:48, 383.05s/it]
+Best trial: 11. Best value: 1:  63%|██████▎   | 126/200 [13:05:00<6:28:20, 314.87s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  63%|██████▎   | 126/200 [13:16:06<6:28:20, 314.87s/it]
+Best trial: 11. Best value: 1:  63%|██████▎   | 126/200 [13:16:06<6:28:20, 314.87s/it]
+Best trial: 11. Best value: 1:  64%|██████▎   | 127/200 [13:16:06<8:31:02, 420.03s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  64%|██████▎   | 127/200 [13:16:28<8:31:02, 420.03s/it]
+Best trial: 11. Best value: 1:  64%|██████▎   | 127/200 [13:16:28<8:31:02, 420.03s/it]
+Best trial: 11. Best value: 1:  64%|██████▍   | 128/200 [13:16:28<6:01:04, 300.89s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  64%|██████▍   | 128/200 [13:17:21<6:01:04, 300.89s/it]
+Best trial: 11. Best value: 1:  64%|██████▍   | 128/200 [13:17:21<6:01:04, 300.89s/it]
+Best trial: 11. Best value: 1:  64%|██████▍   | 129/200 [13:17:21<4:27:49, 226.33s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  64%|██████▍   | 129/200 [13:21:22<4:27:49, 226.33s/it]
+Best trial: 11. Best value: 1:  64%|██████▍   | 129/200 [13:21:22<4:27:49, 226.33s/it]
+Best trial: 11. Best value: 1:  65%|██████▌   | 130/200 [13:21:22<4:29:22, 230.89s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  65%|██████▌   | 130/200 [13:21:51<4:29:22, 230.89s/it]
+Best trial: 11. Best value: 1:  65%|██████▌   | 130/200 [13:21:51<4:29:22, 230.89s/it]
+Best trial: 11. Best value: 1:  66%|██████▌   | 131/200 [13:21:51<3:15:35, 170.07s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  66%|██████▌   | 131/200 [13:34:18<3:15:35, 170.07s/it]
+Best trial: 11. Best value: 1:  66%|██████▌   | 131/200 [13:34:18<3:15:35, 170.07s/it]
+Best trial: 11. Best value: 1:  66%|██████▌   | 132/200 [13:34:18<6:29:06, 343.32s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  66%|██████▌   | 132/200 [13:47:11<6:29:06, 343.32s/it]
+Best trial: 11. Best value: 1:  66%|██████▌   | 132/200 [13:47:11<6:29:06, 343.32s/it]
+Best trial: 11. Best value: 1:  66%|██████▋   | 133/200 [13:47:11<8:47:13, 472.14s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  66%|██████▋   | 133/200 [13:59:38<8:47:13, 472.14s/it]
+Best trial: 11. Best value: 1:  66%|██████▋   | 133/200 [13:59:38<8:47:13, 472.14s/it]
+Best trial: 11. Best value: 1:  67%|██████▋   | 134/200 [13:59:38<10:10:02, 554.59s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  67%|██████▋   | 134/200 [14:14:35<10:10:02, 554.59s/it]
+Best trial: 11. Best value: 1:  67%|██████▋   | 134/200 [14:14:35<10:10:02, 554.59s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 135/200 [14:14:35<11:52:05, 657.31s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  68%|██████▊   | 135/200 [14:29:08<11:52:05, 657.31s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 135/200 [14:29:08<11:52:05, 657.31s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 136/200 [14:29:08<12:50:22, 722.22s/it]
+                                                                                       
+
+Best trial: 11. Best value: 1:  68%|██████▊   | 136/200 [14:29:34<12:50:22, 722.22s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 136/200 [14:29:34<12:50:22, 722.22s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 137/200 [14:29:34<8:58:50, 513.18s/it] 
+                                                                                      
+
+Best trial: 11. Best value: 1:  68%|██████▊   | 137/200 [14:33:43<8:58:50, 513.18s/it]
+Best trial: 11. Best value: 1:  68%|██████▊   | 137/200 [14:33:43<8:58:50, 513.18s/it]
+Best trial: 11. Best value: 1:  69%|██████▉   | 138/200 [14:33:43<7:28:33, 434.09s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  69%|██████▉   | 138/200 [14:37:38<7:28:33, 434.09s/it]
+Best trial: 11. Best value: 1:  69%|██████▉   | 138/200 [14:37:38<7:28:33, 434.09s/it]
+Best trial: 11. Best value: 1:  70%|██████▉   | 139/200 [14:37:38<6:20:21, 374.12s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  70%|██████▉   | 139/200 [14:42:03<6:20:21, 374.12s/it]
+Best trial: 11. Best value: 1:  70%|██████▉   | 139/200 [14:42:03<6:20:21, 374.12s/it]
+Best trial: 11. Best value: 1:  70%|███████   | 140/200 [14:42:03<5:41:28, 341.48s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  70%|███████   | 140/200 [14:51:57<5:41:28, 341.48s/it]
+Best trial: 11. Best value: 1:  70%|███████   | 140/200 [14:51:57<5:41:28, 341.48s/it]
+Best trial: 11. Best value: 1:  70%|███████   | 141/200 [14:51:57<6:50:25, 417.37s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  70%|███████   | 141/200 [15:03:03<6:50:25, 417.37s/it]
+Best trial: 11. Best value: 1:  70%|███████   | 141/200 [15:03:03<6:50:25, 417.37s/it]
+Best trial: 11. Best value: 1:  71%|███████   | 142/200 [15:03:03<7:55:33, 491.96s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  71%|███████   | 142/200 [15:08:42<7:55:33, 491.96s/it]
+Best trial: 11. Best value: 1:  71%|███████   | 142/200 [15:08:42<7:55:33, 491.96s/it]
+Best trial: 11. Best value: 1:  72%|███████▏  | 143/200 [15:08:42<7:03:47, 446.10s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  72%|███████▏  | 143/200 [15:12:48<7:03:47, 446.10s/it]
+Best trial: 11. Best value: 1:  72%|███████▏  | 143/200 [15:12:48<7:03:47, 446.10s/it]
+Best trial: 11. Best value: 1:  72%|███████▏  | 144/200 [15:12:48<6:00:15, 385.98s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  72%|███████▏  | 144/200 [15:23:31<6:00:15, 385.98s/it]
+Best trial: 11. Best value: 1:  72%|███████▏  | 144/200 [15:23:31<6:00:15, 385.98s/it]
+Best trial: 11. Best value: 1:  72%|███████▎  | 145/200 [15:23:31<7:04:19, 462.90s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  72%|███████▎  | 145/200 [15:27:36<7:04:19, 462.90s/it]
+Best trial: 11. Best value: 1:  72%|███████▎  | 145/200 [15:27:36<7:04:19, 462.90s/it]
+Best trial: 11. Best value: 1:  73%|███████▎  | 146/200 [15:27:36<5:57:55, 397.70s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  73%|███████▎  | 146/200 [15:34:36<5:57:55, 397.70s/it]
+Best trial: 11. Best value: 1:  73%|███████▎  | 146/200 [15:34:36<5:57:55, 397.70s/it]
+Best trial: 11. Best value: 1:  74%|███████▎  | 147/200 [15:34:36<5:57:03, 404.21s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  74%|███████▎  | 147/200 [15:37:48<5:57:03, 404.21s/it]
+Best trial: 11. Best value: 1:  74%|███████▎  | 147/200 [15:37:48<5:57:03, 404.21s/it]
+Best trial: 11. Best value: 1:  74%|███████▍  | 148/200 [15:37:48<4:55:19, 340.75s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  74%|███████▍  | 148/200 [15:40:24<4:55:19, 340.75s/it]
+Best trial: 11. Best value: 1:  74%|███████▍  | 148/200 [15:40:24<4:55:19, 340.75s/it]
+Best trial: 11. Best value: 1:  74%|███████▍  | 149/200 [15:40:24<4:02:30, 285.31s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  74%|███████▍  | 149/200 [15:44:30<4:02:30, 285.31s/it]
+Best trial: 11. Best value: 1:  74%|███████▍  | 149/200 [15:44:30<4:02:30, 285.31s/it]
+Best trial: 11. Best value: 1:  75%|███████▌  | 150/200 [15:44:30<3:47:49, 273.39s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  75%|███████▌  | 150/200 [15:45:25<3:47:49, 273.39s/it]
+Best trial: 11. Best value: 1:  75%|███████▌  | 150/200 [15:45:25<3:47:49, 273.39s/it]
+Best trial: 11. Best value: 1:  76%|███████▌  | 151/200 [15:45:25<2:49:55, 208.07s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  76%|███████▌  | 151/200 [15:55:56<2:49:55, 208.07s/it]
+Best trial: 11. Best value: 1:  76%|███████▌  | 151/200 [15:55:56<2:49:55, 208.07s/it]
+Best trial: 11. Best value: 1:  76%|███████▌  | 152/200 [15:55:56<4:27:52, 334.85s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  76%|███████▌  | 152/200 [16:07:03<4:27:52, 334.85s/it]
+Best trial: 11. Best value: 1:  76%|███████▌  | 152/200 [16:07:03<4:27:52, 334.85s/it]
+Best trial: 11. Best value: 1:  76%|███████▋  | 153/200 [16:07:03<5:40:20, 434.48s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  76%|███████▋  | 153/200 [16:18:09<5:40:20, 434.48s/it]
+Best trial: 11. Best value: 1:  76%|███████▋  | 153/200 [16:18:09<5:40:20, 434.48s/it]
+Best trial: 11. Best value: 1:  77%|███████▋  | 154/200 [16:18:09<6:26:19, 503.89s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  77%|███████▋  | 154/200 [16:27:41<6:26:19, 503.89s/it]
+Best trial: 11. Best value: 1:  77%|███████▋  | 154/200 [16:27:41<6:26:19, 503.89s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 155/200 [16:27:41<6:33:11, 524.26s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  78%|███████▊  | 155/200 [16:28:55<6:33:11, 524.26s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 155/200 [16:28:55<6:33:11, 524.26s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 156/200 [16:28:55<4:45:22, 389.14s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  78%|███████▊  | 156/200 [16:33:01<4:45:22, 389.14s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 156/200 [16:33:01<4:45:22, 389.14s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 157/200 [16:33:01<4:08:08, 346.25s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  78%|███████▊  | 157/200 [16:33:29<4:08:08, 346.25s/it]
+Best trial: 11. Best value: 1:  78%|███████▊  | 157/200 [16:33:29<4:08:08, 346.25s/it]
+Best trial: 11. Best value: 1:  79%|███████▉  | 158/200 [16:33:29<2:55:34, 250.83s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  79%|███████▉  | 158/200 [16:37:09<2:55:34, 250.83s/it]
+Best trial: 11. Best value: 1:  79%|███████▉  | 158/200 [16:37:09<2:55:34, 250.83s/it]
+Best trial: 11. Best value: 1:  80%|███████▉  | 159/200 [16:37:09<2:45:06, 241.63s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  80%|███████▉  | 159/200 [16:37:31<2:45:06, 241.63s/it]
+Best trial: 11. Best value: 1:  80%|███████▉  | 159/200 [16:37:31<2:45:06, 241.63s/it]
+Best trial: 11. Best value: 1:  80%|████████  | 160/200 [16:37:31<1:57:04, 175.61s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  80%|████████  | 160/200 [16:48:30<1:57:04, 175.61s/it]
+Best trial: 11. Best value: 1:  80%|████████  | 160/200 [16:48:30<1:57:04, 175.61s/it]
+Best trial: 11. Best value: 1:  80%|████████  | 161/200 [16:48:30<3:28:32, 320.84s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  80%|████████  | 161/200 [16:52:36<3:28:32, 320.84s/it]
+Best trial: 11. Best value: 1:  80%|████████  | 161/200 [16:52:36<3:28:32, 320.84s/it]
+Best trial: 11. Best value: 1:  81%|████████  | 162/200 [16:52:36<3:08:53, 298.24s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  81%|████████  | 162/200 [16:56:41<3:08:53, 298.24s/it]
+Best trial: 11. Best value: 1:  81%|████████  | 162/200 [16:56:41<3:08:53, 298.24s/it]
+Best trial: 11. Best value: 1:  82%|████████▏ | 163/200 [16:56:41<2:54:09, 282.41s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  82%|████████▏ | 163/200 [17:09:55<2:54:09, 282.41s/it]
+Best trial: 11. Best value: 1:  82%|████████▏ | 163/200 [17:09:56<2:54:09, 282.41s/it]
+Best trial: 11. Best value: 1:  82%|████████▏ | 164/200 [17:09:56<4:21:34, 435.95s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  82%|████████▏ | 164/200 [17:14:01<4:21:34, 435.95s/it]
+Best trial: 11. Best value: 1:  82%|████████▏ | 164/200 [17:14:01<4:21:34, 435.95s/it]
+Best trial: 11. Best value: 1:  82%|████████▎ | 165/200 [17:14:01<3:40:58, 378.83s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  82%|████████▎ | 165/200 [17:24:43<3:40:58, 378.83s/it]
+Best trial: 11. Best value: 1:  82%|████████▎ | 165/200 [17:24:43<3:40:58, 378.83s/it]
+Best trial: 11. Best value: 1:  83%|████████▎ | 166/200 [17:24:43<4:19:27, 457.86s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  83%|████████▎ | 166/200 [17:28:53<4:19:27, 457.86s/it]
+Best trial: 11. Best value: 1:  83%|████████▎ | 166/200 [17:28:53<4:19:27, 457.86s/it]
+Best trial: 11. Best value: 1:  84%|████████▎ | 167/200 [17:28:53<3:37:26, 395.34s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  84%|████████▎ | 167/200 [17:32:59<3:37:26, 395.34s/it]
+Best trial: 11. Best value: 1:  84%|████████▎ | 167/200 [17:32:59<3:37:26, 395.34s/it]
+Best trial: 11. Best value: 1:  84%|████████▍ | 168/200 [17:32:59<3:06:56, 350.51s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  84%|████████▍ | 168/200 [17:35:16<3:06:56, 350.51s/it]
+Best trial: 11. Best value: 1:  84%|████████▍ | 168/200 [17:35:16<3:06:56, 350.51s/it]
+Best trial: 11. Best value: 1:  84%|████████▍ | 169/200 [17:35:16<2:28:07, 286.68s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  84%|████████▍ | 169/200 [17:39:23<2:28:07, 286.68s/it]
+Best trial: 11. Best value: 1:  84%|████████▍ | 169/200 [17:39:23<2:28:07, 286.68s/it]
+Best trial: 11. Best value: 1:  85%|████████▌ | 170/200 [17:39:23<2:17:17, 274.57s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  85%|████████▌ | 170/200 [17:41:08<2:17:17, 274.57s/it]
+Best trial: 11. Best value: 1:  85%|████████▌ | 170/200 [17:41:08<2:17:17, 274.57s/it]
+Best trial: 11. Best value: 1:  86%|████████▌ | 171/200 [17:41:08<1:48:07, 223.70s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  86%|████████▌ | 171/200 [17:45:13<1:48:07, 223.70s/it]
+Best trial: 11. Best value: 1:  86%|████████▌ | 171/200 [17:45:13<1:48:07, 223.70s/it]
+Best trial: 11. Best value: 1:  86%|████████▌ | 172/200 [17:45:13<1:47:28, 230.29s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  86%|████████▌ | 172/200 [17:50:06<1:47:28, 230.29s/it]
+Best trial: 11. Best value: 1:  86%|████████▌ | 172/200 [17:50:06<1:47:28, 230.29s/it]
+Best trial: 11. Best value: 1:  86%|████████▋ | 173/200 [17:50:06<1:52:01, 248.95s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  86%|████████▋ | 173/200 [17:54:11<1:52:01, 248.95s/it]
+Best trial: 11. Best value: 1:  86%|████████▋ | 173/200 [17:54:11<1:52:01, 248.95s/it]
+Best trial: 11. Best value: 1:  87%|████████▋ | 174/200 [17:54:11<1:47:25, 247.92s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  87%|████████▋ | 174/200 [17:58:17<1:47:25, 247.92s/it]
+Best trial: 11. Best value: 1:  87%|████████▋ | 174/200 [17:58:17<1:47:25, 247.92s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 175/200 [17:58:17<1:43:02, 247.30s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  88%|████████▊ | 175/200 [18:02:24<1:43:02, 247.30s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 175/200 [18:02:24<1:43:02, 247.30s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 176/200 [18:02:24<1:38:49, 247.05s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  88%|████████▊ | 176/200 [18:05:06<1:38:49, 247.05s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 176/200 [18:05:06<1:38:49, 247.05s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 177/200 [18:05:06<1:24:57, 221.63s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  88%|████████▊ | 177/200 [18:14:40<1:24:57, 221.63s/it]
+Best trial: 11. Best value: 1:  88%|████████▊ | 177/200 [18:14:40<1:24:57, 221.63s/it]
+Best trial: 11. Best value: 1:  89%|████████▉ | 178/200 [18:14:40<2:00:03, 327.42s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  89%|████████▉ | 178/200 [18:24:35<2:00:03, 327.42s/it]
+Best trial: 11. Best value: 1:  89%|████████▉ | 178/200 [18:24:35<2:00:03, 327.42s/it]
+Best trial: 11. Best value: 1:  90%|████████▉ | 179/200 [18:24:35<2:22:38, 407.54s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  90%|████████▉ | 179/200 [18:28:56<2:22:38, 407.54s/it]
+Best trial: 11. Best value: 1:  90%|████████▉ | 179/200 [18:28:56<2:22:38, 407.54s/it]
+Best trial: 11. Best value: 1:  90%|█████████ | 180/200 [18:28:56<2:01:15, 363.78s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  90%|█████████ | 180/200 [18:30:02<2:01:15, 363.78s/it]
+Best trial: 11. Best value: 1:  90%|█████████ | 180/200 [18:30:02<2:01:15, 363.78s/it]
+Best trial: 11. Best value: 1:  90%|█████████ | 181/200 [18:30:02<1:26:49, 274.18s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  90%|█████████ | 181/200 [18:43:02<1:26:49, 274.18s/it]
+Best trial: 11. Best value: 1:  90%|█████████ | 181/200 [18:43:02<1:26:49, 274.18s/it]
+Best trial: 11. Best value: 1:  91%|█████████ | 182/200 [18:43:02<2:07:48, 426.01s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  91%|█████████ | 182/200 [18:47:07<2:07:48, 426.01s/it]
+Best trial: 11. Best value: 1:  91%|█████████ | 182/200 [18:47:07<2:07:48, 426.01s/it]
+Best trial: 11. Best value: 1:  92%|█████████▏| 183/200 [18:47:07<1:45:18, 371.66s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  92%|█████████▏| 183/200 [18:51:12<1:45:18, 371.66s/it]
+Best trial: 11. Best value: 1:  92%|█████████▏| 183/200 [18:51:12<1:45:18, 371.66s/it]
+Best trial: 11. Best value: 1:  92%|█████████▏| 184/200 [18:51:12<1:29:00, 333.79s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  92%|█████████▏| 184/200 [19:04:47<1:29:00, 333.79s/it]
+Best trial: 11. Best value: 1:  92%|█████████▏| 184/200 [19:04:47<1:29:00, 333.79s/it]
+Best trial: 11. Best value: 1:  92%|█████████▎| 185/200 [19:04:47<1:59:30, 478.01s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  92%|█████████▎| 185/200 [19:09:50<1:59:30, 478.01s/it]
+Best trial: 11. Best value: 1:  92%|█████████▎| 185/200 [19:09:50<1:59:30, 478.01s/it]
+Best trial: 11. Best value: 1:  93%|█████████▎| 186/200 [19:09:50<1:39:18, 425.58s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  93%|█████████▎| 186/200 [19:13:54<1:39:18, 425.58s/it]
+Best trial: 11. Best value: 1:  93%|█████████▎| 186/200 [19:13:54<1:39:18, 425.58s/it]
+Best trial: 11. Best value: 1:  94%|█████████▎| 187/200 [19:13:54<1:20:26, 371.25s/it]
+                                                                                      
+
+Best trial: 11. Best value: 1:  94%|█████████▎| 187/200 [19:14:23<1:20:26, 371.25s/it]
+Best trial: 11. Best value: 1:  94%|█████████▎| 187/200 [19:14:23<1:20:26, 371.25s/it]
+Best trial: 11. Best value: 1:  94%|█████████▍| 188/200 [19:14:23<53:40, 268.35s/it]  
+                                                                                    
+
+Best trial: 11. Best value: 1:  94%|█████████▍| 188/200 [19:18:17<53:40, 268.35s/it]
+Best trial: 11. Best value: 1:  94%|█████████▍| 188/200 [19:18:17<53:40, 268.35s/it]
+Best trial: 11. Best value: 1:  94%|█████████▍| 189/200 [19:18:17<47:20, 258.21s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  94%|█████████▍| 189/200 [19:18:41<47:20, 258.21s/it]
+Best trial: 11. Best value: 1:  94%|█████████▍| 189/200 [19:18:41<47:20, 258.21s/it]
+Best trial: 11. Best value: 1:  95%|█████████▌| 190/200 [19:18:41<31:17, 187.76s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  95%|█████████▌| 190/200 [19:23:07<31:17, 187.76s/it]
+Best trial: 11. Best value: 1:  95%|█████████▌| 190/200 [19:23:07<31:17, 187.76s/it]
+Best trial: 11. Best value: 1:  96%|█████████▌| 191/200 [19:23:07<31:42, 211.39s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  96%|█████████▌| 191/200 [19:27:13<31:42, 211.39s/it]
+Best trial: 11. Best value: 1:  96%|█████████▌| 191/200 [19:27:13<31:42, 211.39s/it]
+Best trial: 11. Best value: 1:  96%|█████████▌| 192/200 [19:27:13<29:33, 221.72s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  96%|█████████▌| 192/200 [19:31:19<29:33, 221.72s/it]
+Best trial: 11. Best value: 1:  96%|█████████▌| 192/200 [19:31:19<29:33, 221.72s/it]
+Best trial: 11. Best value: 1:  96%|█████████▋| 193/200 [19:31:19<26:43, 229.10s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  96%|█████████▋| 193/200 [19:40:52<26:43, 229.10s/it]
+Best trial: 11. Best value: 1:  96%|█████████▋| 193/200 [19:40:52<26:43, 229.10s/it]
+Best trial: 11. Best value: 1:  97%|█████████▋| 194/200 [19:40:52<33:13, 332.21s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  97%|█████████▋| 194/200 [19:44:58<33:13, 332.21s/it]
+Best trial: 11. Best value: 1:  97%|█████████▋| 194/200 [19:44:58<33:13, 332.21s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 195/200 [19:44:58<25:31, 306.22s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  98%|█████████▊| 195/200 [19:49:03<25:31, 306.22s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 195/200 [19:49:03<25:31, 306.22s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 196/200 [19:49:03<19:12, 288.06s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  98%|█████████▊| 196/200 [19:53:09<19:12, 288.06s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 196/200 [19:53:09<19:12, 288.06s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 197/200 [19:53:09<13:46, 275.42s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  98%|█████████▊| 197/200 [19:57:15<13:46, 275.42s/it]
+Best trial: 11. Best value: 1:  98%|█████████▊| 197/200 [19:57:15<13:46, 275.42s/it]
+Best trial: 11. Best value: 1:  99%|█████████▉| 198/200 [19:57:15<08:53, 266.65s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1:  99%|█████████▉| 198/200 [20:01:21<08:53, 266.65s/it]
+Best trial: 11. Best value: 1:  99%|█████████▉| 198/200 [20:01:21<08:53, 266.65s/it]
+Best trial: 11. Best value: 1: 100%|█████████▉| 199/200 [20:01:21<04:20, 260.32s/it]
+                                                                                    
+
+Best trial: 11. Best value: 1: 100%|█████████▉| 199/200 [20:05:26<04:20, 260.32s/it]
+Best trial: 11. Best value: 1: 100%|█████████▉| 199/200 [20:05:26<04:20, 260.32s/it]
+Best trial: 11. Best value: 1: 100%|██████████| 200/200 [20:05:26<00:00, 255.75s/it]
+Best trial: 11. Best value: 1: 100%|██████████| 200/200 [20:05:26<00:00, 361.63s/it]

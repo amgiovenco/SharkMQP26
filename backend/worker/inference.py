@@ -1,373 +1,425 @@
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
-import pandas as pd
+"""
+CNN-based shark species inference from fluorescence curves.
+Loads trained EfficientNet model and predicts species from temperature/fluorescence data.
+"""
 import numpy as np
-from PIL import Image
+import pandas as pd
+import joblib
 import io
 from pathlib import Path
-import matplotlib.pyplot as plt
+from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
-# Get the directory where this script is located
-WORKER_DIR = Path(__file__).parent
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from PIL import Image
 
-# Class names
-CLASS_NAMES = [
-    'Arabian smooth-hound',
-    'Atlantic Sharpnose shark',
-    'Blackchin guitarfish',
-    'Blacknose shark',
-    'Blackspotted smooth-hound',
-    'Blacktip reef shark',
-    'Blacktip shark',
-    'Blue shark',
-    'Bonnethead shark',
-    'Bowmouth guitarfish',
-    'Brownbanded bamboo shark',
-    'Bull shark',
-    'Caribbean reef shark',
-    'Common thresher shark',
-    'Copper shark',
-    'Dusky shark',
-    'Finetooth shark',
-    'Great hammerhead shark',
-    'Great white shark',
-    'Grey reef shark',
-    'Gulper shark',
-    'Gummy shark',
-    'Halavi guitarfish',
-    'Hooktooth shark',
-    'Japanese topeshark',
-    'Java shark',
-    'Lemon shark',
-    'Longtail stingray',
-    'Milk shark',
-    'Narrownose smooth-hound',
-    'Night shark',
-    'Nurse shark',
-    'Oceanic whitetip shark',
-    'Pacific bonnethead shark',
-    'Pacific guitarfish',
-    'Pacific smalltail shark',
-    'Pelagic thresher shark',
-    'Porbeagle shark',
-    'Roughskin dogfish',
-    'Sandbar shark',
-    'Sandtiger shark',
-    'Scalloped bonnethead shark',
-    'Scalloped hammerhead shark',
-    'Shortfin mako',
-    'Silky shark',
-    'Silvertip shark',
-    'Small tail shark',
-    'Smooth hammerhead shark',
-    'Spadenose stingray',
-    'Spinner shark',
-    'Spot-tail shark',
-    'Spotted Eagleray',
-    'Thornback ray',
-    'Tiger shark',
-    'Tope shark',
-    'Whitecheeck shark',
-    'Zebra shark',
-]
+import torch
+import torch.nn as nn
+from torchvision import models, transforms
 
-def get_model(num_classes=57, device='cpu'):
-    """Load EfficientNet-B0 model with the same architecture as training"""
-    model = models.efficientnet_b0(weights='IMAGENET1K_V1')
+# Constants
+MODEL_DIR = Path(__file__).parent / "model"
+BUNDLE_PATH = MODEL_DIR / "cnn_bundle.pkl"
+IMAGE_SIZE = 224
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Replace classifier head to match training
-    in_features = model.classifier[1].in_features
-    model.classifier = nn.Sequential(
-        nn.Dropout(0.5),
-        nn.Linear(in_features, 256),
-        nn.ReLU(inplace=True),
-        nn.Dropout(0.3),
-        nn.Linear(256, num_classes)
-    )
+# Normalization from ImageNet (same as training)
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
 
-    return model.to(device)
 
-def load_checkpoint(model_path, device='cpu'):
-    """Load a trained model from checkpoint"""
-    model = get_model(device=device)
-    checkpoint = torch.load(model_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
-    return model
+class CNNModel(nn.Module):
+    """EfficientNet-based CNN model (must match training architecture)."""
+    def __init__(self, num_classes, dropout1=0.7, dropout2=0.5):
+        super().__init__()
+        self.backbone = models.efficientnet_b0(weights=None)  # No pretrained weights
+        in_features = self.backbone.classifier[1].in_features
+        self.backbone.classifier = nn.Sequential(
+            nn.Dropout(dropout1),
+            nn.Linear(in_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout2),
+            nn.Linear(256, num_classes)
+        )
 
-def get_transforms():
-    """Get inference transforms (same as training validation transforms)"""
+    def forward(self, x):
+        return self.backbone(x)
+
+
+def generate_image(temps: np.ndarray, values: np.ndarray) -> Optional[Image.Image]:
+    """
+    Generate PIL image from fluorescence curve.
+
+    Args:
+        temps: Temperature values (1D array)
+        values: Fluorescence values (1D array)
+
+    Returns:
+        PIL Image or None if generation fails
+    """
+    try:
+        fig, ax = plt.subplots(figsize=(3, 2.25), dpi=96)
+        ax.plot(temps, values, linewidth=1.5, color='steelblue')
+        ax.set_xlim(temps.min(), temps.max())
+        ax.set_xlabel('temperature')
+        ax.set_ylabel('fluorescence')
+        ax.grid(True, alpha=0.3)
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=96)
+        buf.seek(0)
+        img = Image.open(buf).convert('RGB')
+        plt.close(fig)
+        return img
+    except Exception as e:
+        print(f"Failed to generate image: {e}")
+        return None
+
+
+def get_inference_transform():
+    """Get transform pipeline for inference (no augmentation)."""
     return transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
     ])
 
-def downsample_lttb(frequencies, signal, threshold=150):
+
+class SharkSpeciesInference:
+    """Inference class for shark species prediction."""
+
+    def __init__(self, bundle_path: Path = BUNDLE_PATH):
+        """
+        Initialize inference with trained model.
+
+        Args:
+            bundle_path: Path to the model bundle pickle file
+        """
+        if not bundle_path.exists():
+            raise FileNotFoundError(
+                f"Model bundle not found at {bundle_path}. "
+                f"Please ensure cnn_bundle.pkl is in {MODEL_DIR}/"
+            )
+
+        print(f"Loading model from {bundle_path}...")
+        # Load with CPU mapping if CUDA not available
+        import functools
+        import sys
+
+        # Ensure CNNModel is available in the correct module namespace for unpickling
+        # This handles cases where the model was trained in a different module context
+        current_module = sys.modules[__name__]
+        if 'worker.worker' in sys.modules:
+            sys.modules['worker.worker'].CNNModel = CNNModel
+
+        if not torch.cuda.is_available():
+            # Monkey-patch torch.load to always use CPU
+            original_torch_load = torch.load
+            torch.load = functools.partial(original_torch_load, map_location='cpu')
+
+        bundle = joblib.load(bundle_path)
+
+        # Restore original torch.load
+        if not torch.cuda.is_available():
+            torch.load = original_torch_load
+
+        self.model = bundle["model"]
+        self.label_encoder = bundle["label_encoder"]
+        self.cv_accuracy = bundle.get("cv_accuracy", None)
+        self.params = bundle.get("params", {})
+
+        # Move model to device and set to eval mode
+        self.model = self.model.to(DEVICE)
+        self.model.eval()
+
+        self.transform = get_inference_transform()
+        self.num_classes = len(self.label_encoder.classes_)
+
+        print(f"Model loaded successfully!")
+        print(f"  Device: {DEVICE}")
+        print(f"  Classes: {self.num_classes}")
+        print(f"  Species: {list(self.label_encoder.classes_)}")
+        if self.cv_accuracy:
+            print(f"  CV Accuracy: {self.cv_accuracy:.2f}%")
+
+    def predict(
+        self,
+        temps: np.ndarray,
+        values: np.ndarray,
+        return_probabilities: bool = False
+    ) -> Dict:
+        """
+        Predict species from fluorescence curve.
+
+        Args:
+            temps: Temperature values (1D array)
+            values: Fluorescence values (1D array)
+            return_probabilities: If True, return all class probabilities
+
+        Returns:
+            Dictionary with prediction results:
+            {
+                'species': str,
+                'confidence': float,
+                'probabilities': dict (if return_probabilities=True)
+            }
+        """
+        # Generate image
+        img = generate_image(temps, values)
+        if img is None:
+            raise ValueError("Failed to generate image from fluorescence curve")
+
+        # Transform and prepare for model
+        img_tensor = self.transform(img).unsqueeze(0).to(DEVICE)
+
+        # Inference
+        with torch.no_grad():
+            logits = self.model(img_tensor)
+            probabilities = torch.softmax(logits, dim=1)
+            confidence, predicted_idx = torch.max(probabilities, dim=1)
+
+        # Convert to numpy
+        predicted_idx = predicted_idx.cpu().item()
+        confidence = confidence.cpu().item()
+        probabilities_np = probabilities.cpu().numpy()[0]
+
+        # Get species name
+        species = self.label_encoder.inverse_transform([predicted_idx])[0]
+
+        result = {
+            'species': species,
+            'confidence': confidence
+        }
+
+        if return_probabilities:
+            result['probabilities'] = {
+                self.label_encoder.classes_[i]: float(prob)
+                for i, prob in enumerate(probabilities_np)
+            }
+
+        return result
+
+    def predict_batch(
+        self,
+        temps: np.ndarray,
+        values_batch: np.ndarray,
+        return_probabilities: bool = False
+    ) -> List[Dict]:
+        """
+        Predict species for multiple fluorescence curves.
+
+        Args:
+            temps: Temperature values (1D array, shared across batch)
+            values_batch: Fluorescence values (2D array: [n_samples, n_temps])
+            return_probabilities: If True, return all class probabilities
+
+        Returns:
+            List of prediction dictionaries
+        """
+        results = []
+        for values in values_batch:
+            result = self.predict(temps, values, return_probabilities)
+            results.append(result)
+        return results
+
+
+def load_test_data(csv_path: Path, n_samples: int = 10) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    LTTB (Largest-Triangle-Three-Buckets) downsampling algorithm.
-    Reduces data points while preserving the shape of the curve.
+    Load test samples from CSV.
 
     Args:
-        frequencies: List/array of frequency values
-        signal: List/array of signal values
-        threshold: Target number of points (default 150)
+        csv_path: Path to shark_dataset.csv
+        n_samples: Number of random samples to load
 
     Returns:
-        Tuple of (downsampled_frequencies, downsampled_signal)
-    """
-    data_length = len(frequencies)
-
-    # If already small enough, return as-is
-    if data_length <= threshold:
-        return frequencies, signal
-
-    frequencies = np.array(frequencies)
-    signal = np.array(signal)
-
-    bucket_size = (data_length - 2) / (threshold - 2)
-    downsampled_freq = [frequencies[0]]
-    downsampled_signal = [signal[0]]
-
-    a_index = 0
-
-    for i in range(threshold - 2):
-        avg_range_start = int(np.floor((i + 1) * bucket_size)) + 1
-        avg_range_end = int(np.floor((i + 2) * bucket_size)) + 1
-        avg_range_length = avg_range_end - avg_range_start
-
-        avg_freq = np.mean(frequencies[avg_range_start:avg_range_end])
-        avg_signal = np.mean(signal[avg_range_start:avg_range_end])
-
-        range_start = int(np.floor(i * bucket_size)) + 1
-        range_end = int(np.floor((i + 1) * bucket_size)) + 1
-
-        max_area = -1
-        max_area_index = -1
-
-        for j in range(range_start, range_end):
-            if j >= data_length:
-                break
-            area = abs(
-                (downsampled_freq[-1] - frequencies[j]) * (signal[j] - downsampled_signal[-1]) -
-                (downsampled_freq[-1] - avg_freq) * (downsampled_signal[-1] - avg_signal)
-            ) / 2
-
-            if area > max_area:
-                max_area = area
-                max_area_index = j
-
-        if max_area_index >= 0:
-            downsampled_freq.append(float(frequencies[max_area_index]))
-            downsampled_signal.append(float(signal[max_area_index]))
-            a_index = max_area_index
-
-    downsampled_freq.append(float(frequencies[-1]))
-    downsampled_signal.append(float(signal[-1]))
-
-    return downsampled_freq, downsampled_signal
-
-def csv_to_image(csv_path, sample_index=0, save_image_path=None):
-    """
-    Convert frequency spectrum CSV data to PIL Image using matplotlib line plot.
-    Replicates the exact format used in training (generate_images.py).
-
-    Args:
-        csv_path: Path to CSV file
-        sample_index: Which row to use (0-indexed). If CSV has multiple samples, selects this one
-        save_image_path: Optional path to save the generated image
-
-    Returns:
-        PIL Image object
+        Tuple of (temps, values_batch, true_species)
     """
     df = pd.read_csv(csv_path)
 
-    # Get the frequency columns (all except 'Species' if it exists)
-    frequency_cols = [col for col in df.columns if col != 'Species']
+    # Sample randomly
+    sample_df = df.sample(n=min(n_samples, len(df)), random_state=42)
 
-    # Convert column names to float (frequency values)
-    # Handle both numeric column names and string column names
-    try:
-        time_values = np.array([float(col) for col in frequency_cols])
-    except (ValueError, TypeError):
-        # If columns can't be converted to float, assume they are already numeric indices
-        time_values = np.array(frequency_cols, dtype=float)
+    # Extract temperatures from column names
+    temp_cols = [col for col in df.columns if col != 'Species']
+    temps = np.array([float(col) for col in temp_cols])
 
-    # Use the specified sample index (default to first if out of bounds)
-    if sample_index >= len(df):
-        sample_index = 0
-    signal_values = df[frequency_cols].iloc[sample_index].values.astype(float)
+    # Extract values
+    values_batch = sample_df[temp_cols].values
+    true_species = sample_df['Species'].values
 
-    # Get min/max only from finite values
-    finite_mask = np.isfinite(signal_values)
-    if finite_mask.any():
-        signal_min = np.min(signal_values[finite_mask])
-        signal_max = np.max(signal_values[finite_mask])
-    else:
-        # No valid data - this should be caught by validation in run_inference
-        signal_min = 0
-        signal_max = 1
+    return temps, values_batch, true_species
 
-    # Handle case where all signal values are the same (flat line)
-    if signal_min == signal_max:
-        signal_min = signal_min - 0.5
-        signal_max = signal_max + 0.5
 
-    # Create matplotlib line plot (same as generate_images.py)
-    IMAGE_SIZE = (224, 224)
-    DPI = 100
-
-    fig, ax = plt.subplots(figsize=(IMAGE_SIZE[0]/DPI, IMAGE_SIZE[1]/DPI), dpi=DPI)
-
-    # Plot the line (matplotlib handles NaN by not plotting those points)
-    ax.plot(time_values, signal_values, linewidth=2, color='#2E86AB')
-
-    # Remove axes and labels for clean image (exactly as in generate_images.py)
-    ax.set_xlim(time_values.min(), time_values.max())
-    ax.set_ylim(signal_min - 0.001, signal_max + 0.001)
-    ax.axis('off')
-
-    # Remove all margins and padding
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-
-    # Save to bytes buffer
-    buf = io.BytesIO()
-    plt.savefig(buf, dpi=DPI, bbox_inches='tight', pad_inches=0,
-                facecolor='white', edgecolor='none', format='png')
-    plt.close(fig)
-
-    # Load image from buffer
-    buf.seek(0)
-    img = Image.open(buf).convert('RGB')
-
-    # Save to file if requested
-    if save_image_path:
-        img.save(save_image_path)
-        print(f"Saved visualization to: {save_image_path}")
-
-    return img
-
-def run_inference(csv_path, model_path=None, sample_index=0, device='cpu', save_image_path=None):
+def run_inference(filepath: str, sample_index: int = 0, device: str = None) -> Dict:
     """
-    Run inference on a CSV file
+    Run inference on a specific sample from a CSV file.
 
     Args:
-        csv_path: Path to the CSV file
-        model_path: Path to the .pth model file (defaults to finding it in worker dir)
-        sample_index: Which sample row to use (0-indexed). Default is 0
-        device: Device to run inference on ('cpu' or 'cuda')
-        save_image_path: Optional path to save the generated image visualization
+        filepath: Path to the CSV file containing fluorescence data
+        sample_index: Index of the sample to analyze (0-based)
+        device: Device to use ('cuda' or 'cpu'), auto-detected if None
 
     Returns:
-        dict with inference results
+        Dictionary with:
+        {
+            'success': bool,
+            'predictions': [
+                {
+                    'species': str,
+                    'confidence': float,
+                    'rank': int
+                }
+            ],
+            'sample_index': int
+        }
     """
-    # Find model if not provided
-    if model_path is None:
-        model_files = list(WORKER_DIR.glob('efficientnet_b0_fold*.pth'))
-        if not model_files:
-            raise FileNotFoundError(f"No .pth model files found in {WORKER_DIR}")
-        # Use fold 1 as default
-        model_files.sort()
-        model_path = model_files[0]
+    import traceback
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info(f"Loading CSV from {filepath}")
+
+        # Load CSV
+        df = pd.read_csv(filepath)
+        logger.info(f"CSV loaded: {len(df)} rows, columns: {list(df.columns)[:5]}...")
+
+        if sample_index < 0 or sample_index >= len(df):
+            raise ValueError(f"sample_index {sample_index} out of range [0, {len(df)-1}]")
+
+        # Extract temperature columns and values
+        # Temperature columns are numeric column names
+        temp_cols = []
+        for col in df.columns:
+            if col == 'Species':
+                continue
+            try:
+                float(col)
+                temp_cols.append(col)
+            except (ValueError, TypeError):
+                continue
+
+        if not temp_cols:
+            raise ValueError(f"No temperature columns found in CSV. Columns: {list(df.columns)}")
+
+        temps = np.array([float(col) for col in temp_cols])
+        logger.info(f"Found {len(temp_cols)} temperature columns, range: {temps.min():.2f} - {temps.max():.2f}")
+
+        # Get the specific sample
+        sample_values = df.iloc[sample_index][temp_cols].values.astype(float)
+        logger.info(f"Extracted sample {sample_index}, value range: {sample_values.min():.2f} - {sample_values.max():.2f}")
+
+        # Initialize inference model
+        logger.info("Initializing SharkSpeciesInference model...")
+        inference = SharkSpeciesInference()
+
+        # Run prediction with all probabilities
+        logger.info("Running prediction...")
+        result = inference.predict(temps, sample_values, return_probabilities=True)
+        logger.info(f"Prediction completed: {result['species']} with confidence {result['confidence']:.4f}")
+
+        # Format predictions in descending order of confidence
+        predictions = []
+        probs = result.get('probabilities', {})
+
+        # Sort by confidence descending
+        sorted_species = sorted(probs.items(), key=lambda x: x[1], reverse=True)
+
+        for rank, (species, confidence) in enumerate(sorted_species, start=1):
+            predictions.append({
+                'species': species,
+                'confidence': float(confidence),
+                'rank': rank
+            })
+
+        logger.info(f"Returning {len(predictions)} predictions")
+        return {
+            'success': True,
+            'predictions': predictions,
+            'sample_index': sample_index,
+            'curve_data': {
+                'frequencies': temps.tolist(),
+                'signal': sample_values.tolist()
+            }
+        }
+
+    except Exception as e:
+        error_msg = f"Inference failed: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        print(error_msg)  # Also print to stdout for immediate visibility
+        return {
+            'success': False,
+            'error': str(e),
+            'predictions': [],
+            'sample_index': sample_index
+        }
+
+
+def test_inference(csv_path: Path = None, n_samples: int = 20):
+    """
+    Test inference on random samples from dataset.
+
+    Args:
+        csv_path: Path to shark_dataset.csv
+        n_samples: Number of samples to test
+    """
+    if csv_path is None:
+        csv_path = Path(__file__).parent.parent.parent / "data" / "shark_dataset.csv"
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Test data not found at {csv_path}")
+
+    print("="*70)
+    print("TESTING INFERENCE")
+    print("="*70)
 
     # Load model
-    model = load_checkpoint(str(model_path), device=device)
-    transform = get_transforms()
+    inference = SharkSpeciesInference()
 
-    # Get curve data for visualization
-    df = pd.read_csv(csv_path)
-    frequency_cols = [col for col in df.columns if col != 'Species']
-    try:
-        time_values = np.array([float(col) for col in frequency_cols])
-    except (ValueError, TypeError):
-        time_values = np.array(frequency_cols, dtype=float)
+    # Load test data
+    print(f"\nLoading {n_samples} random samples from {csv_path.name}...")
+    temps, values_batch, true_species = load_test_data(csv_path, n_samples)
 
-    if sample_index >= len(df):
-        sample_index = 0
-    signal_values = df[frequency_cols].iloc[sample_index].values.astype(float)
-
-    # Validate signal data quality - reject only truly bad data
-    if not np.any(np.isfinite(signal_values)):
-        raise ValueError("Sample contains only NaN or Inf values - no valid measurement")
-
-    # Check if there's at least some real signal (not all zeros or noise)
-    finite_values = signal_values[np.isfinite(signal_values)]
-    if len(finite_values) == 0:
-        raise ValueError("Sample has no valid finite values")
-
-    # Convert CSV to image (using specified sample index)
-    img = csv_to_image(csv_path, sample_index=sample_index, save_image_path=save_image_path)
-
-    # Apply transforms
-    img_tensor = transform(img).unsqueeze(0).to(device)
+    print(f"  Temperature range: {temps.min():.2f} - {temps.max():.2f}")
+    print(f"  Samples shape: {values_batch.shape}")
 
     # Run inference
-    with torch.no_grad():
-        outputs = model(img_tensor)
-        logits = outputs[0]
-        probs = torch.softmax(logits, dim=0)
+    print(f"\nRunning inference on {len(values_batch)} samples...")
+    correct = 0
+    total = len(values_batch)
 
-        # Get top-k predictions
-        top_k = 5
-        top_probs, top_indices = torch.topk(probs, top_k)
+    print("\nResults:")
+    print("-"*70)
+    for i, (values, true_label) in enumerate(zip(values_batch, true_species)):
+        result = inference.predict(temps, values, return_probabilities=False)
+        predicted = result['species']
+        confidence = result['confidence']
 
-        winner_idx = top_indices[0].item()
-        winner_label = CLASS_NAMES[winner_idx]
-        winner_prob = top_probs[0].item()
+        is_correct = predicted == true_label
+        correct += int(is_correct)
 
-    # Format results
-    topk_results = []
-    for prob, idx in zip(top_probs, top_indices):
-        label = CLASS_NAMES[idx.item()]
-        topk_results.append({
-            'label': label,
-            'prob': float(prob.item())
-        })
+        status = "✓" if is_correct else "✗"
+        print(f"{i+1:2d}. {status} True: {true_label:30s} | Pred: {predicted:30s} | Conf: {confidence:.4f}")
 
-    # Prepare curve data - only include finite values for visualization
-    # NaN values are skipped since matplotlib handles them by not plotting
-    curve_freqs = []
-    curve_signal = []
-    for f, s in zip(time_values, signal_values):
-        if np.isfinite(s):
-            curve_freqs.append(float(f))
-            curve_signal.append(float(s))
+    # Summary
+    accuracy = 100.0 * correct / total
+    print("-"*70)
+    print(f"\nAccuracy: {correct}/{total} = {accuracy:.2f}%")
 
-    # Downsample curve data for faster API response
-    downsampled_freq, downsampled_signal = downsample_lttb(
-        curve_freqs,
-        curve_signal,
-        threshold=150
-    )
-
-    return {
-        'winner': winner_label,
-        'confidence': float(winner_prob),
-        'topk': topk_results,
-        'source_file': str(csv_path),
-        'curve_data': {
-            'frequencies': downsampled_freq,
-            'signal': downsampled_signal,
-        }
-    }
-
-
-if __name__ == '__main__':
-    # Test inference
-    import sys
-    if len(sys.argv) > 1:
-        csv_file = sys.argv[1]
-        # Save image to same directory as CSV file
-        csv_path = Path(csv_file)
-        save_path = csv_path.parent / f"{csv_path.stem}_input.png"
-
-        result = run_inference(csv_file, save_image_path=str(save_path))
-        print(f"\nWinner: {result['winner']} ({result['confidence']:.2%})")
-        print(f"\nTop 5:")
-        for i, pred in enumerate(result['topk'], 1):
-            print(f"  {i}. {pred['label']:<30} {pred['prob']:.4f}")
+    if accuracy < 95.0:
+        print("\n⚠️  Warning: Accuracy below 95%. Check model files and data preprocessing.")
+    elif accuracy >= 99.0:
+        print("\n✓ Excellent! Model achieving expected ~99% accuracy.")
     else:
-        print("Usage: python inference.py <csv_file>")
+        print("\n✓ Good accuracy, within expected range.")
+
+    return accuracy
+
+
+if __name__ == "__main__":
+    # Run tests
+    test_inference(n_samples=50)

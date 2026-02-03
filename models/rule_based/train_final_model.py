@@ -1,7 +1,7 @@
 """
 Train final rule-based model with known best parameters on 100% of data.
-Best model: ExtraTreesClassifier with optimized hyperparameters
-Best CV accuracy: 0.9508
+Best model: RandomForestClassifier with optimized hyperparameters
+Best CV macro F1: 0.9292
 """
 import os
 import numpy as np
@@ -9,7 +9,7 @@ import pandas as pd
 import joblib
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.pipeline import make_pipeline
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import RandomForestClassifier
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -98,17 +98,23 @@ print("Training final model on all data...")
 print("="*60)
 
 best_params = {
-    'n_estimators': 790,
+    'n_estimators': 800,
+    'max_depth': 20,
+    'min_samples_split': 5,
     'min_samples_leaf': 1,
-    'max_depth': 15,
-    'max_features': None,
+    'max_features': 0.8,
+    'class_weight': 'balanced_subsample',
+    'criterion': 'gini',
+    'bootstrap': False,
+    'ccp_alpha': 0.005,
+    'warm_start': False,
     'random_state': RANDOM_STATE,
     'n_jobs': -1
 }
 
 final_clf = make_pipeline(
     StandardScaler(),
-    ExtraTreesClassifier(**best_params)
+    RandomForestClassifier(**best_params)
 )
 
 final_clf.fit(X, y_encoded)
@@ -118,13 +124,21 @@ bundle = {
     "label_encoder": le,
     "feature_names": feature_names,
     "model_type": "optimized_rb",
-    "cv_accuracy": 0.9508,
+    "cv_macro_f1": 0.9292,
+    "baseline_cv_macro_f1": 0.834749229442728,
+    "improvement_percentage": 9.448757176775736,
     "params": {
-        'model_type': 'et',
-        'et_n_estimators': 790,
-        'et_min_samples_leaf': 1,
-        'et_max_depth': 15,
-        'et_max_features': None
+        'model_type': 'rf',
+        'rf_n_estimators': 800,
+        'rf_max_depth': 20,
+        'rf_min_samples_split': 5,
+        'rf_min_samples_leaf': 1,
+        'rf_max_features': 0.8,
+        'rf_class_weight': 'balanced_subsample',
+        'rf_criterion': 'gini',
+        'rf_bootstrap': False,
+        'rf_ccp_alpha': 0.005,
+        'rf_warm_start': False
     }
 }
 
@@ -135,6 +149,9 @@ print(f"Saved optimized model to ./models/rulebased_final.pkl")
 print("\n" + "="*60)
 print("SUMMARY")
 print("="*60)
-print(f"Final CV accuracy: 0.9508")
-print(f"Improvement: 3.22%")
-print("\nDone!")
+print(f"Best Model: RandomForestClassifier (optimized_rb)")
+print(f"Best CV Macro F1: 0.9292")
+print(f"Baseline CV Macro F1: 0.8347")
+print(f"Improvement: 9.45%")
+print("\nModel saved to ./models/rulebased_final.pkl")
+print("Done!")
