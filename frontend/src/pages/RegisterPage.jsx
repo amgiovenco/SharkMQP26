@@ -101,57 +101,71 @@ const RegisterPage = () => {
                     </div>
 
                     <form onSubmit={handleRegister} className="space-y-6 flex flex-col items-center">
-                        <input
-                            type="text"
-                            placeholder="Registration Code"
-                            value={registrationCode}
-                            onChange={(e) => setRegistrationCode(e.target.value)}
-                            required
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                        <div className="w-[575px] relative">
+                            <input
+                                type="text"
+                                placeholder="Registration Code"
+                                value={registrationCode}
+                                onChange={(e) => setRegistrationCode(e.target.value)}
+                                required
+                                className="w-full h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 text-lg">*</span>
+                        </div>
 
-                        <input
-                            type="text"
-                            placeholder="Email"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                        <div className="w-[575px] relative">
+                            <input
+                                type="text"
+                                placeholder="Email"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                                className="w-full h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 text-lg">*</span>
+                        </div>
 
-                        <input
-                            type="text"
-                            placeholder="First Name (Optional)"
-                            value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                        <div className="w-[575px] flex gap-4">
+                            <input
+                                type="text"
+                                placeholder="First Name"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                className="flex-1 h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
 
-                        <input
-                            type="text"
-                            placeholder="Last Name (Optional)"
-                            value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                            <input
+                                type="text"
+                                placeholder="Last Name"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                className="flex-1 h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
+                        </div>
 
-                        <input
-                            type="password"
-                            placeholder="Password (At least 8 characters)"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                        <div className="w-[575px] relative">
+                            <input
+                                type="password"
+                                placeholder="Password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 text-lg">*</span>
+                        </div>
 
-                        <input
-                            type="password"
-                            placeholder="Confirm Password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
-                        />
+                        <div className="w-[575px] relative">
+                            <input
+                                type="password"
+                                placeholder="Confirm Password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                className="w-full h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 text-lg">*</span>
+                        </div>
 
                         {error && (
                             <p className="text-red-500 text-sm text-center">
