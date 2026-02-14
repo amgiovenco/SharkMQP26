@@ -410,13 +410,6 @@ def test_inference(csv_path: Path = None, n_samples: int = 20):
     print("-"*70)
     print(f"\nAccuracy: {correct}/{total} = {accuracy:.2f}%")
 
-    if accuracy < 95.0:
-        print("\n⚠️  Warning: Accuracy below 95%. Check model files and data preprocessing.")
-    elif accuracy >= 99.0:
-        print("\n✓ Excellent! Model achieving expected ~99% accuracy.")
-    else:
-        print("\n✓ Good accuracy, within expected range.")
-
     return accuracy
 
 

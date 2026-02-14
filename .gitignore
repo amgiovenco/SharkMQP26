@@ -10,8 +10,12 @@ build/
 */build/
 node_modules/
 */node_modules/
-package-lock.json
-*/package-lock.json
+
+# Model file exceptions (tracked with Git LFS)
+!backend/worker/efficientnet/cnn_bundle.pkl
+!backend/worker/efficientnet/cnn_final.pth
+
+# Ignore other model files
 **/*.pth
 **/*.pt
 **/*.pkl

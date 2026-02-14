@@ -1,0 +1,25 @@
+[Unit]
+Description=SharkID ML Worker
+After=network.target postgresql.service redis-server.service sharkid-api.service
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=sharkid
+Group=sharkid
+WorkingDirectory=/opt/sharkid/backend
+EnvironmentFile=/opt/sharkid/backend/.env
+ExecStart=/opt/sharkid/backend/.venv/bin/python -m worker.worker
+Restart=on-failure
+RestartSec=10s
+MemoryMax=4G
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sharkid/data
+
+[Install]
+WantedBy=multi-user.target

@@ -12,7 +12,7 @@ from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
-from SharkMQP26.backend.worker.cnn_inference import run_inference as ml_inference, CNNModel
+from worker.cnn_inference import run_inference, CNNModel
 from worker.extract_melt_block import process_file as extract_melt_block
 
 logger = get_logger(__name__)
@@ -77,7 +77,7 @@ def run_inference(filepath: str, sample_index: int = 0):
         logger.info(f"[run_inference] Using filepath: {processed_filepath}")
 
         # Run inference on processed data
-        result = ml_inference(processed_filepath, sample_index=sample_index, device=DEVICE)
+        result = run_inference(processed_filepath, sample_index=sample_index, device=DEVICE)
 
         # Log result structure
         logger.info(f"[run_inference] Got result, success={result['success']}")

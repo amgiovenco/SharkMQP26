@@ -1,0 +1,101 @@
+name: Build Debian Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify LFS files
+        run: |
+          echo "Checking LFS files..."
+          if [ ! -f backend/worker/efficientnet/cnn_bundle.pkl ]; then
+            echo "ERROR: cnn_bundle.pkl not found"
+            exit 1
+          fi
+          if [ ! -f backend/worker/efficientnet/cnn_final.pth ]; then
+            echo "ERROR: cnn_final.pth not found"
+            exit 1
+          fi
+
+          # Check that files are real (not LFS pointers)
+          pkl_size=$(stat -c%s backend/worker/efficientnet/cnn_bundle.pkl)
+          pth_size=$(stat -c%s backend/worker/efficientnet/cnn_final.pth)
+
+          echo "cnn_bundle.pkl size: ${pkl_size} bytes"
+          echo "cnn_final.pth size: ${pth_size} bytes"
+
+          if [ "$pkl_size" -lt 1000000 ]; then
+            echo "ERROR: cnn_bundle.pkl appears to be an LFS pointer"
+            exit 1
+          fi
+          if [ "$pth_size" -lt 1000000 ]; then
+            echo "ERROR: cnn_final.pth appears to be an LFS pointer"
+            exit 1
+          fi
+
+          echo "LFS files verified successfully"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          REACT_APP_API_BASE_URL=/api npm run build
+
+      - name: Install fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential
+          sudo gem install --no-document fpm
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Build .deb package
+        run: |
+          chmod +x packaging/build-deb.sh
+          ./packaging/build-deb.sh ${{ steps.version.outputs.version }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharkid-deb-package
+          path: build/sharkid_*.deb
+          retention-days: 30
+
+      - name: Create Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/sharkid_*.deb
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

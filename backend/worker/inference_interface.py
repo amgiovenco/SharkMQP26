@@ -1,93 +1,93 @@
 """
-Inference Interface - Define the contract for any inference module.
+Inference Interface - Required contract for plug-and-play model compatibility.
 
-Any model implementation must provide these methods to be compatible with worker.py.
+To make your model compatible with worker.py, implement the run_inference() function
+with the exact signature and return format shown below.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional, TypedDict
+
+class PredictionDict(TypedDict):
+    """Single prediction result."""
+    rank: int
+    species: str
+    confidence: float
 
 
-class InferenceInterface(ABC):
-    """
-    Abstract base class defining the interface that any inference module must implement.
+class CurveData(TypedDict):
+    """Optional curve data for visualization."""
+    frequencies: List[float]
+    signal: List[float]
 
-    This ensures compatibility with worker.py and makes it easy to swap models.
-    """
 
-    @abstractmethod
-    def predict(self, fluorescence: Union[List[float], object],
-                top_k: int = 57) -> List[Dict]:
-        """
-        Predict shark species from fluorescence curve.
-
-        Args:
-            fluorescence: Fluorescence values (list, array, or format-specific data)
-            top_k: Number of top predictions to return
-
-        Returns:
-            List of dicts with keys: 'rank', 'species', 'confidence'
-            Example: [
-                {'rank': 1, 'species': 'Great White Shark', 'confidence': 0.98},
-                {'rank': 2, 'species': 'Bull Shark', 'confidence': 0.02},
-            ]
-        """
-        pass
-
-    @abstractmethod
-    def predict_from_csv_row(self, csv_row: Dict, top_k: int = 57) -> List[Dict]:
-        """
-        Predict from a pandas Series or dict (CSV row).
-
-        Args:
-            csv_row: pandas Series or dict with fluorescence columns (excluding 'Species')
-            top_k: Number of top predictions
-
-        Returns:
-            List of prediction dicts (same format as predict())
-        """
-        pass
-
-    @abstractmethod
-    def get_species_list(self) -> List[str]:
-        """Get list of all species this model can predict."""
-        pass
+class InferenceResult(TypedDict, total=False):
+    """Complete inference result returned by run_inference()."""
+    success: bool
+    predictions: List[PredictionDict]
+    sample_index: int
+    curve_data: CurveData
+    error: str  # Only present if success=False
 
 
 def run_inference(filepath: str, sample_index: int = 0,
-                 device: Optional[str] = None) -> Dict:
+                 device: Optional[str] = None) -> InferenceResult:
     """
-    REQUIRED: Production inference function that worker.py calls.
-
-    This is the entry point that worker.py imports and uses.
-    Must have this exact signature.
+    Implement this method to use your own model for inference.
+    
+    Your inference module must export this function with this exact signature.
 
     Args:
         filepath: Path to CSV file with fluorescence data
-        sample_index: Row index in CSV to predict on
+        sample_index: Row index in CSV to predict on (0-based)
         device: 'cuda' or 'cpu' (None = auto-detect)
 
     Returns:
-        Dict with keys:
-            - 'predictions': List of top predictions (rank, species, confidence)
-            - 'sample_index': The sample index that was predicted
-            - 'success': True if successful
-            - 'true_species': Actual species from CSV (if Species column exists)
-            - 'top_prediction_correct': Whether top prediction matches true species
+        Dict with the following structure:
 
-    Example return value:
+        On success:
         {
+            'success': True,
             'predictions': [
-                {'rank': 1, 'species': 'Arabian smooth-hound', 'confidence': 1.0},
-                {'rank': 2, 'species': 'Spotted Eagleray', 'confidence': 0.0},
+                {'rank': 1, 'species': 'Arabian smooth-hound', 'confidence': 0.95},
+                {'rank': 2, 'species': 'Bull Shark', 'confidence': 0.03},
                 ...
             ],
-            'true_species': 'Arabian smooth-hound',
             'sample_index': 0,
-            'success': True,
-            'top_prediction_correct': True
+            'curve_data': {
+                'frequencies': [60.0, 60.5, 61.0, ...],
+                'signal': [0.123, 0.456, ...]
+            }
         }
+
+        On failure:
+        {
+            'success': False,
+            'error': 'Error message here',
+            'predictions': [],
+            'sample_index': 0
+        }
+
+    Implementation Requirements:
+        1. Load CSV from filepath
+        2. Extract temperature columns (numeric column names, excluding 'Species')
+        3. Get fluorescence values for the specified sample_index
+        4. Run your model's prediction
+        5. Return all predictions ranked by confidence (descending)
+        6. Handle errors gracefully and return success=False with error message
+
+    Example Usage in worker.py:
+        # To use CNN model:
+        from worker.cnn_inference import run_inference as ml_inference
+
+        # To use TCN model:
+        from worker.tcn_inference import run_inference as ml_inference
+
+        # To use your custom model:
+        from worker.your_model_inference import run_inference as ml_inference
+
+        # Then just call it:
+        result = ml_inference(filepath='data.csv', sample_index=0)
     """
     raise NotImplementedError(
-        "run_inference() must be implemented in your inference module"
+        "run_inference() must be implemented in your inference module."
     )

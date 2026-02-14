@@ -1,0 +1,24 @@
+[Unit]
+Description=SharkID API Server
+After=network.target postgresql.service redis-server.service
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=sharkid
+Group=sharkid
+WorkingDirectory=/opt/sharkid/backend
+EnvironmentFile=/opt/sharkid/backend/.env
+ExecStart=/opt/sharkid/backend/.venv/bin/uvicorn app.main:sio_asgi_app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=10s
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sharkid/data
+
+[Install]
+WantedBy=multi-user.target
