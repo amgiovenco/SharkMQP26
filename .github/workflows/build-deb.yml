@@ -2,6 +2,8 @@ name: Build Debian Package
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -73,8 +75,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          else
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            # For main branch pushes, use timestamp-based dev version
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            VERSION="0.1.0-dev-${TIMESTAMP}-${SHORT_SHA}"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Building version: ${VERSION}"
