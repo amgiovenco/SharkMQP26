@@ -3,7 +3,7 @@
  * Manage organization members and registration codes
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
 import { usePermissions } from '../hooks/usePermissions';
@@ -20,14 +20,7 @@ export function TeamManagementPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        loadMembers();
-        if (canManageCodes) {
-            loadCodes();
-        }
-    }, [currentOrganization]);
-
-    const loadMembers = async () => {
+    const loadMembers = useCallback(async () => {
         try {
             setLoading(true);
             const data = await apiFetch(`/organizations/${currentOrganization.id}/members`);
@@ -39,16 +32,23 @@ export function TeamManagementPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentOrganization]);
 
-    const loadCodes = async () => {
+    const loadCodes = useCallback(async () => {
         try {
             const data = await apiFetch(`/organizations/${currentOrganization.id}/codes`);
             setCodes(data.codes || []);
         } catch (err) {
             console.error('Error loading codes:', err);
         }
-    };
+    }, [currentOrganization]);
+
+    useEffect(() => {
+        loadMembers();
+        if (canManageCodes) {
+            loadCodes();
+        }
+    }, [loadMembers, loadCodes, canManageCodes]);
 
     const createCode = async () => {
         try {
