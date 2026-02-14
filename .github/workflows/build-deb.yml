@@ -22,6 +22,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Verify LFS files
         run: |
@@ -78,10 +80,22 @@ jobs:
           elif [ "${{ github.ref_type }}" = "tag" ]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            # For main branch pushes, use timestamp-based dev version
-            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-            SHORT_SHA="${GITHUB_SHA:0:7}"
-            VERSION="0.1.0-dev-${TIMESTAMP}-${SHORT_SHA}"
+            # For main branch pushes, auto-increment version from .version file
+            CURRENT_VERSION=$(cat .version)
+            # Split version into parts (MAJOR.MINOR.PATCH)
+            IFS='.' read -ra PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${PARTS[0]}
+            MINOR=${PARTS[1]}
+            PATCH=${PARTS[2]}
+
+            # Increment patch version
+            PATCH=$((PATCH + 1))
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+            # Update version file
+            echo "$VERSION" > .version
+
+            echo "Incremented version: $CURRENT_VERSION → $VERSION"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Building version: ${VERSION}"
@@ -98,10 +112,24 @@ jobs:
           path: build/sharkid_*.deb
           retention-days: 30
 
+      - name: Commit version bump
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit version file
+          git add .version
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+
+          # Push commit (tag will be created by release action)
+          git push origin HEAD:main
+
       - name: Create Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.version.outputs.version }}
           files: build/sharkid_*.deb
           generate_release_notes: true
         env:
