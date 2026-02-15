@@ -47,14 +47,9 @@ export const useInitializeApp = () => {
                 const casesData = await apiFetch('/cases');
                 setCases(casesData.cases);
                 setError(null);
-
-                console.log('App initialized successfully with fresh data');
             } catch (error) {
-                console.error('Failed to initialize app:', error);
-
                 // If JWT is invalid (401 Unauthorized), clear auth
                 if (error.message && (error.message.includes('401') || error.message.includes('Invalid token'))) {
-                    console.log('JWT token invalid or expired, clearing auth');
                     clearAuth();
                 } else {
                     // For other errors (network, server error, etc.), just log but don't clear auth

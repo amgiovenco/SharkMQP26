@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { validateJwt } from '../utility/JWTUtil';
 
 export const useAuthStore = create(
     devtools(
@@ -91,7 +92,25 @@ export const useAuthStore = create(
                 name: 'auth-storage',
                 partialize: (state) => ({
                     jwt: state.jwt,
+                    isAuthenticated: state.isAuthenticated,
+                    userId: state.userId,
+                    username: state.username,
+                    role: state.role,
+                    first_name: state.first_name,
+                    last_name: state.last_name,
+                    job_title: state.job_title,
+                    isSystemAdmin: state.isSystemAdmin,
+                    organizations: state.organizations,
+                    currentOrganization: state.currentOrganization,
+                    currentOrgRole: state.currentOrgRole,
                 }),
+                onRehydrateStorage: () => (state) => {
+                    // Validate JWT after rehydration from localStorage
+                    if (state?.jwt && !validateJwt(state.jwt)) {
+                        // JWT is expired or invalid, clear auth
+                        state.clearAuth();
+                    }
+                },
             }
         ),
         { name: 'AuthStore' }
