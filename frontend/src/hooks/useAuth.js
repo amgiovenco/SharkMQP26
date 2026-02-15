@@ -10,23 +10,23 @@ export const useAuth = () => {
     useEffect(() => {
         if (auth.jwt && !auth.isAuthenticated) {
             // JWT exists in localStorage but not in memory, re-hydrate
-            auth.setAuth(auth.jwt, auth.userId, auth.username);
+            auth.setAuth(auth.jwt, auth.userId, auth.email);
         }
     }, []);
 
-    const login = async (username, password) => {
+    const login = async (email, password) => {
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ email, password }),
             });
 
             if (!response.ok) throw new Error('Login failed');
 
             const { access_token, user } = await response.json();
-            
+
             // Set auth in store (persists to localStorage)
-            auth.setAuth(access_token, user.id, user.username);
+            auth.setAuth(access_token, user.id, user.email);
 
             // Fetch initial cases after login
             await fetchCases(access_token);

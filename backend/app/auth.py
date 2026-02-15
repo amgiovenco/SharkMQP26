@@ -49,21 +49,21 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(auth_scheme),
     token = creds.credentials
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
-        username = payload.get("sub")
-        logger.debug("Token decoded for user=%s", username)
+        email = payload.get("sub")
+        logger.debug("Token decoded for user=%s", email)
     except Exception as e:
         logger.warning("Invalid token provided: %s", str(e))
         raise HTTPException(status_code=401, detail="Invalid token")
-    
-    return username
 
-def get_current_user_obj(username: str = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+    return email
+
+def get_current_user_obj(email: str = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
     """
     Get the full User object for the current authenticated user.
     """
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.email == email).first()
     if not user:
-        logger.warning("User not found: %s", username)
+        logger.warning("User not found: %s", email)
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
@@ -82,12 +82,12 @@ def get_current_organization(
     ).first()
 
     if not membership:
-        logger.warning("User %s has no organization access", current_user.username)
+        logger.warning("User %s has no organization access", current_user.email)
         raise HTTPException(status_code=403, detail="No organization access")
 
     organization = db.get(Organization, membership.organization_id)
     if not organization or organization.status != "active":
-        logger.warning("User %s's organization is inactive", current_user.username)
+        logger.warning("User %s's organization is inactive", current_user.email)
         raise HTTPException(status_code=403, detail="Organization inactive")
 
     return organization
@@ -108,7 +108,7 @@ def get_current_membership(
     ).first()
 
     if not membership:
-        logger.warning("User %s has no membership in org %s", current_user.username, current_org.id)
+        logger.warning("User %s has no membership in org %s", current_user.email, current_org.id)
         raise HTTPException(status_code=403, detail="No organization membership")
 
     return membership
@@ -143,21 +143,21 @@ def require_role(required: UserRole):
     Legacy role checker (kept for backward compatibility).
     New endpoints should use require_org_role instead.
     """
-    def _inner(username: str = Depends(get_current_user), db: Session = Depends(get_db)):
-        logger.debug("Checking role for user=%s required=%s", username, required)
-        user = db.query(User).filter(User.username == username).first()
+    def _inner(email: str = Depends(get_current_user), db: Session = Depends(get_db)):
+        logger.debug("Checking role for user=%s required=%s", email, required)
+        user = db.query(User).filter(User.email == email).first()
 
         # verify user exists
         if not user:
-            logger.warning("User not found during role check: %s", username)
+            logger.warning("User not found during role check: %s", email)
             raise HTTPException(status_code=403, detail="Forbidden")
 
         # verify role
         if user.role != required:
-            logger.warning("User %s has insufficient role: %s (required=%s)", username, user.role, required)
+            logger.warning("User %s has insufficient role: %s (required=%s)", email, user.role, required)
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        logger.info("User %s authorized with role=%s", username, user.role)
+        logger.info("User %s authorized with role=%s", email, user.role)
         return user  # return full user
 
     return _inner
@@ -167,19 +167,19 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """
     Login endpoint. Returns JWT token + user object with organizations.
     """
-    logger.info("Login attempt for username=%s", payload.username)
+    logger.info("Login attempt for email=%s", payload.email)
 
     # Validate input
-    if not payload.username or not payload.password:
+    if not payload.email or not payload.password:
         logger.warning("Login attempt with empty credentials")
-        raise HTTPException(status_code=400, detail="Username and password required")
+        raise HTTPException(status_code=400, detail="Email and password required")
 
     # Fetch user
-    user = db.query(User).filter(User.username == payload.username).one_or_none()
+    user = db.query(User).filter(User.email == payload.email).one_or_none()
 
     # Verify user exists and password matches
     if not user or not verify_password(payload.password, user.password_hash):
-        logger.warning("Invalid login for username=%s", payload.username)
+        logger.warning("Invalid login for email=%s", payload.email)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Get user's organizations
@@ -199,16 +199,16 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     } for m in memberships]
 
     # Generate token
-    access_token = create_access_token(payload.username)
+    access_token = create_access_token(payload.email)
 
-    logger.info("Login successful for username=%s id=%s orgs=%d", payload.username, user.id, len(organizations))
+    logger.info("Login successful for email=%s id=%s orgs=%d", payload.email, user.id, len(organizations))
 
     # Return token + user data + organizations
     return TokenResponse(
         access_token=access_token,
         user={
             "id": user.id,
-            "username": user.username,
+            "email": user.email,
             "role": user.role.value,
             "first_name": user.first_name,
             "last_name": user.last_name,
@@ -227,15 +227,15 @@ async def public_register(
     Public registration endpoint using registration codes.
     Anyone can register if they have a valid registration code.
     """
-    logger.info("Public registration attempt for username=%s with code=%s", payload.username, payload.registration_code)
+    logger.info("Public registration attempt for email=%s with code=%s", payload.email, payload.registration_code)
 
     # Validate input
-    if not payload.username or not payload.password:
+    if not payload.email or not payload.password:
         logger.warning("Registration attempt with empty credentials")
-        raise HTTPException(status_code=400, detail="Username and password required")
+        raise HTTPException(status_code=400, detail="Email and password required")
 
     if len(payload.password) < 8:
-        logger.warning("Registration attempt with weak password for user=%s", payload.username)
+        logger.warning("Registration attempt with weak password for user=%s", payload.email)
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     # Validate registration code
@@ -261,16 +261,16 @@ async def public_register(
         logger.warning("Registration code exhausted: %s", code.code)
         raise HTTPException(status_code=400, detail="Registration code exhausted")
 
-    # Check if username taken
-    existing = db.query(User).filter(User.username == payload.username).first()
+    # Check if email taken
+    existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
-        logger.warning("Attempt to register existing username=%s", payload.username)
-        raise HTTPException(status_code=409, detail="Username already exists")
+        logger.warning("Attempt to register existing email=%s", payload.email)
+        raise HTTPException(status_code=409, detail="Email already exists")
 
     # Create user (use legacy role 'user' for backward compatibility)
     hashed = hash_password(payload.password)
     user = User(
-        username=payload.username,
+        email=payload.email,
         password_hash=hashed,
         role=UserRole.user,
         first_name=payload.first_name,
@@ -298,16 +298,16 @@ async def public_register(
     db.commit()
 
     logger.info(
-        "User created via public registration: id=%s username=%s org_id=%s role=%s",
+        "User created via public registration: id=%s email=%s org_id=%s role=%s",
         user.id,
-        user.username,
+        user.email,
         code.organization_id,
         code.role.value if hasattr(code.role, 'value') else code.role
     )
 
     return PublicRegisterResponse(
         message="User created successfully",
-        username=user.username
+        email=user.email
     )
 
 
@@ -320,22 +320,22 @@ async def register_user(
     """
     Register a new user. Admin only (legacy endpoint).
     """
-    logger.info("Admin requested creation of user=%s with role=%s", payload.username, payload.role)
+    logger.info("Admin requested creation of user=%s with role=%s", payload.email, payload.role)
 
     # Validate input
-    if not payload.username or not payload.password:
+    if not payload.email or not payload.password:
         logger.warning("Registration attempt with empty credentials")
-        raise HTTPException(status_code=400, detail="Username and password required")
-    
+        raise HTTPException(status_code=400, detail="Email and password required")
+
     if len(payload.password) < 8:
-        logger.warning("Registration attempt with weak password for user=%s", payload.username)
+        logger.warning("Registration attempt with weak password for user=%s", payload.email)
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    # Check if username taken
-    existing = db.query(User).filter(User.username == payload.username).first()
+    # Check if email taken
+    existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
-        logger.warning("Attempt to register existing username=%s", payload.username)
-        raise HTTPException(status_code=409, detail="Username already exists")
+        logger.warning("Attempt to register existing email=%s", payload.email)
+        raise HTTPException(status_code=409, detail="Email already exists")
 
     # Validate role
     try:
@@ -347,7 +347,7 @@ async def register_user(
     # Hash password and create user
     hashed = hash_password(payload.password)
     user = User(
-        username=payload.username,
+        email=payload.email,
         password_hash=hashed,
         role=role,
         first_name=payload.first_name if hasattr(payload, 'first_name') else None,
@@ -359,10 +359,10 @@ async def register_user(
     db.commit()
     db.refresh(user)
     
-    logger.info("User created id=%s username=%s role=%s", user.id, user.username, user.role)
+    logger.info("User created id=%s email=%s role=%s", user.id, user.email, user.role)
     return RegisterResponse(
         id=user.id,
-        username=user.username,
+        email=user.email,
         role=user.role.value,
         first_name=user.first_name,
         last_name=user.last_name,
@@ -371,22 +371,22 @@ async def register_user(
 @router.put("/users/profile")
 async def update_profile(
     payload: UpdateProfileRequest,
-    current_username: str = Depends(get_current_user),
+    current_email: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Update user profile information (name, job title).
     """
-    logger.info("User %s requesting profile update", current_username)
-    
+    logger.info("User %s requesting profile update", current_email)
+
     # Validate new password length if provided
     if not payload.first_name and not payload.last_name and not payload.job_title:
         raise HTTPException(status_code=400, detail="At least one field must be provided")
-    
+
     # Get user
-    user = db.query(User).filter(User.username == current_username).first()
+    user = db.query(User).filter(User.email == current_email).first()
     if not user:
-        logger.warning("User not found during profile update: %s", current_username)
+        logger.warning("User not found during profile update: %s", current_email)
         raise HTTPException(status_code=404, detail="User not found")
     
     # Update fields
@@ -399,8 +399,8 @@ async def update_profile(
     
     db.commit()
     db.refresh(user)
-    
-    logger.info("Profile updated for user=%s", current_username)
+
+    logger.info("Profile updated for user=%s", current_email)
     return {
         "first_name": user.first_name,
         "last_name": user.last_name,
@@ -411,47 +411,47 @@ async def update_profile(
 @router.put("/users/password")
 async def change_password(
     payload: ChangePasswordRequest,
-    current_username: str = Depends(get_current_user),
+    current_email: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Change user password.
     """
-    logger.info("User %s requesting password change", current_username)
-    
+    logger.info("User %s requesting password change", current_email)
+
     # Validate password length
     if len(payload.new_password) < 8:
-        logger.warning("Password change rejected for %s: too short", current_username)
+        logger.warning("Password change rejected for %s: too short", current_email)
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    
+
     # Get user
-    user = db.query(User).filter(User.username == current_username).first()
+    user = db.query(User).filter(User.email == current_email).first()
     if not user:
-        logger.warning("User not found during password change: %s", current_username)
+        logger.warning("User not found during password change: %s", current_email)
         raise HTTPException(status_code=404, detail="User not found")
     
     # Hash and update password
     user.password_hash = hash_password(payload.new_password)
     db.commit()
-    
-    logger.info("Password changed for user=%s", current_username)
+
+    logger.info("Password changed for user=%s", current_email)
     return {"message": "Password changed successfully"}
 
 @router.get("/me")
 async def get_current_user_profile(
-    current_username: str = Depends(get_current_user),
+    current_email: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get the current user's profile information.
     Validates JWT token and returns fresh user data including organizations.
     """
-    logger.info("User %s requesting their profile", current_username)
+    logger.info("User %s requesting their profile", current_email)
 
     # Get user
-    user = db.query(User).filter(User.username == current_username).first()
+    user = db.query(User).filter(User.email == current_email).first()
     if not user:
-        logger.warning("User not found: %s", current_username)
+        logger.warning("User not found: %s", current_email)
         raise HTTPException(status_code=404, detail="User not found")
 
     # Get user's organizations
@@ -470,10 +470,10 @@ async def get_current_user_profile(
         "role": m.role.value if hasattr(m.role, 'value') else m.role,
     } for m in memberships]
 
-    logger.info("Profile fetched for user=%s", current_username)
+    logger.info("Profile fetched for user=%s", current_email)
     return {
         "id": user.id,
-        "username": user.username,
+        "email": user.email,
         "role": user.role.value,
         "first_name": user.first_name,
         "last_name": user.last_name,

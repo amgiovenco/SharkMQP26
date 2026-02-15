@@ -146,7 +146,7 @@ class RegistrationCode(Base):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False)
+    email = Column(String(80), unique=True, nullable=False)
     password_hash = Column(String(200), nullable=False)
     role = Column(Enum(UserRole, name="user_roles"), nullable=False, default=UserRole.user) # admin|researcher|user (legacy - kept for backward compatibility)
     first_name = Column(String(80), nullable=True)
@@ -161,7 +161,7 @@ class User(Base):
 
     def __repr__(self) -> str:
         role_val = self.role.value if isinstance(self.role, enum.Enum) else self.role
-        return f"<User id={self.id} username={self.username!r} role={role_val!r}>"
+        return f"<User id={self.id} email={self.email!r} role={role_val!r}>"
 
     @property
     def full_name(self) -> str:
@@ -171,7 +171,7 @@ class User(Base):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
-            "username": self.username,
+            "email": self.email,
             "role": self.role.value if isinstance(self.role, enum.Enum) else self.role,
             "first_name": self.first_name,
             "last_name": self.last_name,
@@ -228,7 +228,7 @@ class Case(Base):
             "researcher": (
                 {
                     "id": self.researcher.id,
-                    "username": self.researcher.username,
+                    "email": self.researcher.email,
                     "full_name": self.researcher.full_name,
                 }
                 if self.researcher is not None
@@ -298,7 +298,7 @@ class Job(Base):
                 else None
             ),
             "user": (
-                {"id": self.user.id, "username": self.user.username, "full_name": self.user.full_name}
+                {"id": self.user.id, "email": self.user.email, "full_name": self.user.full_name}
                 if self.user is not None
                 else None
             ),

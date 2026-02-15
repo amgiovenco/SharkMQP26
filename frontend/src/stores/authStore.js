@@ -8,7 +8,7 @@ export const useAuthStore = create(
             (set, get) => ({
                 jwt: null,
                 userId: null,
-                username: null,
+                email: null,
                 role: null,
                 first_name: null,
                 last_name: null,
@@ -22,11 +22,11 @@ export const useAuthStore = create(
                 currentOrgRole: null,
 
                 // Set authentication details
-                setAuth: (jwt, userId, username, role, first_name, last_name, job_title, isSystemAdmin = false, organizations = []) =>
+                setAuth: (jwt, userId, email, role, first_name, last_name, job_title, isSystemAdmin = false, organizations = []) =>
                     set({
                         jwt,
                         userId,
-                        username,
+                        email,
                         role,
                         first_name,
                         last_name,
@@ -43,7 +43,7 @@ export const useAuthStore = create(
                     set({
                         jwt: null,
                         userId: null,
-                        username: null,
+                        email: null,
                         role: null,
                         first_name: null,
                         last_name: null,
@@ -94,7 +94,7 @@ export const useAuthStore = create(
                     jwt: state.jwt,
                     isAuthenticated: state.isAuthenticated,
                     userId: state.userId,
-                    username: state.username,
+                    email: state.email,
                     role: state.role,
                     first_name: state.first_name,
                     last_name: state.last_name,

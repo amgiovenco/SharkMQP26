@@ -28,7 +28,6 @@ export function TeamManagementPage() {
             setError(null);
         } catch (err) {
             setError(err.message);
-            console.error('Error loading members:', err);
         } finally {
             setLoading(false);
         }
@@ -39,7 +38,7 @@ export function TeamManagementPage() {
             const data = await apiFetch(`/organizations/${currentOrganization.id}/codes`);
             setCodes(data.codes || []);
         } catch (err) {
-            console.error('Error loading codes:', err);
+            // Silently fail - codes are optional
         }
     }, [currentOrganization]);
 
@@ -62,7 +61,6 @@ export function TeamManagementPage() {
             setSelectedCodeRole('researcher');
         } catch (err) {
             toast.error(`Error: ${err.message}`);
-            console.error('Error creating code:', err);
         }
     };
 
@@ -277,7 +275,7 @@ export function TeamManagementPage() {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                                        Username
+                                        Email
                                     </th>
                                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                         Name
@@ -316,7 +314,7 @@ export function TeamManagementPage() {
                                             className="hover:bg-gray-50 transition-colors"
                                         >
                                             <td className="px-6 py-4 text-gray-900 font-medium">
-                                                {member.username}
+                                                {member.email}
                                             </td>
                                             <td className="px-6 py-4 text-gray-600">
                                                 {member.full_name || '-'}
