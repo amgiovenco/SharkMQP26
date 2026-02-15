@@ -139,7 +139,7 @@ export function TeamManagementPage() {
                 {canManageCodes && (
                     <div className="mb-8">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900 text-gray-900">
+                            <h2 className="text-2xl font-bold text-gray-900">
                                 Registration Codes
                             </h2>
                             <button
@@ -151,8 +151,8 @@ export function TeamManagementPage() {
                         </div>
 
                         {showCreateCode && (
-                            <div className="mb-4 p-4 bg-gray-100 bg-white rounded">
-                                <p className="mb-4 font-medium text-gray-900 text-gray-900">
+                            <div className="mb-4 p-4 bg-white rounded">
+                                <p className="mb-4 font-medium text-gray-900">
                                     Select role for new code:
                                 </p>
                                 <div className="flex gap-2 mb-4">
@@ -163,7 +163,7 @@ export function TeamManagementPage() {
                                             className={`px-3 py-2 rounded capitalize transition-colors ${
                                                 selectedCodeRole === role
                                                     ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-300 bg-gray-300 text-gray-900 text-gray-900 hover:bg-gray-400 hover:bg-gray-400'
+                                                    : 'bg-gray-300 text-gray-900 hover:bg-gray-400'
                                             }`}
                                         >
                                             {role}
@@ -187,33 +187,33 @@ export function TeamManagementPage() {
                             </div>
                         )}
 
-                        <div className="bg-white bg-white shadow rounded-lg overflow-hidden">
+                        <div className="bg-white shadow rounded-lg overflow-hidden">
                             <table className="w-full">
-                                <thead className="bg-gray-50 bg-gray-50">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                             Code
                                         </th>
-                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                             Role
                                         </th>
-                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                             Uses
                                         </th>
-                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                             Status
                                         </th>
-                                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 text-gray-900">
+                                        <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
                                             Actions
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 divide-gray-200">
+                                <tbody className="divide-y divide-gray-200">
                                     {codes.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="5"
-                                                className="px-6 py-4 text-center text-gray-500 text-gray-600"
+                                                className="px-6 py-4 text-center text-gray-600"
                                             >
                                                 No registration codes yet
                                             </td>
@@ -222,26 +222,26 @@ export function TeamManagementPage() {
                                         codes.map((code) => (
                                             <tr
                                                 key={code.id}
-                                                className="hover:bg-gray-50 hover:bg-gray-50 transition-colors"
+                                                className="hover:bg-gray-50 transition-colors"
                                             >
-                                                <td className="px-6 py-4 font-mono text-gray-900 text-gray-900">
+                                                <td className="px-6 py-4 font-mono text-gray-900">
                                                     {code.code}
                                                 </td>
-                                                <td className="px-6 py-4 capitalize text-gray-900 text-gray-900">
+                                                <td className="px-6 py-4 capitalize text-gray-900">
                                                     {code.role}
                                                 </td>
-                                                <td className="px-6 py-4 text-gray-600 text-gray-600">
+                                                <td className="px-6 py-4 text-gray-600">
                                                     {code.times_used}
                                                     {code.uses_remaining
                                                         ? ` / ${code.uses_remaining + code.times_used}`
                                                         : ' / ∞'}
                                                 </td>
-                                                <td className="px-6 py-4 text-gray-900 text-gray-900">
+                                                <td className="px-6 py-4 text-gray-900">
                                                     <span
                                                         className={`px-2 py-1 rounded text-sm ${
                                                             code.status === 'active'
-                                                                ? 'bg-green-100 text-green-800 bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800 bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-red-100 text-red-800'
                                                         }`}
                                                     >
                                                         {code.status}
@@ -251,7 +251,7 @@ export function TeamManagementPage() {
                                                     {code.status === 'active' && (
                                                         <button
                                                             onClick={() => disableCode(code.id)}
-                                                            className="text-red-600 hover:text-red-800 text-red-600 hover:text-red-800 transition-colors"
+                                                            className="text-red-600 hover:text-red-800 transition-colors"
                                                         >
                                                             Disable
                                                         </button>
@@ -268,32 +268,32 @@ export function TeamManagementPage() {
 
                 {/* Members Section */}
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 text-gray-900 mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
                         Team Members ({members.length})
                     </h2>
 
-                    <div className="bg-white bg-white shadow rounded-lg overflow-hidden">
+                    <div className="bg-white shadow rounded-lg overflow-hidden">
                         <table className="w-full">
-                            <thead className="bg-gray-50 bg-gray-50">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                         Username
                                     </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                         Name
                                     </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                         Role
                                     </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 text-gray-900">
+                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                                         Joined
                                     </th>
-                                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900 text-gray-900">
+                                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 divide-gray-200">
+                            <tbody className="divide-y divide-gray-200">
                                 {loading ? (
                                     <tr>
                                         <td colSpan="5" className="px-6 py-4 text-center">
@@ -304,7 +304,7 @@ export function TeamManagementPage() {
                                     <tr>
                                         <td
                                             colSpan="5"
-                                            className="px-6 py-4 text-center text-gray-500 text-gray-600"
+                                            className="px-6 py-4 text-center text-gray-600"
                                         >
                                             No team members
                                         </td>
@@ -313,12 +313,12 @@ export function TeamManagementPage() {
                                     members.map((member) => (
                                         <tr
                                             key={member.user_id}
-                                            className="hover:bg-gray-50 hover:bg-gray-50 transition-colors"
+                                            className="hover:bg-gray-50 transition-colors"
                                         >
-                                            <td className="px-6 py-4 text-gray-900 text-gray-900 font-medium">
+                                            <td className="px-6 py-4 text-gray-900 font-medium">
                                                 {member.username}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-600 text-gray-600">
+                                            <td className="px-6 py-4 text-gray-600">
                                                 {member.full_name || '-'}
                                             </td>
                                             <td className="px-6 py-4">
@@ -327,7 +327,7 @@ export function TeamManagementPage() {
                                                     onChange={(e) =>
                                                         changeRole(member.user_id, e.target.value)
                                                     }
-                                                    className="px-2 py-1 border border-gray-300 border-gray-300 rounded bg-white bg-gray-50 text-gray-900 text-gray-900"
+                                                    className="px-2 py-1 border border-gray-300 rounded bg-white text-gray-900"
                                                 >
                                                     <option value="owner">Owner</option>
                                                     <option value="admin">Admin</option>
@@ -335,13 +335,13 @@ export function TeamManagementPage() {
                                                     <option value="member">Member</option>
                                                 </select>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-600 text-gray-600">
+                                            <td className="px-6 py-4 text-gray-600">
                                                 {new Date(member.joined_at).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => removeMember(member.user_id)}
-                                                    className="text-red-600 hover:text-red-800 text-red-600 hover:text-red-800 transition-colors"
+                                                    className="text-red-600 hover:text-red-800 transition-colors"
                                                 >
                                                     Remove
                                                 </button>

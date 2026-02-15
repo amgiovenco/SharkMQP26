@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export async function apiFetch(endpoint, options = {}) {
     // Get the auth store (need to call it as a function to get current state)
-    const { jwt } = useAuthStore.getState();
+    const { jwt, clearAuth } = useAuthStore.getState();
 
     const headers = {
         ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
@@ -21,6 +21,13 @@ export async function apiFetch(endpoint, options = {}) {
             ...options,
             headers,
         });
+
+        // Handle unauthorized/forbidden responses - clear auth and redirect to login
+        if (response.status === 401 || response.status === 403) {
+            clearAuth();
+            window.location.href = '/login';
+            throw new Error('Session expired. Please log in again.');
+        }
 
         // Handle non-2xx responses
         if (!response.ok) {
@@ -41,9 +48,8 @@ export async function apiFetch(endpoint, options = {}) {
             return response.json();
         }
         return response.text();
-        
+
     } catch (err) {
-        console.error("apiFetch error:", err);
         throw err;
     }
 }

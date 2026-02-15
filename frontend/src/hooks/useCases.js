@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { apiFetch } from '../utility/ApiFetch';
 
 export const useCases = () => {
     const { jwt } = useAuthStore();
@@ -19,20 +20,11 @@ export const useCases = () => {
             params.append('per_page', 20);
             if (query) params.append('q', query);
 
-            const response = await fetch(`/api/cases?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${jwt}`,
-                },
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch cases');
-
-            const data = await response.json();
+            const data = await apiFetch(`/api/cases?${params}`);
             setCases(data.cases);
             return data; // { page, per_page, total, cases }
         } catch (err) {
             setError(err.message);
-            console.error('Error fetching cases:', err);
         } finally {
             setIsLoading(false);
         }

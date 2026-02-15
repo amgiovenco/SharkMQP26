@@ -1,14 +1,22 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { validateJwt } from "./JWTUtil";
 
-// Gatekeep most pages from non-logged in users, need to add more (JWT decoding, expiration, etc.)
 const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, jwt } = useAuthStore();
-    
-    // Send unauthenticated users to login
-    if (!isAuthenticated || !jwt) return <Navigate to="/login" replace />;
+    const { isAuthenticated, jwt, clearAuth } = useAuthStore();
 
-    // Allow authenticated users to proceed
+    // Check if user is authenticated and has a valid JWT
+    if (!isAuthenticated || !jwt) {
+        return <Navigate to="/login" replace />;
+    }
+
+    // Validate JWT - check if it's expired
+    if (!validateJwt(jwt)) {
+        clearAuth();
+        return <Navigate to="/login" replace />;
+    }
+
+    // Allow authenticated users with valid tokens to proceed
     return children;
 };
 

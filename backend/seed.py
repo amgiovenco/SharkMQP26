@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def seed_database():
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    logger.info("✅ Database tables created")
+    logger.info("Database tables created")
 
     db = Session(bind=engine)
 
@@ -36,10 +36,10 @@ def seed_database():
             )
             db.add(org)
             db.flush()
-            logger.info(f"✅ Created organization: {org.name} (id={org.id})")
+            logger.info(f"Created organization: {org.name} (id={org.id})")
         else:
             org = existing_org
-            logger.info(f"ℹ️  Organization already exists: {org.name} (id={org.id})")
+            logger.info(f"ℹOrganization already exists: {org.name} (id={org.id})")
 
         # 2. Create admin user
         username = "cejason"
@@ -60,12 +60,12 @@ def seed_database():
             )
             db.add(user)
             db.flush()
-            logger.info(f"✅ Created admin user: {username} (is_system_admin=True)")
+            logger.info(f"Created admin user: {username} (is_system_admin=True)")
         else:
             user = existing_user
             # Update to be system admin
             user.is_system_admin = True
-            logger.info(f"ℹ️  User already exists: {username}")
+            logger.info(f"User already exists: {username}")
 
         # 3. Add user to organization as owner
         existing_membership = db.query(OrganizationMembership).filter(
@@ -82,9 +82,9 @@ def seed_database():
                 joined_at=datetime.now(timezone.utc)
             )
             db.add(membership)
-            logger.info(f"✅ Added {username} to {org.name} as owner")
+            logger.info(f"Added {username} to {org.name} as owner")
         else:
-            logger.info(f"ℹ️  {username} already member of {org.name}")
+            logger.info(f"ℹ{username} already member of {org.name}")
 
         # 4. Create sample registration codes with random codes
         sample_roles = [
@@ -115,7 +115,7 @@ def seed_database():
                 status="active"
             )
             db.add(reg_code)
-            logger.info(f"✅ Created registration code: {code_str} ({code_role.value})")
+            logger.info(f"Created registration code: {code_str} ({code_role.value})")
 
         db.commit()
 
@@ -125,7 +125,7 @@ def seed_database():
         ).all()
 
         logger.info("\n" + "="*60)
-        logger.info("✅ Database seeding completed successfully!")
+        logger.info("Database seeding completed successfully!")
         logger.info("="*60)
         logger.info(f"\nLogin credentials:")
         logger.info(f"  Username: cejason")
@@ -136,7 +136,7 @@ def seed_database():
 
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Seeding failed: {e}", exc_info=True)
+        logger.error(f"Seeding failed: {e}", exc_info=True)
         raise
     finally:
         db.close()

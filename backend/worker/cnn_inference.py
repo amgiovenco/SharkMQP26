@@ -21,15 +21,17 @@ import torch.nn as nn
 from torchvision import models, transforms
 
 # Constants
-MODEL_DIR = Path(__file__).parent / "model"
+MODEL_DIR = Path(__file__).parent / "efficientnet"
 BUNDLE_PATH = MODEL_DIR / "cnn_bundle.pkl"
 IMAGE_SIZE = 224
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Normalization from ImageNet (same as training)
+# Normalization from ImageNet
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
+# Global model instance
+_model_instance = None
 
 class CNNModel(nn.Module):
     """EfficientNet-based CNN model (must match training architecture)."""
@@ -226,6 +228,17 @@ class SharkSpeciesInference:
         return results
 
 
+def get_model_instance() -> SharkSpeciesInference:
+    """
+    Get or create the singleton model instance.
+    Loads model once and reuses it for all subsequent calls.
+    """
+    global _model_instance
+    if _model_instance is None:
+        _model_instance = SharkSpeciesInference()
+    return _model_instance
+
+
 def load_test_data(csv_path: Path, n_samples: int = 10) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Load test samples from CSV.
@@ -253,7 +266,7 @@ def load_test_data(csv_path: Path, n_samples: int = 10) -> Tuple[np.ndarray, np.
     return temps, values_batch, true_species
 
 
-def run_inference(filepath: str, sample_index: int = 0, device: str = None) -> Dict:
+def ml_inference(filepath: str, sample_index: int = 0, device: str = None) -> Dict:
     """
     Run inference on a specific sample from a CSV file.
 
@@ -313,9 +326,8 @@ def run_inference(filepath: str, sample_index: int = 0, device: str = None) -> D
         sample_values = df.iloc[sample_index][temp_cols].values.astype(float)
         logger.info(f"Extracted sample {sample_index}, value range: {sample_values.min():.2f} - {sample_values.max():.2f}")
 
-        # Initialize inference model
-        logger.info("Initializing SharkSpeciesInference model...")
-        inference = SharkSpeciesInference()
+        # Get or initialize inference model (singleton pattern)
+        inference = get_model_instance()
 
         # Run prediction with all probabilities
         logger.info("Running prediction...")
@@ -377,8 +389,8 @@ def test_inference(csv_path: Path = None, n_samples: int = 20):
     print("TESTING INFERENCE")
     print("="*70)
 
-    # Load model
-    inference = SharkSpeciesInference()
+    # Get model instance (singleton)
+    inference = get_model_instance()
 
     # Load test data
     print(f"\nLoading {n_samples} random samples from {csv_path.name}...")

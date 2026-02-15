@@ -1,11 +1,11 @@
 """
-Inference Interface - Required contract for plug-and-play model compatibility.
+Inference Interface
 
-To make your model compatible with worker.py, implement the run_inference() function
+To make your model compatible with worker.py, implement the ml_inference() function
 with the exact signature and return format shown below.
 """
 
-from typing import Dict, List, Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 class PredictionDict(TypedDict):
     """Single prediction result."""
@@ -21,7 +21,7 @@ class CurveData(TypedDict):
 
 
 class InferenceResult(TypedDict, total=False):
-    """Complete inference result returned by run_inference()."""
+    """Complete inference result returned by ml_inference()."""
     success: bool
     predictions: List[PredictionDict]
     sample_index: int
@@ -29,7 +29,7 @@ class InferenceResult(TypedDict, total=False):
     error: str  # Only present if success=False
 
 
-def run_inference(filepath: str, sample_index: int = 0,
+def ml_inference(filepath: str, sample_index: int = 0,
                  device: Optional[str] = None) -> InferenceResult:
     """
     Implement this method to use your own model for inference.
@@ -75,19 +75,43 @@ def run_inference(filepath: str, sample_index: int = 0,
         5. Return all predictions ranked by confidence (descending)
         6. Handle errors gracefully and return success=False with error message
 
+    Recommended Performance Optimization:
+        Use a singleton pattern to cache the model in memory instead of reloading
+        from disk on every call. This reduces inference time from seconds to milliseconds.
+
+        Example implementation:
+
+            # Module-level singleton
+            _model_instance = None
+
+            def get_model_instance():
+                global _model_instance
+                if _model_instance is None:
+                    _model_instance = load_your_model()
+                return _model_instance
+
+            def ml_inference(filepath, sample_index=0, device=None):
+                model = get_model_instance()  # Reuses cached model
+                # ... rest of inference logic
+
+        Benefits:
+            - First call: loads model (1-2 seconds)
+            - Subsequent calls: reuses cached model (milliseconds)
+            - Worker processes multiple jobs efficiently
+
     Example Usage in worker.py:
         # To use CNN model:
-        from worker.cnn_inference import run_inference as ml_inference
+        from worker.cnn_inference import ml_inference as ml_inference
 
         # To use TCN model:
-        from worker.tcn_inference import run_inference as ml_inference
+        from worker.tcn_inference import ml_inference as ml_inference
 
         # To use your custom model:
-        from worker.your_model_inference import run_inference as ml_inference
+        from worker.your_model_inference import ml_inference as ml_inference
 
         # Then just call it:
         result = ml_inference(filepath='data.csv', sample_index=0)
     """
     raise NotImplementedError(
-        "run_inference() must be implemented in your inference module."
+        "ml_inference() must be implemented in your inference module."
     )

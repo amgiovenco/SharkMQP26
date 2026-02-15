@@ -229,7 +229,7 @@ class TCNInference:
         return results
 
 
-def run_inference(filepath: str, sample_index: int = 0, device: str = None) -> Dict:
+def ml_inference(filepath: str, sample_index: int = 0, device: str = None) -> Dict:
     """
     Run inference on a specific sample from a CSV file.
 
