@@ -109,7 +109,7 @@ const AccountPage = () => {
             <div className="mb-8 p-4 border rounded">
                 <h2 className="text-xl font-semibold mb-4">Account Information</h2>
                 <p className="mb-2">
-                    <strong>Username:</strong> {auth.username}
+                    <strong>Email:</strong> {auth.email}
                 </p>
                 <p className="mb-2">
                     <strong>Role:</strong> {auth.role}

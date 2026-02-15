@@ -32,7 +32,7 @@ def get_db():
 class CreateOrganizationRequest(BaseModel):
     name: str
     description: Optional[str] = None
-    owner_username: str
+    owner_email: str
 
 
 class UpdateMemberRoleRequest(BaseModel):
@@ -68,7 +68,7 @@ def create_organization(
         raise HTTPException(status_code=409, detail="Organization with this name already exists")
 
     # Find owner user
-    owner = db.query(User).filter(User.username == payload.owner_username).first()
+    owner = db.query(User).filter(User.email == payload.owner_email).first()
     if not owner:
         raise HTTPException(status_code=404, detail="Owner user not found")
 
@@ -99,8 +99,8 @@ def create_organization(
         "Organization created: id=%s name=%s owner=%s by admin=%s",
         org.id,
         org.name,
-        owner.username,
-        current_user.username
+        owner.email,
+        current_user.email
     )
 
     return {
@@ -176,7 +176,7 @@ def list_members(
         "members": [{
             "id": m.id,
             "user_id": m.user.id,
-            "username": m.user.username,
+            "email": m.user.email,
             "first_name": m.user.first_name,
             "last_name": m.user.last_name,
             "full_name": m.user.full_name,

@@ -42,15 +42,15 @@ def seed_database():
             logger.info(f"ℹOrganization already exists: {org.name} (id={org.id})")
 
         # 2. Create admin user
-        username = "cejason"
+        email = "cejason"
         password = "wpi"
         role = UserRole.admin
 
-        existing_user = db.query(User).filter(User.username == username).first()
+        existing_user = db.query(User).filter(User.email == email).first()
 
         if not existing_user:
             user = User(
-                username=username,
+                email=email,
                 password_hash=hash_password(password),
                 role=role,
                 first_name="Connor",
@@ -60,12 +60,12 @@ def seed_database():
             )
             db.add(user)
             db.flush()
-            logger.info(f"Created admin user: {username} (is_system_admin=True)")
+            logger.info(f"Created admin user: {email} (is_system_admin=True)")
         else:
             user = existing_user
             # Update to be system admin
             user.is_system_admin = True
-            logger.info(f"User already exists: {username}")
+            logger.info(f"User already exists: {email}")
 
         # 3. Add user to organization as owner
         existing_membership = db.query(OrganizationMembership).filter(
@@ -82,9 +82,9 @@ def seed_database():
                 joined_at=datetime.now(timezone.utc)
             )
             db.add(membership)
-            logger.info(f"Added {username} to {org.name} as owner")
+            logger.info(f"Added {email} to {org.name} as owner")
         else:
-            logger.info(f"ℹ{username} already member of {org.name}")
+            logger.info(f"ℹ{email} already member of {org.name}")
 
         # 4. Create sample registration codes with random codes
         sample_roles = [

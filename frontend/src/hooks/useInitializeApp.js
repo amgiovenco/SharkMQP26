@@ -34,7 +34,7 @@ export const useInitializeApp = () => {
                 setAuth(
                     jwt,
                     userData.id,
-                    userData.username,
+                    userData.email,
                     userData.role,
                     userData.first_name,
                     userData.last_name,

@@ -8,7 +8,7 @@ const RegisterPage = () => {
     const navigate = useNavigate();
     const setAuth = useAuthStore((state) => state.setAuth);
 
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [firstName, setFirstName] = useState('');
@@ -22,8 +22,8 @@ const RegisterPage = () => {
         setError('');
 
         // Validation
-        if (!username || !password || !registrationCode) {
-            setError('Username, password, and registration code are required');
+        if (!email || !password || !registrationCode) {
+            setError('Email, password, and registration code are required');
             return;
         }
 
@@ -43,7 +43,7 @@ const RegisterPage = () => {
             await apiFetch('/auth/signup', {
                 method: 'POST',
                 body: JSON.stringify({
-                    username,
+                    email,
                     password,
                     registration_code: registrationCode.toUpperCase().trim(),
                     first_name: firstName || null,
@@ -54,13 +54,13 @@ const RegisterPage = () => {
             // After successful registration, login
             const loginData = await apiFetch('/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ email, password }),
             });
 
             setAuth(
                 loginData.access_token,
                 loginData.user.id,
-                loginData.user.username,
+                loginData.user.email,
                 loginData.user.role,
                 loginData.user.first_name,
                 loginData.user.last_name,
@@ -115,10 +115,10 @@ const RegisterPage = () => {
 
                         <div className="w-[575px] relative">
                             <input
-                                type="text"
+                                type="email"
                                 placeholder="Email"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
                                 className="w-full h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
                             />

@@ -3,7 +3,7 @@ from typing import Optional, List, Literal, Any
 from uuid import UUID
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 class TokenResponse(BaseModel):
@@ -19,17 +19,17 @@ class JobResult(BaseModel):
     result: Optional[Any] = None
 
 class RegisterRequest(BaseModel):
-    username: constr(strip_whitespace=True, min_length=3, max_length=80)
+    email: constr(strip_whitespace=True, min_length=3, max_length=80)
     password: constr(min_length=3, max_length=200)
     role: Literal["admin", "researcher", "user"] = "user"
 
 class RegisterResponse(BaseModel):
     id: int
-    username: str
+    email: str
     role: str
 
 class PublicRegisterRequest(BaseModel):
-    username: constr(strip_whitespace=True, min_length=3, max_length=80)
+    email: constr(strip_whitespace=True, min_length=3, max_length=80)
     password: constr(min_length=8, max_length=200)
     registration_code: str
     first_name: Optional[str] = None
@@ -37,7 +37,7 @@ class PublicRegisterRequest(BaseModel):
 
 class PublicRegisterResponse(BaseModel):
     message: str
-    username: str
+    email: str
 
 class UpdateProfileRequest(BaseModel):
     first_name: str | None = None

@@ -8,7 +8,7 @@ import AuthBackground from "../components/AuthBackground";
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ username: "", password: "" });
+    const [form, setForm] = useState({ email: "", password: "" });
     
     // Zustand stores
     const { setAuth } = useAuthStore();
@@ -34,7 +34,7 @@ const LoginPage = () => {
             setAuth(
                 token,
                 user.id,
-                user.username,
+                user.email,
                 user.role,
                 user.first_name,
                 user.last_name,
@@ -92,11 +92,11 @@ const LoginPage = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-6 flex flex-col items-center">
                         <input
-                            type="text"
-                            name="username"
+                            type="email"
+                            name="email"
                             placeholder="Email"
-                            value={form.username}
-                            onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
+                            value={form.email}
+                            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                             required
                             className="w-[575px] h-[47px] px-4 border-b-2 border-pelagia-inputborder focus:border-pelagia-blue outline-none transition bg-transparent text-gray-700 placeholder-gray-400"
                         />
