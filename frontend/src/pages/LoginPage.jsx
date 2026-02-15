@@ -27,8 +27,7 @@ const LoginPage = () => {
             const user = data?.user;
 
             if (!token) {
-                console.error("Login succeeded but no token returned:", data);
-                return;
+                throw new Error("Login succeeded but no token returned");
             }
 
             // Store auth in Zustand
@@ -51,7 +50,6 @@ const LoginPage = () => {
                 setCases(casesData.cases || []);
                 setCasesLoading(false);
             } catch (err) {
-                console.error("Failed to fetch cases:", err);
                 setCasesError(err.message);
                 setCasesLoading(false);
             }
@@ -60,7 +58,7 @@ const LoginPage = () => {
             navigate("/home", { replace: true });
         },
         onError: (error) => {
-            console.error("Login failed:", error);
+            // Error is handled by the mutation's isError state
         },
     });
 
