@@ -42,7 +42,7 @@ def seed_database():
             logger.info(f"ℹOrganization already exists: {org.name} (id={org.id})")
 
         # 2. Create admin user
-        email = "cejason"
+        email = "cejason@wpi.edu"
         password = "wpi"
         role = UserRole.admin
 

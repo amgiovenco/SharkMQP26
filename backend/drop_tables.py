@@ -7,4 +7,4 @@ meta = MetaData()
 meta.reflect(bind=engine)
 meta.drop_all(bind=engine)
 
-print("✅ All tables dropped successfully.")
+print("All tables dropped successfully.")
