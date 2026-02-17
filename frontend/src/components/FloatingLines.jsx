@@ -11,7 +11,7 @@ import {
   Clock
 } from 'three';
 
-import './FloatingLines.css';
+import './cssContainers/FloatingLines.css';
 
 const vertexShader = `
 precision highp float;
@@ -233,12 +233,12 @@ export default function FloatingLines({
   linesGradient,
   enabledWaves = ['top', 'middle', 'bottom'],
   lineCount = [6],
-  lineDistance = [5],
+  lineDistance = [3],
   topWavePosition,
   middleWavePosition,
-  bottomWavePosition = { x: 2.0, y: -0.7, rotate: -1 },
-  animationSpeed = 1,
-  interactive = true,
+  bottomWavePosition = { x: 2.0, y: -0.7, rotate: -2 },
+  animationSpeed = .5,
+  interactive = false,
   bendRadius = 5.0,
   bendStrength = -0.5,
   mouseDamping = 0.05,
@@ -365,6 +365,7 @@ export default function FloatingLines({
 
     const setSize = () => {
       const el = containerRef.current;
+      if (!el) return;
       const width = el.clientWidth || 1;
       const height = el.clientHeight || 1;
 
@@ -377,7 +378,7 @@ export default function FloatingLines({
 
     setSize();
 
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(setSize) : null;
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(setSize) : null;
 
     if (ro && containerRef.current) {
       ro.observe(containerRef.current);
@@ -433,24 +434,24 @@ export default function FloatingLines({
     renderLoop();
 
     return () => {
-      cancelAnimationFrame(raf);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      if (ro && containerRef.current) {
-        ro.disconnect();
-      }
+  cancelAnimationFrame(raf);
+  
+  if (ro) {
+    ro.disconnect();
+  }
 
-      if (interactive) {
-        renderer.domElement.removeEventListener('pointermove', handlePointerMove);
-        renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
-      }
+  if (interactive && renderer.domElement) {
+    renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+    renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
+  }
 
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      if (renderer.domElement.parentElement) {
-        renderer.domElement.parentElement.removeChild(renderer.domElement);
-      }
-    };
+  geometry.dispose();
+  material.dispose();
+  renderer.dispose();
+  if (renderer.domElement?.parentElement) {
+    renderer.domElement.parentElement.removeChild(renderer.domElement);
+  }
+};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     linesGradient,
