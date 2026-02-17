@@ -43,7 +43,7 @@ def seed_database():
 
         # 2. Create admin user
         email = "cejason@wpi.edu"
-        password = "wpi"
+        password = "wpiwpiwpi"
         role = UserRole.admin
 
         existing_user = db.query(User).filter(User.email == email).first()
@@ -85,6 +85,94 @@ def seed_database():
             logger.info(f"Added {email} to {org.name} as owner")
         else:
             logger.info(f"ℹ{email} already member of {org.name}")
+
+        # 3b. Create second admin user
+        email2 = "amgiovenco@wpi.edu"
+        password2 = "wpiwpiwpi"
+        role2 = UserRole.admin
+
+        existing_user2 = db.query(User).filter(User.email == email2).first()
+
+        if not existing_user2:
+            user2 = User(
+                email=email2,
+                password_hash=hash_password(password2),
+                role=role2,
+                first_name="Ally",
+                last_name="Giovenco",
+                job_title="Administrator",
+                is_system_admin=True,
+            )
+            db.add(user2)
+            db.flush()
+            logger.info(f"Created admin user: {email2} (is_system_admin=True)")
+        else:
+            user2 = existing_user2
+            user2.is_system_admin = True
+            logger.info(f"User already exists: {email2}")
+
+        # Add second user to organization as owner
+        existing_membership2 = db.query(OrganizationMembership).filter(
+            OrganizationMembership.organization_id == org.id,
+            OrganizationMembership.user_id == user2.id
+        ).first()
+
+        if not existing_membership2:
+            membership2 = OrganizationMembership(
+                organization_id=org.id,
+                user_id=user2.id,
+                role=OrganizationRole.owner,
+                status="active",
+                joined_at=datetime.now(timezone.utc)
+            )
+            db.add(membership2)
+            logger.info(f"Added {email2} to {org.name} as owner")
+        else:
+            logger.info(f"ℹ{email2} already member of {org.name}")
+
+        # 3c. Create third admin user
+        email3 = "kmlee@wpi.edu"
+        password3 = "wpiwpiwpi"
+        role3 = UserRole.admin
+
+        existing_user3 = db.query(User).filter(User.email == email3).first()
+
+        if not existing_user3:
+            user3 = User(
+                email=email3,
+                password_hash=hash_password(password3),
+                role=role3,
+                first_name="Kyumin",
+                last_name="Lee",
+                job_title="Administrator",
+                is_system_admin=True,
+            )
+            db.add(user3)
+            db.flush()
+            logger.info(f"Created admin user: {email3} (is_system_admin=True)")
+        else:
+            user3 = existing_user3
+            user3.is_system_admin = True
+            logger.info(f"User already exists: {email3}")
+
+        # Add third user to organization as owner
+        existing_membership3 = db.query(OrganizationMembership).filter(
+            OrganizationMembership.organization_id == org.id,
+            OrganizationMembership.user_id == user3.id
+        ).first()
+
+        if not existing_membership3:
+            membership3 = OrganizationMembership(
+                organization_id=org.id,
+                user_id=user3.id,
+                role=OrganizationRole.owner,
+                status="active",
+                joined_at=datetime.now(timezone.utc)
+            )
+            db.add(membership3)
+            logger.info(f"Added {email3} to {org.name} as owner")
+        else:
+            logger.info(f"ℹ{email3} already member of {org.name}")
 
         # 4. Create sample registration codes with random codes
         sample_roles = [
@@ -130,6 +218,10 @@ def seed_database():
         logger.info(f"\nLogin credentials:")
         logger.info(f"  Username: cejason")
         logger.info(f"  Password: wpi")
+        logger.info(f"\n  Username: amgiovenco")
+        logger.info(f"  Password: wpiwpiwpi")
+        logger.info(f"\n  Username: kmlee")
+        logger.info(f"  Password: wpiwpiwpi")
         logger.info(f"\nRegistration codes (unlimited use):")
         for code in all_codes:
             logger.info(f"  {code.code} ({code.role.value})")
