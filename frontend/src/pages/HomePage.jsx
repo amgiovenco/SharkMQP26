@@ -1,9 +1,20 @@
 // import shark1 from "../assets/photos/shark1.jpg";
 // import GradientText from "../components/GradientText";
 import FloatingLines from '../components/FloatingLines';
+import { useEffect } from 'react';
 
 
 const HomePage = () => {
+  useEffect(() => {
+    // Disable scroll on mount
+    document.body.style.overflow = 'hidden';
+    
+    // Re-enable scroll on unmount
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
+
   return (
     <div style={{ 
       width: '100vw', 
@@ -34,6 +45,7 @@ const HomePage = () => {
       </div>
 
       {/* Text - sits on top */}
+      {/* Text */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -44,10 +56,19 @@ const HomePage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: '0 2rem'
       }}>
-        <span className="text-white font-raleway" style={{ fontSize: '3rem' }}>
-          Where algorithms meet oceans
-        </span>
+        <h1 className="font-raleway text-white" style={{ 
+          fontSize: '5rem',
+          fontWeight: 100,
+          textAlign: 'center',
+          lineHeight: '1.2',
+          letterSpacing: '0.15em'
+        }}>
+          WHERE ALGORITHMS
+          <br />
+          MEET OCEANS
+        </h1>
       </div>
     </div>
   );
