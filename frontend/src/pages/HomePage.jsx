@@ -1,6 +1,7 @@
 // import shark1 from "../assets/photos/shark1.jpg";
 // import GradientText from "../components/GradientText";
-import FloatingLines from '../components/FloatingLines';
+// import FloatingLines from '../components/FloatingLines';
+import { UnderwaterBackground } from '../components/underwater.jsx';
 import { useEffect } from 'react';
 
 
@@ -16,23 +17,17 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div style={{ 
-      width: '100vw', 
-      height: '100vh', 
-      position: 'relative',
-      overflow: 'hidden' 
-    }}>
-
-      {/* Background - fills entire container */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 0
-      }}>
-        <FloatingLines
+    <>
+      <UnderwaterBackground>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          width: '100vw',
+        }}> 
+        {/* <FloatingLines
           linesGradient={["#2681f7","#001670","#6f7076"]}
           animationSpeed={1}
           interactive={false}
@@ -41,10 +36,7 @@ const HomePage = () => {
           mouseDamping={0.07}
           parallax
           parallaxStrength={0.2}
-        />
-      </div>
-
-      {/* Text - sits on top */}
+        /> */}
       {/* Text */}
       <div style={{
         position: 'absolute',
@@ -54,23 +46,29 @@ const HomePage = () => {
         height: '100%',
         zIndex: 1,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '0 2rem'
-      }}>
-        <h1 className="font-raleway text-white" style={{ 
-          fontSize: '5rem',
-          fontWeight: 100,
-          textAlign: 'center',
-          lineHeight: '1.2',
-          letterSpacing: '0.15em'
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        padding: '2rem 2rem 4rem 2rem'
+      }}> 
+      <div className="text-start text-white font-thin font-raleway" style={{
+          fontSize: '6vw',
+          letterSpacing: '0',
+          lineHeight: '1.4'
         }}>
-          WHERE ALGORITHMS
-          <br />
-          MEET OCEANS
-        </h1>
+          WHERE&nbsp;&nbsp;&nbsp;&nbsp;ALGORITHMS
+        </div>
+        <div className="text-end text-white font-thin font-raleway" style={{
+          fontSize: '6vw',
+          letterSpacing: '0',
+          lineHeight: '1.4',
+          paddingLeft: '15vw'
+        }}>
+          MEET&nbsp;&nbsp;&nbsp;&nbsp;OCEANS
+          </div>
       </div>
-    </div>
+        </div>
+      </UnderwaterBackground>
+      </>
   );
 };
 
