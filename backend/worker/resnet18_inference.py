@@ -13,9 +13,9 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 
-# ================================
+# =========================================================
 # Paths
-# ================================
+# =========================================================
 BASE_DIR = Path(__file__).parent
 MODEL_DIR = BASE_DIR / "resnet18"
 
@@ -23,9 +23,9 @@ WEIGHTS_PATH = MODEL_DIR / "resnet18.pth"
 ENCODER_PATH = MODEL_DIR / "label_encoder.json"
 
 
-# ================================
+# =========================================================
 # Transform (和训练完全一致)
-# ================================
+# =========================================================
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -36,18 +36,18 @@ transform = transforms.Compose([
 ])
 
 
-# ================================
-# Load Label Encoder
-# ================================
+# =========================================================
+# Label Encoder
+# =========================================================
 def load_idx2label():
     with open(ENCODER_PATH, "r") as f:
         label2idx = json.load(f)
     return {int(v): k for k, v in label2idx.items()}
 
 
-# ================================
+# =========================================================
 # Singleton Model
-# ================================
+# =========================================================
 _model = None
 _idx2label = None
 
@@ -63,44 +63,39 @@ def get_model(device):
         model.fc = nn.Linear(model.fc.in_features, len(_idx2label))
 
         state_dict = torch.load(WEIGHTS_PATH, map_location="cpu")
-
         cleaned = {k.replace("module.", ""): v for k, v in state_dict.items()}
         model.load_state_dict(cleaned)
-        model.eval()
 
+        model.eval()
         _model = model
 
     _model.to(device)
     return _model, _idx2label
 
 
-# ================================
-# CSV -> Melt Curve Extraction
-# ================================
+# =========================================================
+# Extract Curve from Production CSV
+# =========================================================
 def extract_curve(filepath, sample_index):
     df = pd.read_csv(filepath)
 
-    # melt_block 处理后格式应该是：
-    # 每一行一个 sample
+    if sample_index >= len(df):
+        raise IndexError("sample_index out of range")
+
     row = df.iloc[sample_index]
 
-    temperature = row["Temperature (°C)"]
-    melting_curve = row["Melting Curve Data"]
-
-    # 如果是字符串形式 list
-    if isinstance(temperature, str):
-        temperature = json.loads(temperature)
-    if isinstance(melting_curve, str):
-        melting_curve = json.loads(melting_curve)
+    # 第一列是 Species
+    # 后面列名是 Temperature
+    temperature = df.columns[1:].astype(float).tolist()
+    melting_curve = row.iloc[1:].astype(float).tolist()
 
     return temperature, melting_curve
 
 
-# ================================
-# 关键：复刻训练时 matplotlib 风格
-# ================================
+# =========================================================
+# Recreate Training Matplotlib Style
+# =========================================================
 def curve_to_image(temperature, melting_curve):
-
     fig = plt.figure(figsize=(9, 4.5))
     plt.plot(temperature, melting_curve)
     plt.xticks(fontsize=20)
@@ -115,9 +110,9 @@ def curve_to_image(temperature, melting_curve):
     return image
 
 
-# ================================
+# =========================================================
 # Public Interface
-# ================================
+# =========================================================
 def ml_inference(filepath: str,
                  sample_index: int = 0,
                  device: Optional[str] = None) -> Dict[str, Any]:
