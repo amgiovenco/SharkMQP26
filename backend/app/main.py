@@ -8,6 +8,7 @@ from .auth import router as auth_router
 from .cases import router as cases_router
 from .jobs import router as jobs_router
 from .organizations import router as organizations_router
+from .setup import router as setup_router
 from .settings import settings
 from contextlib import asynccontextmanager
 from socketio.asgi import ASGIApp
@@ -53,6 +54,7 @@ api_router.include_router(auth_router, prefix="/auth")
 api_router.include_router(jobs_router, prefix="/jobs")
 api_router.include_router(cases_router, prefix="/cases")
 api_router.include_router(organizations_router)  # Already has /organizations prefix
+api_router.include_router(setup_router)  # Already has /setup prefix
 
 app.include_router(api_router, prefix="/api")
 

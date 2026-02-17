@@ -2,11 +2,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import MainLayout from "./utility/MainLayout";
 import ProtectedRoute from "./utility/ProtectedRoute";
+import SetupGuard from "./utility/SetupGuard";
 import { useInitializeApp } from "./hooks/useInitializeApp";
 
 // Public pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import SetupPage from "./pages/SetupPage";
 
 // Protected pages
 import HomePage from "./pages/HomePage";
@@ -46,79 +48,84 @@ const App = () => {
                     },
                 }}
             />
-            <Routes>
-                {/* Public (no navbar) */}
-                <Route path="/" element={<LoginPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+            <SetupGuard>
+                <Routes>
+                    {/* First-run setup (no auth, no navbar) */}
+                    <Route path="/setup" element={<SetupPage />} />
 
-                {/* Protected area (with navbar via MainLayout) */}
-                <Route element={<MainLayout />}>
-                {/* Default protected index -> /home */}
-                <Route
-                    index
-                    element={<Navigate to="/home" replace />}
-                />
+                    {/* Public (no navbar) */}
+                    <Route path="/" element={<LoginPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
 
-                <Route
-                    path="/home"
-                    element={
-                    <ProtectedRoute>
-                        <HomePage />
-                    </ProtectedRoute>
-                    }
-                />
+                    {/* Protected area (with navbar via MainLayout) */}
+                    <Route element={<MainLayout />}>
+                    {/* Default protected index -> /home */}
+                    <Route
+                        index
+                        element={<Navigate to="/home" replace />}
+                    />
 
-                <Route
-                    path="/analysis"
-                    element={
-                    <ProtectedRoute>
-                        <AnalysisPage />
-                    </ProtectedRoute>
-                    }
-                />
+                    <Route
+                        path="/home"
+                        element={
+                        <ProtectedRoute>
+                            <HomePage />
+                        </ProtectedRoute>
+                        }
+                    />
 
-                <Route
-                    path="/history"
-                    element={
-                    <ProtectedRoute>
-                        <AnalysisHistoryPage />
-                    </ProtectedRoute>
-                    }
-                />
+                    <Route
+                        path="/analysis"
+                        element={
+                        <ProtectedRoute>
+                            <AnalysisPage />
+                        </ProtectedRoute>
+                        }
+                    />
 
-                {/* Detail page (e.g., a specific case/run) */}
-                <Route
-                    path="/case/:caseId"
-                    element={
-                    <ProtectedRoute>
-                        <CaseDetailPage />
-                    </ProtectedRoute>
-                    }
-                />
+                    <Route
+                        path="/history"
+                        element={
+                        <ProtectedRoute>
+                            <AnalysisHistoryPage />
+                        </ProtectedRoute>
+                        }
+                    />
 
-                <Route
-                    path="/account"
-                    element={
-                    <ProtectedRoute>
-                        <AccountPage />
-                    </ProtectedRoute>
-                    }
-                />
+                    {/* Detail page (e.g., a specific case/run) */}
+                    <Route
+                        path="/case/:caseId"
+                        element={
+                        <ProtectedRoute>
+                            <CaseDetailPage />
+                        </ProtectedRoute>
+                        }
+                    />
 
-                <Route
-                    path="/team"
-                    element={
-                    <ProtectedRoute>
-                        <TeamManagementPage />
-                    </ProtectedRoute>
-                    }
-                />
-                </Route>
+                    <Route
+                        path="/account"
+                        element={
+                        <ProtectedRoute>
+                            <AccountPage />
+                        </ProtectedRoute>
+                        }
+                    />
 
-                {/* Catch-all */}
-                <Route path="*" element={<Navigate to="/home" replace />} />
-            </Routes>
+                    <Route
+                        path="/team"
+                        element={
+                        <ProtectedRoute>
+                            <TeamManagementPage />
+                        </ProtectedRoute>
+                        }
+                    />
+                    </Route>
+
+                    {/* Catch-all */}
+                    <Route path="*" element={<Navigate to="/home" replace />} />
+                </Routes>
+            </SetupGuard>
         </div>
     );
 };
