@@ -130,7 +130,50 @@ def seed_database():
         else:
             logger.info(f"ℹ{email2} already member of {org.name}")
 
-        # 3c. Create third admin user
+        # 3c. Create fourth admin user
+        email_cz = "czhang12@wpi.edu"
+        password_cz = "wpiwpiwpi"
+
+        existing_user_cz = db.query(User).filter(User.email == email_cz).first()
+
+        if not existing_user_cz:
+            user_cz = User(
+                email=email_cz,
+                password_hash=hash_password(password_cz),
+                role=UserRole.admin,
+                first_name="Chengqian",
+                last_name="Zhang",
+                job_title="Administrator",
+                is_system_admin=True,
+            )
+            db.add(user_cz)
+            db.flush()
+            logger.info(f"Created admin user: {email_cz} (is_system_admin=True)")
+        else:
+            user_cz = existing_user_cz
+            user_cz.is_system_admin = True
+            logger.info(f"User already exists: {email_cz}")
+
+        # Add czhang12 to organization as owner
+        existing_membership_cz = db.query(OrganizationMembership).filter(
+            OrganizationMembership.organization_id == org.id,
+            OrganizationMembership.user_id == user_cz.id
+        ).first()
+
+        if not existing_membership_cz:
+            membership_cz = OrganizationMembership(
+                organization_id=org.id,
+                user_id=user_cz.id,
+                role=OrganizationRole.owner,
+                status="active",
+                joined_at=datetime.now(timezone.utc)
+            )
+            db.add(membership_cz)
+            logger.info(f"Added {email_cz} to {org.name} as owner")
+        else:
+            logger.info(f"ℹ{email_cz} already member of {org.name}")
+
+        # 3d. Create third admin user
         email3 = "kmlee@wpi.edu"
         password3 = "wpiwpiwpi"
         role3 = UserRole.admin
@@ -221,6 +264,8 @@ def seed_database():
         logger.info(f"\n  Username: amgiovenco")
         logger.info(f"  Password: wpiwpiwpi")
         logger.info(f"\n  Username: kmlee")
+        logger.info(f"  Password: wpiwpiwpi")
+        logger.info(f"\n  Username: czhang12")
         logger.info(f"  Password: wpiwpiwpi")
         logger.info(f"\nRegistration codes (unlimited use):")
         for code in all_codes:
