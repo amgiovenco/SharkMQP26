@@ -6,7 +6,8 @@ To test a different model, change the import below.
 import random
 import pandas as pd
 
-from cnn_inference import ml_inference, CNNModel # CHANGE
+# from cnn_inference import ml_inference, CNNModel # CHANGE
+from resnet18_inference import ml_inference
 
 # Test configuration
 CSV_PATH = "../../data/shark_dataset.csv"
