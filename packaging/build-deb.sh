@@ -2,10 +2,10 @@
 set -e
 
 VERSION="${1:-0.1.0}"
-ARCH="amd64"
+ARCH="${2:-amd64}"
 PACKAGE_NAME="sharkid"
 
-echo "Building SharkID .deb package v${VERSION}"
+echo "Building SharkID .deb package v${VERSION} for ${ARCH}"
 
 # Get the project root (parent of packaging/)
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

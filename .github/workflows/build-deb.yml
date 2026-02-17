@@ -18,8 +18,16 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
 
     steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -105,17 +113,17 @@ jobs:
       - name: Build .deb package
         run: |
           chmod +x packaging/build-deb.sh
-          ./packaging/build-deb.sh ${{ steps.version.outputs.version }}
+          ./packaging/build-deb.sh ${{ steps.version.outputs.version }} ${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sharkid-deb-package
+          name: sharkid-deb-package-${{ matrix.arch }}
           path: build/sharkid_*.deb
           retention-days: 30
 
       - name: Commit version bump
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.arch == 'amd64'
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
@@ -127,12 +135,53 @@ jobs:
           # Push commit (tag will be created by release action)
           git push origin HEAD:main
 
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Pull latest changes
+        run: |
+          git pull origin main
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(cat .version)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download AMD64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sharkid-deb-package-amd64
+          path: ./packages
+
+      - name: Download ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sharkid-deb-package-arm64
+          path: ./packages
+
       - name: Create Release
-        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          files: build/sharkid_*.deb
+          files: ./packages/*.deb
           generate_release_notes: true
+          body: |
+            ## SharkID v${{ steps.version.outputs.version }}
+
+            ### Supported Architectures
+            - AMD64 (x86_64)
+            - ARM64 (aarch64)
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
