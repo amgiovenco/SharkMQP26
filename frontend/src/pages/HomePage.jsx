@@ -11,7 +11,8 @@ const HomePage = () => {
       position: 'relative',
       overflow: 'hidden' 
     }}>
-      {/* Background */}
+
+      {/* Background - fills entire container */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -31,26 +32,26 @@ const HomePage = () => {
           parallaxStrength={0.2}
         />
       </div>
+
+      {/* Text - sits on top */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <span className="text-white font-raleway" style={{ fontSize: '3rem' }}>
+          Where algorithms meet oceans
+        </span>
+      </div>
     </div>
   );
 };
 
 export default HomePage;
 
-{/*Text overlay
-      <div className="relative text-center px-4">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold">
-          <span className="text-black font-nunitoSans">
-            Where algorithms meet{" "}
-          </span>
-          <br />
-          <GradientText
-            colors={["#252491", "#3B4FFF", "#0CB6FF", "#44B3D3", "#9FB6C4"]}
-            animationSpeed={11}
-            showBorder={false}
-            className="custom-class"
-          >
-            oceans
-          </GradientText>
-        </h1>
-      </div> */ }
