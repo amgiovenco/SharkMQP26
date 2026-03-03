@@ -12,7 +12,7 @@ from app.db import SessionLocal
 from app.models import Job, JobResult
 from app.settings import settings
 from app.logger import get_logger
-from worker.cnn_inference import ml_inference, CNNModel
+from worker.resnet18_inference import ml_inference
 from worker.extract_melt_block import process_file as extract_melt_block
 
 logger = get_logger(__name__)

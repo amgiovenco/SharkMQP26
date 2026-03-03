@@ -120,6 +120,7 @@ def ml_inference(filepath: str,
     try:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
+
         device = torch.device(device)
 
         temperature, melting_curve = extract_curve(filepath, sample_index)
