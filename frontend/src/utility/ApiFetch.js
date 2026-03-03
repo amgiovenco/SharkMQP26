@@ -5,25 +5,27 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 export async function apiFetch(endpoint, options = {}) {
     // Get the auth store (need to call it as a function to get current state)
     const { jwt, clearAuth } = useAuthStore.getState();
+    const { skipAuthRedirect, ...fetchOptions } = options;
 
     const headers = {
         ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-        ...options.headers,
+        ...fetchOptions.headers,
     };
 
     // Only set Content-Type if not FormData
-    if (!(options.body instanceof FormData)) {
+    if (!(fetchOptions.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
 
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            ...options,
+            ...fetchOptions,
             headers,
         });
 
         // Handle unauthorized/forbidden responses - clear auth and redirect to login
-        if (response.status === 401 || response.status === 403) {
+        // Skip redirect for endpoints that intentionally handle 401 themselves (e.g. login)
+        if ((response.status === 401 || response.status === 403) && !skipAuthRedirect) {
             clearAuth();
             window.location.href = '/login';
             throw new Error('Session expired. Please log in again.');

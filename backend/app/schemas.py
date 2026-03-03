@@ -47,6 +47,17 @@ class UpdateProfileRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     new_password: str
 
+class SetupStatusResponse(BaseModel):
+    needs_setup: bool
+
+class SetupCompleteRequest(BaseModel):
+    org_name: str
+    org_description: Optional[str] = None
+    admin_email: str
+    admin_password: str
+    admin_first_name: str
+    admin_last_name: str
+
 class CreateCaseRequest(BaseModel):
     title: str | None = None
     description: str | None = None

@@ -20,6 +20,7 @@ const LoginPage = () => {
             return apiFetch("/auth/login", {
                 method: "POST",
                 body: JSON.stringify(form),
+                skipAuthRedirect: true,
             });
         },
         onSuccess: async (data) => {
