@@ -6,6 +6,7 @@ module.exports = {
       fontFamily: {
         sans: ["Nunito", "ui-sans-serif", "system-ui"],
         nunitoSans: ["Nunito Sans", "ui-sans-serif", "system-ui"],
+        raleway: ["Raleway", "ui-sans-serif", "system-ui"],
       },
       colors: {
         pelagia: {
