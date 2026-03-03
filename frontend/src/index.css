@@ -42,11 +42,21 @@ body {
   font-family: "Nunito", sans-serif;
 }
 
+/* Raleway Added */
+@font-face {
+  font-family: "Raleway";
+  src: url("./assets/fonts/Raleway/Raleway-VariableFont_wght.ttf")
+    format("truetype");
+  font-weight: 100;
+  font-style: normal;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+  overflow: hidden;
 }
 
 @layer utilities {
