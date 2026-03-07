@@ -20,6 +20,11 @@ node_modules/
 **/*.pt
 **/*.pkl
 **/*.joblib
+**/*.db
+
+# Ignore results directories everywhere
+**/results/
 
 # Ignore model statistic output images
 models/**/*.png
+models/**/*.json

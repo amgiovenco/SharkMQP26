@@ -1,0 +1,33 @@
+{
+  "model": "EfficientNet-B0",
+  "split": {
+    "train": "60%",
+    "val": "20%",
+    "test": "20%",
+    "random_state": 8
+  },
+  "epoch_scaling": {
+    "best_epoch_on_60pct": 79,
+    "scale_factor": 1.3333,
+    "scaled_epochs_on_80pct": 105
+  },
+  "best_params": {
+    "cnn_dropout1": 0.42013403301390473,
+    "cnn_dropout2": 0.11110962092151311,
+    "cnn_learning_rate": 0.000582146876968696,
+    "cnn_batch_size": 16,
+    "cnn_weight_decay": 1.1132387479263832e-06,
+    "cnn_focal_alpha": 0.9423473333849446,
+    "cnn_focal_gamma": 1.7916114932802345
+  },
+  "metrics": {
+    "accuracy": 97.7099,
+    "precision_weighted": 98.8232,
+    "recall_weighted": 97.7099,
+    "f1_score_weighted": 97.8372,
+    "macro_f1_score": 97.7193,
+    "avg_confidence": 98.4411,
+    "correct_avg_confidence": 99.28070068359375,
+    "incorrect_avg_confidence": 62.615699768066406
+  }
+}
