@@ -39,8 +39,6 @@ echo "Setting up model files..."
 mkdir -p "${STAGING_DIR}/opt/sharkid/backend/worker/model"
 cp "${PROJECT_ROOT}/backend/worker/efficientnet/cnn_bundle.pkl" \
    "${STAGING_DIR}/opt/sharkid/backend/worker/model/"
-cp "${PROJECT_ROOT}/backend/worker/efficientnet/cnn_final.pth" \
-   "${STAGING_DIR}/opt/sharkid/backend/worker/model/"
 
 # 4. Remove unnecessary files
 echo "Cleaning up unnecessary files..."

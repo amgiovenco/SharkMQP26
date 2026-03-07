@@ -42,24 +42,14 @@ jobs:
             echo "ERROR: cnn_bundle.pkl not found"
             exit 1
           fi
-          if [ ! -f backend/worker/efficientnet/cnn_final.pth ]; then
-            echo "ERROR: cnn_final.pth not found"
-            exit 1
-          fi
 
           # Check that files are real (not LFS pointers)
           pkl_size=$(stat -c%s backend/worker/efficientnet/cnn_bundle.pkl)
-          pth_size=$(stat -c%s backend/worker/efficientnet/cnn_final.pth)
 
           echo "cnn_bundle.pkl size: ${pkl_size} bytes"
-          echo "cnn_final.pth size: ${pth_size} bytes"
 
           if [ "$pkl_size" -lt 1000000 ]; then
             echo "ERROR: cnn_bundle.pkl appears to be an LFS pointer"
-            exit 1
-          fi
-          if [ "$pth_size" -lt 1000000 ]; then
-            echo "ERROR: cnn_final.pth appears to be an LFS pointer"
             exit 1
           fi
 
