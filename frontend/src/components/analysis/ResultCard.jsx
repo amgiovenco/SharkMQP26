@@ -9,7 +9,7 @@ const ResultCard = ({ result, batch, onRerun }) => {
     const [fullResult, setFullResult] = useState(result.result);
 
     useEffect(() => {
-        if (result.status === 'done' && result.result && !result.result.curve_data) {
+        if (result.status === 'completed' && result.result && !result.result.curve_data) {
             apiFetch(`/jobs/${result.id}`)
                 .then(job => setFullResult(job.result_json))
                 .catch(() => {});
