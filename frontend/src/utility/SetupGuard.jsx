@@ -10,7 +10,10 @@ const SetupGuard = ({ children }) => {
     const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
-        if (isAuthenticated) return;
+        if (isAuthenticated) {
+            setNeedsSetup(false);
+            return;
+        }
         setNeedsSetup(null);
         fetch(`${API_BASE_URL}/setup/status`)
             .then((res) => res.json())
