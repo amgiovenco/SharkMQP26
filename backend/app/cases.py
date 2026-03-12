@@ -173,7 +173,7 @@ def list_case_jobs(
         .limit(per_page)
         .all()
     )
-    return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in rows]}
+    return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict(slim=True) for j in rows]}
 
 @router.delete("/{case_id}")
 def delete_case(
