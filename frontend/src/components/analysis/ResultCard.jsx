@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import MeltingCurveChart from './MeltingCurveChart';
 import { apiFetch } from '../../utility/ApiFetch';
@@ -6,15 +6,7 @@ import { apiFetch } from '../../utility/ApiFetch';
 const ResultCard = ({ result, batch, onRerun }) => {
     const [expandedTopk, setExpandedTopk] = useState(false);
     const [isRerunning, setIsRerunning] = useState(false);
-    const [fullResult, setFullResult] = useState(result.result);
-
-    useEffect(() => {
-        if (result.status === 'completed' && result.result && !result.result.curve_data) {
-            apiFetch(`/jobs/${result.id}`)
-                .then(job => setFullResult(job.result_json))
-                .catch(() => {});
-        }
-    }, [result.id, result.status, result.result]);
+    const fullResult = result.result;
 
     if (result.status === 'queued' || result.status === 'running') {
         return (

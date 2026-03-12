@@ -316,7 +316,7 @@ class Job(Base):
         elif self.result_json and isinstance(self.result_json, dict):
             cd = self.result_json.get("curve_data")
             if cd and isinstance(cd, dict):
-                freqs, sig = _lttb(cd.get("frequencies", []), cd.get("signal", []), 300)
+                freqs, sig = _lttb(cd.get("frequencies", []), cd.get("signal", []), 200)
                 result_json = {
                     **self.result_json,
                     "curve_data": {"frequencies": freqs, "signal": sig},
