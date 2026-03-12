@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import MeltingCurveChart from './MeltingCurveChart';
 import { apiFetch } from '../../utility/ApiFetch';
@@ -6,6 +6,15 @@ import { apiFetch } from '../../utility/ApiFetch';
 const ResultCard = ({ result, batch, onRerun }) => {
     const [expandedTopk, setExpandedTopk] = useState(false);
     const [isRerunning, setIsRerunning] = useState(false);
+    const [fullResult, setFullResult] = useState(result.result);
+
+    useEffect(() => {
+        if (result.status === 'done' && result.result && !result.result.curve_data) {
+            apiFetch(`/jobs/${result.id}`)
+                .then(job => setFullResult(job.result_json))
+                .catch(() => {});
+        }
+    }, [result.id, result.status, result.result]);
 
     if (result.status === 'queued' || result.status === 'running') {
         return (
@@ -61,23 +70,23 @@ const ResultCard = ({ result, batch, onRerun }) => {
                 </div>
                 <div className="p-3 border border-red-300 bg-red-50 rounded">
                     <p className="text-red-700 text-xs">
-                        <strong>Error:</strong> {result.result?.error || 'Processing failed'}
+                        <strong>Error:</strong> {fullResult?.error || 'Processing failed'}
                     </p>
                 </div>
             </div>
         );
     }
 
-    if (!result.result) {
+    if (!fullResult) {
         return null;
     }
 
     // Extract top prediction from new backend format
-    const topPrediction = result.result.predictions?.[0];
+    const topPrediction = fullResult.predictions?.[0];
     const winner = topPrediction?.species || 'Unknown';
     const confidence = topPrediction?.confidence || 0;
-    const topk = result.result.predictions?.map(p => ({ label: p.species, prob: p.confidence })) || [];
-    const curve_data = result.result.curve_data;
+    const topk = fullResult.predictions?.map(p => ({ label: p.species, prob: p.confidence })) || [];
+    const curve_data = fullResult.curve_data;
 
     const confidencePercent = (confidence * 100).toFixed(1);
     const confidenceColor = confidence > 0.9 ? 'bg-green-100 text-green-800' : confidence > 0.8 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800';

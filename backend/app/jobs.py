@@ -277,7 +277,7 @@ def list_jobs(
     # Order by batch_id and sample_index to keep batch samples together
     jobs = q.order_by(Job.batch_id.desc(), Job.sample_index.asc()).offset((page - 1) * per_page).limit(per_page).all()
 
-    return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict() for j in jobs]}
+    return {"page": page, "per_page": per_page, "total": total, "jobs": [j.to_dict(slim=True) for j in jobs]}
 
 @router.delete("/{job_id}")
 def delete_job(

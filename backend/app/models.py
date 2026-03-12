@@ -13,6 +13,38 @@ def _iso(dt) -> Optional[str]:
 def _uuid(v) -> Optional[str]:
     return str(v) if isinstance(v, uuid.UUID) else (str(v) if v is not None else None)
 
+def _lttb(x: list, y: list, target: int) -> tuple[list, list]:
+    """Largest Triangle Three Buckets downsampling. Preserves visual shape."""
+    n = len(x)
+    if n <= target:
+        return x, y
+
+    result_x, result_y = [x[0]], [y[0]]
+    bucket_size = (n - 2) / (target - 2)
+
+    for i in range(target - 2):
+        avg_start = int((i + 1) * bucket_size) + 1
+        avg_end = min(int((i + 2) * bucket_size) + 1, n)
+        avg_x = sum(x[avg_start:avg_end]) / (avg_end - avg_start)
+        avg_y = sum(y[avg_start:avg_end]) / (avg_end - avg_start)
+
+        range_start = int(i * bucket_size) + 1
+        range_end = int((i + 1) * bucket_size) + 1
+        prev_x, prev_y = result_x[-1], result_y[-1]
+
+        max_area, max_idx = -1, range_start
+        for j in range(range_start, range_end):
+            area = abs((prev_x - avg_x) * (y[j] - prev_y) - (prev_x - x[j]) * (avg_y - prev_y))
+            if area > max_area:
+                max_area, max_idx = area, j
+
+        result_x.append(x[max_idx])
+        result_y.append(y[max_idx])
+
+    result_x.append(x[-1])
+    result_y.append(y[-1])
+    return result_x, result_y
+
 
 class UserRole(enum.Enum):
     admin = "admin"
@@ -278,7 +310,22 @@ class Job(Base):
     def __repr__(self) -> str:
         return f"<Job id={self.id} sha256={self.sha256!r} status={self.status!r}>"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, slim: bool = False) -> Dict[str, Any]:
+        if slim and self.result_json and isinstance(self.result_json, dict):
+            result_json = {k: v for k, v in self.result_json.items() if k != "curve_data"}
+        elif self.result_json and isinstance(self.result_json, dict):
+            cd = self.result_json.get("curve_data")
+            if cd and isinstance(cd, dict):
+                freqs, sig = _lttb(cd.get("frequencies", []), cd.get("signal", []), 300)
+                result_json = {
+                    **self.result_json,
+                    "curve_data": {"frequencies": freqs, "signal": sig},
+                }
+            else:
+                result_json = self.result_json
+        else:
+            result_json = self.result_json
+
         return {
             "id": _uuid(self.id),
             "batch_id": _uuid(self.batch_id),
@@ -291,7 +338,7 @@ class Job(Base):
             "created_at": _iso(self.created_at),
             "started_at": _iso(self.started_at),
             "finished_at": _iso(self.finished_at),
-            "result_json": self.result_json,
+            "result_json": result_json,
             "case": (
                 {"id": _uuid(self.case.id), "title": self.case.title}
                 if self.case is not None
@@ -302,7 +349,7 @@ class Job(Base):
                 if self.user is not None
                 else None
             ),
-            "results": [r.to_dict() for r in (self.results or [])],
+            "results": [] if slim else [r.to_dict() for r in (self.results or [])],
         }
 
 
