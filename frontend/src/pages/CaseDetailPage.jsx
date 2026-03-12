@@ -28,50 +28,71 @@ const CaseDetailPage = () => {
             });
     }, [caseId]);
 
-    // Load existing jobs for this case
+    // Load existing jobs for this case, page by page
     useEffect(() => {
         if (!caseData) return;
 
-        apiFetch(`/cases/${caseId}/jobs?page=1&per_page=100`)
-            .then(data => {
-                const jobs = data.jobs || [];
+        let cancelled = false;
+        const PER_PAGE = 20;
 
-                // Reconstruct batch info and results
-                const batchMap = {};
-                const resultsList = [];
+        const processJobs = (jobs, batchMap) => {
+            jobs.forEach(job => {
+                const batchId = job.batch_id || job.id;
+                if (!batchMap[batchId]) {
+                    batchMap[batchId] = {
+                        batchId,
+                        fileName: job.original_filename || job.file_path?.split('/').pop() || 'Unknown',
+                        jobIds: [],
+                    };
+                }
+                batchMap[batchId].jobIds.push(job.id);
+            });
 
-                jobs.forEach(job => {
-                    const batchId = job.batch_id || job.id;
+            return jobs.map(job => {
+                const batchId = job.batch_id || job.id;
+                return {
+                    id: job.id,
+                    batchId,
+                    sampleIndex: job.sample_index || 0,
+                    fileName: batchMap[batchId].fileName,
+                    status: job.status,
+                    result: job.result_json,
+                    batchInfo: batchMap[batchId],
+                };
+            });
+        };
 
-                    if (!batchMap[batchId]) {
-                        batchMap[batchId] = {
-                            batchId,
-                            fileName: job.original_filename || job.file_path?.split('/').pop() || 'Unknown',
-                            jobIds: [],
-                        };
+        const fetchAllPages = async () => {
+            const batchMap = {};
+            let page = 1;
+            let total = null;
+
+            while (true) {
+                if (cancelled) return;
+                try {
+                    const data = await apiFetch(`/cases/${caseId}/jobs?page=${page}&per_page=${PER_PAGE}`);
+                    if (cancelled) return;
+
+                    if (total === null) {
+                        total = data.total;
+                        setLoading(false);
                     }
 
-                    batchMap[batchId].jobIds.push(job.id);
+                    const newResults = processJobs(data.jobs || [], batchMap);
+                    setResults(prev => page === 1 ? newResults : [...prev, ...newResults]);
+                    setUploadedBatches(Object.values(batchMap));
 
-                    resultsList.push({
-                        id: job.id,
-                        batchId: batchId,
-                        sampleIndex: job.sample_index || 0,
-                        fileName: batchMap[batchId].fileName,
-                        status: job.status,
-                        result: job.result_json,
-                        batchInfo: batchMap[batchId],
-                    });
-                });
+                    if (page * PER_PAGE >= total) break;
+                    page++;
+                } catch (err) {
+                    if (!cancelled) setError(`Failed to load jobs: ${err.message}`);
+                    break;
+                }
+            }
+        };
 
-                setResults(resultsList);
-                setUploadedBatches(Object.values(batchMap));
-                setLoading(false);
-            })
-            .catch(err => {
-                setError(`Failed to load jobs: ${err.message}`);
-                setLoading(false);
-            });
+        fetchAllPages();
+        return () => { cancelled = true; };
     }, [caseData, caseId]);
 
     // Listen for real-time job updates via socket
