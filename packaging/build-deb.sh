@@ -31,7 +31,6 @@ cp -r "${PROJECT_ROOT}/backend/app" "${STAGING_DIR}/opt/sharkid/backend/"
 cp -r "${PROJECT_ROOT}/backend/worker" "${STAGING_DIR}/opt/sharkid/backend/"
 cp "${PROJECT_ROOT}/backend/requirements.txt" "${STAGING_DIR}/opt/sharkid/backend/"
 cp "${PROJECT_ROOT}/backend/requirements-torch.txt" "${STAGING_DIR}/opt/sharkid/backend/"
-cp "${PROJECT_ROOT}/backend/seed.py" "${STAGING_DIR}/opt/sharkid/backend/"
 
 # 3. Copy model files to expected location
 echo "Setting up model files..."

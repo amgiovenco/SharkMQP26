@@ -72,6 +72,7 @@ chown -R sharkid:sharkid /var/www/sharkid
 
 # 8. Initialize database tables
 echo "Initializing database tables..."
+cd /opt/sharkid/backend
 sudo -u sharkid /opt/sharkid/backend/.venv/bin/python -c "
 from app.db import Base, engine
 Base.metadata.create_all(bind=engine)
