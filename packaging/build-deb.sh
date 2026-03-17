@@ -47,15 +47,12 @@ rm -rf "${STAGING_DIR}/opt/sharkid/backend/worker/statistics"
 # Remove __pycache__ directories
 find "${STAGING_DIR}/opt/sharkid/backend" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-# 5. Copy frontend build
-echo "Copying frontend build..."
-if [ -d "${PROJECT_ROOT}/frontend/build" ]; then
-    cp -r "${PROJECT_ROOT}/frontend/build/"* "${STAGING_DIR}/var/www/sharkid/"
-else
-    echo "ERROR: Frontend build not found at ${PROJECT_ROOT}/frontend/build"
-    echo "Please run 'npm run build' in the frontend directory first."
-    exit 1
-fi
+# 5. Build and copy frontend
+echo "Building frontend..."
+cd "${PROJECT_ROOT}/frontend"
+REACT_APP_API_BASE_URL=/api npm run build
+cd "${PROJECT_ROOT}"
+cp -r "${PROJECT_ROOT}/frontend/build/"* "${STAGING_DIR}/var/www/sharkid/"
 
 # 6. Copy systemd service files
 echo "Copying systemd service files..."

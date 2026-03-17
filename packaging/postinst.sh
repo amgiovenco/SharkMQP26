@@ -41,7 +41,10 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename = 'sharkid'" | gr
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'sharkid'" | grep -q 1 || \
     sudo -u postgres psql -c "CREATE DATABASE sharkid OWNER sharkid;"
 
-# 4. Create Python virtual environment
+# 4. Set ownership before creating venv (package extraction creates dirs as root)
+chown -R sharkid:sharkid /opt/sharkid/backend
+
+# 5. Create Python virtual environment
 if [ ! -d /opt/sharkid/backend/.venv ]; then
     echo "Creating Python virtual environment..."
     sudo -u sharkid python3 -m venv /opt/sharkid/backend/.venv

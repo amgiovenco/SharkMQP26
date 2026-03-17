@@ -1,12 +1,20 @@
-import { Link, useLocation } from "react-router-dom";
-import { HiHome, HiOutlineChartBar, HiOutlineClock, HiOutlineUser, HiOutlineUsers } from "react-icons/hi";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { HiHome, HiOutlineChartBar, HiOutlineClock, HiOutlineUser, HiOutlineUsers, HiOutlineLogout } from "react-icons/hi";
 import PalegiaLogo from "../assets/logos/pelagiaLogo.svg";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../hooks/useAuth";
 
 const Navbar = ({ logoSize = "36px" }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { canManageTeam } = usePermissions();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -81,6 +89,18 @@ const Navbar = ({ logoSize = "36px" }) => {
         >
           <HiOutlineUser className="h-6 w-6" />
         </Link>
+
+        {/* Divider */}
+        <span className="h-6 w-px bg-gray-300" />
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="hover:text-red-600 transition text-gray-400 cursor-pointer"
+          title="Log out"
+        >
+          <HiOutlineLogout className="h-6 w-6" />
+        </button>
       </div>
     </nav>
   );
