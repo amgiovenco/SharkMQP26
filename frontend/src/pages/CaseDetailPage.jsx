@@ -79,7 +79,7 @@ const CaseDetailPage = () => {
                     }
 
                     const newResults = processJobs(data.jobs || [], batchMap);
-                    setResults(prev => page === 1 ? newResults : [...prev, ...newResults]);
+                    setResults(prev => prev.length === 0 ? newResults : [...prev, ...newResults]);
                     setUploadedBatches(Object.values(batchMap));
 
                     if (page * PER_PAGE >= total) break;

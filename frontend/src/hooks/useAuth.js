@@ -12,7 +12,7 @@ export const useAuth = () => {
             // JWT exists in localStorage but not in memory, re-hydrate
             auth.setAuth(auth.jwt, auth.userId, auth.email);
         }
-    }, []);
+    }, [auth]);
 
     const login = async (email, password) => {
         try {
