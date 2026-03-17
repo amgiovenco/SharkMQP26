@@ -28,9 +28,6 @@ export const useAuth = () => {
             // Set auth in store (persists to localStorage)
             auth.setAuth(access_token, user.id, user.email);
 
-            // Fetch initial cases after login
-            await fetchCases(access_token);
-
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
