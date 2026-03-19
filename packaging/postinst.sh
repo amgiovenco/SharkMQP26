@@ -35,11 +35,11 @@ fi
 
 # 3. Setup PostgreSQL database
 echo "Setting up PostgreSQL database..."
-sudo -u postgres psql -tc "SELECT 1 FROM pg_user WHERE usename = 'sharkid'" | grep -q 1 || \
-    sudo -u postgres psql -c "CREATE USER sharkid WITH PASSWORD '${DB_PASSWORD}';"
+runuser -u postgres -- psql -tc "SELECT 1 FROM pg_user WHERE usename = 'sharkid'" | grep -q 1 || \
+    runuser -u postgres -- psql -c "CREATE USER sharkid WITH PASSWORD '${DB_PASSWORD}';"
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'sharkid'" | grep -q 1 || \
-    sudo -u postgres psql -c "CREATE DATABASE sharkid OWNER sharkid;"
+runuser -u postgres -- psql -tc "SELECT 1 FROM pg_database WHERE datname = 'sharkid'" | grep -q 1 || \
+    runuser -u postgres -- psql -c "CREATE DATABASE sharkid OWNER sharkid;"
 
 # 4. Set ownership before creating venv (package extraction creates dirs as root)
 chown -R sharkid:sharkid /opt/sharkid/backend
@@ -47,7 +47,7 @@ chown -R sharkid:sharkid /opt/sharkid/backend
 # 5. Create Python virtual environment
 if [ ! -d /opt/sharkid/backend/.venv ]; then
     echo "Creating Python virtual environment..."
-    sudo -u sharkid python3.11 -m venv /opt/sharkid/backend/.venv
+    runuser -u sharkid -- python3.11 -m venv /opt/sharkid/backend/.venv
 fi
 
 # 5. Install Python dependencies
@@ -55,12 +55,12 @@ echo "Installing Python dependencies (this may take several minutes)..."
 
 # Install PyTorch CPU version first
 echo "Installing PyTorch (CPU)..."
-sudo -u sharkid /opt/sharkid/backend/.venv/bin/pip install --upgrade pip
-sudo -u sharkid /opt/sharkid/backend/.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+runuser -u sharkid -- /opt/sharkid/backend/.venv/bin/pip install --upgrade pip
+runuser -u sharkid -- /opt/sharkid/backend/.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Install remaining dependencies
 echo "Installing other dependencies..."
-sudo -u sharkid /opt/sharkid/backend/.venv/bin/pip install -r /opt/sharkid/backend/requirements.txt
+runuser -u sharkid -- /opt/sharkid/backend/.venv/bin/pip install -r /opt/sharkid/backend/requirements.txt
 
 # 6. Create data directory
 mkdir -p /opt/sharkid/data
@@ -73,7 +73,7 @@ chown -R sharkid:sharkid /var/www/sharkid
 # 8. Initialize database tables
 echo "Initializing database tables..."
 cd /opt/sharkid/backend
-sudo -u sharkid /opt/sharkid/backend/.venv/bin/python -c "
+runuser -u sharkid -- /opt/sharkid/backend/.venv/bin/python -c "
 from app.db import Base, engine
 Base.metadata.create_all(bind=engine)
 print('Database tables created successfully')
