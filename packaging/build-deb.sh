@@ -82,9 +82,9 @@ fpm -s dir -t deb \
     --url "https://github.com/yourusername/SharkMQP26" \
     --maintainer "SharkID Team" \
     --license "MIT" \
-    --depends "python3 >= 3.11" \
-    --depends "python3-venv" \
-    --depends "python3-dev" \
+    --depends "python3.11" \
+    --depends "python3.11-venv" \
+    --depends "python3.11-dev" \
     --depends "postgresql" \
     --depends "redis-server" \
     --depends "nginx" \

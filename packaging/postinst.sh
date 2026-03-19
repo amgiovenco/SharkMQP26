@@ -47,7 +47,7 @@ chown -R sharkid:sharkid /opt/sharkid/backend
 # 5. Create Python virtual environment
 if [ ! -d /opt/sharkid/backend/.venv ]; then
     echo "Creating Python virtual environment..."
-    sudo -u sharkid python3 -m venv /opt/sharkid/backend/.venv
+    sudo -u sharkid python3.11 -m venv /opt/sharkid/backend/.venv
 fi
 
 # 5. Install Python dependencies
