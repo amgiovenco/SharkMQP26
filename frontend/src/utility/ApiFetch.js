@@ -27,7 +27,7 @@ export async function apiFetch(endpoint, options = {}) {
         // Skip redirect for endpoints that intentionally handle 401 themselves (e.g. login)
         if ((response.status === 401 || response.status === 403) && !skipAuthRedirect) {
             clearAuth();
-            window.location.href = '/login';
+            window.location.href = '/';
             throw new Error('Session expired. Please log in again.');
         }
 

@@ -1,8 +1,11 @@
+import { useAuthStore } from '../../stores/authStore';
 import MeltingCurveChart from './MeltingCurveChart';
 
-// Display analysis results
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
-    // Group completed jobs by batch
+    const { jwt } = useAuthStore();
+
     const jobsByBatch = {};
     completedJobs.forEach(job => {
         if (!jobsByBatch[job.batchId]) {
@@ -11,19 +14,40 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
         jobsByBatch[job.batchId].push(job);
     });
 
-    // Calculate stats
     const totalCompleted = completedJobs.filter(j => j.status === 'completed').length;
     const totalErrors = completedJobs.filter(j => j.status === 'error').length;
 
+    const handleDownloadCsv = async (batchId, fileName) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/jobs/batch/${batchId}/results/csv`, {
+                headers: { Authorization: `Bearer ${jwt}` },
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to download results");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `results_${fileName.replace(/\.csv$/i, '')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        } catch (err) {
+            alert(`Download failed: ${err.message}`);
+        }
+    };
+
     return (
         <div>
-            {/* Header */}
             <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Step 4: Analysis Complete</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Analysis Complete</h2>
                 <p className="text-gray-600">All your samples have been processed</p>
             </div>
 
-            {/* Summary Stats */}
             <div className="mb-8 grid grid-cols-3 gap-4">
                 <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg">
                     <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Successful</p>
@@ -41,31 +65,34 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                 </div>
             </div>
 
-            {/* Results by Batch */}
             <div className="space-y-8">
                 {uploadedBatches.map((batch) => (
                     <div key={batch.batchId}>
-                        <div className="mb-4">
-                            <h3 className="text-xl font-bold text-gray-900">{batch.fileName}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{batch.numSamples} samples</p>
+                        <div className="mb-4 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">{batch.fileName}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{batch.numSamples} samples</p>
+                            </div>
+                            <button
+                                onClick={() => handleDownloadCsv(batch.batchId, batch.fileName)}
+                                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                            >
+                                Download CSV
+                            </button>
                         </div>
 
-                        {/* Results Grid - Responsive */}
                         <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {jobsByBatch[batch.batchId]?.map((job, sampleIdx) => (
                                 <div key={job.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-lg transition-shadow">
-                                    {/* Sample Header */}
                                     <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                                         <p className="text-sm font-semibold text-gray-700">
                                             Sample {sampleIdx + 1}/{batch.numSamples}
                                         </p>
                                     </div>
 
-                                    {/* Content */}
                                     <div className="p-5">
                                         {job.status === 'error' ? (
                                             <div className="text-center py-6">
-                                                <p className="text-3xl mb-2">⚠️</p>
                                                 <p className="text-red-700 text-sm font-medium">Processing Error</p>
                                                 <p className="text-red-600 text-xs mt-2">
                                                     {job.result?.error || job.error || 'Processing failed'}
@@ -73,18 +100,14 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                             </div>
                                         ) : job.result ? (
                                             <div className="space-y-4">
-                                                {/* Top Prediction */}
                                                 <div className="text-center py-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
                                                     <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Top Prediction</p>
                                                     <p className="text-2xl font-bold text-green-700 truncate px-2">{job.result.predictions?.[0]?.species || 'Unknown'}</p>
                                                     <p className="text-xl font-bold text-green-600 mt-2">
-                                                        {(
-                                                            (job.result.predictions?.[0]?.confidence ?? 0) * 100
-                                                        ).toFixed(1)}%
+                                                        {((job.result.predictions?.[0]?.confidence ?? 0) * 100).toFixed(1)}%
                                                     </p>
                                                 </div>
 
-                                                {/* Melting Curve Chart */}
                                                 {job.result.curve_data && (
                                                     <div className="w-full" style={{ height: '200px' }}>
                                                         <MeltingCurveChart
@@ -95,7 +118,6 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                                                     </div>
                                                 )}
 
-                                                {/* Top 5 Predictions */}
                                                 {job.result.predictions && job.result.predictions.length > 0 && (
                                                     <div>
                                                         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Top 5 Predictions</p>
@@ -141,7 +163,6 @@ const AnalysisResults = ({ completedJobs, uploadedBatches, onReset }) => {
                 ))}
             </div>
 
-            {/* CTA */}
             <div className="mt-10 flex gap-3">
                 <button
                     onClick={onReset}

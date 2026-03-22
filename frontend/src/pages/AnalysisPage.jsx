@@ -1,37 +1,21 @@
-// when you upload csv and then wait for resutls and then see results
 import { useState } from 'react';
 import { apiFetch } from '../utility/ApiFetch';
-import { useCasesStore } from '../stores/casesStore';
-import { usePredictionStore } from '../stores/predictionStore';
 import { useJobStatusListener } from '../components/analysis/useJobStatusListener';
 import AnalysisResults from '../components/analysis/AnalysisResults';
 import FileUploader from '../components/analysis/FileUploader';
-import { usePermissions } from '../hooks/usePermissions';
 
 const AnalysisPage = () => {
-    const { cases, addCase } = useCasesStore();
-    const { addPrediction } = usePredictionStore();
-    const { canCreateCase } = usePermissions();
-
-    // Step state: 'select-case' | 'upload-files' | 'processing' | 'results'
-    const [step, setStep] = useState('select-case');
-    const [selectedCase, setSelectedCase] = useState(null);
-    const [isCreatingCase, setIsCreatingCase] = useState(false);
-    const [newCaseForm, setNewCaseForm] = useState({
-        title: '',
-        description: '',
-        person_name: '',
-    });
+    // Step state: 'upload-files' | 'processing' | 'results'
+    const [step, setStep] = useState('upload-files');
     const [uploadedFiles, setUploadedFiles] = useState([]);
-    const [uploadedBatches, setUploadedBatches] = useState([]); // Track batches: [{batchId, fileName, numSamples, jobIds}]
+    const [uploadedBatches, setUploadedBatches] = useState([]);
     const [processingJobs, setProcessingJobs] = useState([]);
     const [completedJobs, setCompletedJobs] = useState([]);
-    const [totalSamplesCount, setTotalSamplesCount] = useState(0); // Fixed total for progress tracking
+    const [totalSamplesCount, setTotalSamplesCount] = useState(0);
     const [error, setError] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    // Custom hook to listen for job status updates
     useJobStatusListener(
         processingJobs,
         setProcessingJobs,
@@ -39,165 +23,99 @@ const AnalysisPage = () => {
         () => setStep('results')
     );
 
-    // Create new case
-    const handleCreateCase = (e) => {
-        e.preventDefault();
-        if (!validateCaseForm()) {
-            return;
-        }
-        apiFetch('/cases', {
-            method: 'POST',
-            body: JSON.stringify(newCaseForm),
-        })
-        .then(caseData => {
-            addCase(caseData);
-            setSelectedCase(caseData.id);
-            setNewCaseForm({ title: '', description: '', person_name: '' });
-            setIsCreatingCase(false);
-            setError(null);
-        })
-        .catch(err => {
-            setError(`Failed to create case: ${err.message}`);
+    const handleUpload = () => {
+        if (uploadedFiles.length === 0) return;
+
+        setError(null);
+        setIsUploading(true);
+        setUploadProgress(0);
+        setProcessingJobs([]);
+        setCompletedJobs([]);
+        setUploadedBatches([]);
+
+        const newJobs = [];
+        const newBatches = [];
+        let uploadCount = 0;
+        const failedUploads = [];
+
+        uploadedFiles.forEach((file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            apiFetch('/jobs/upload', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(responseData => {
+                const batchId = responseData.batch_id;
+                const numSamples = responseData.num_samples;
+                const jobIds = responseData.job_ids;
+
+                jobIds.forEach((jobId, sampleIdx) => {
+                    newJobs.push({
+                        id: jobId,
+                        batchId: batchId,
+                        sampleIndex: sampleIdx,
+                        fileName: file.name,
+                        status: 'queued',
+                        result: null,
+                    });
+                });
+
+                newBatches.push({
+                    batchId: batchId,
+                    fileName: file.name,
+                    numSamples: numSamples,
+                    jobIds: jobIds,
+                });
+
+                uploadCount++;
+                setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
+
+                if (uploadCount === uploadedFiles.length) {
+                    if (failedUploads.length > 0) {
+                        setError(`${failedUploads.length} file(s) failed to upload. Proceeding with ${newBatches.length} successful uploads (${newJobs.length} total samples).`);
+                    }
+                    setIsUploading(false);
+                    setProcessingJobs(newJobs);
+                    setUploadedBatches(newBatches);
+                    setTotalSamplesCount(newJobs.length);
+                    if (newJobs.length > 0) {
+                        setStep('processing');
+                    } else {
+                        setError('All files failed to upload. Please try again.');
+                        setIsUploading(false);
+                    }
+                }
+            })
+            .catch(err => {
+                uploadCount++;
+                failedUploads.push(file.name);
+                setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
+
+                if (uploadCount === uploadedFiles.length) {
+                    if (failedUploads.length === uploadedFiles.length) {
+                        setError(`All file uploads failed: ${err.message}`);
+                    } else if (failedUploads.length > 0) {
+                        setError(`${failedUploads.length} file(s) failed: ${failedUploads.join(', ')}`);
+                    }
+                    setIsUploading(false);
+                    setProcessingJobs(newJobs);
+                    setUploadedBatches(newBatches);
+                    if (newJobs.length > 0) {
+                        setStep('processing');
+                    }
+                }
+            });
         });
     };
 
-    // Proceed to next step in the analysis workflow
-    const handleNextStep = () => {
-        if (step === 'select-case' && selectedCase) {
-            setStep('upload-files');
-            setError(null);
-        } else if (step === 'upload-files' && uploadedFiles.length > 0) {
-            // Upload all files
-            setError(null);
-            setIsUploading(true);
-            setUploadProgress(0);
-            setProcessingJobs([]);
-            setCompletedJobs([]);
-            setUploadedBatches([]);
-
-            const newJobs = [];
-            const newBatches = [];
-            let uploadCount = 0;
-            const failedUploads = [];
-
-            uploadedFiles.forEach((file) => {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('case_id', selectedCase);
-
-                apiFetch('/jobs/upload', {
-                    method: 'POST',
-                    body: formData,
-                })
-                .then(responseData => {
-                    // New response format: {status, batch_id, num_samples, job_ids}
-                    const batchId = responseData.batch_id;
-                    const numSamples = responseData.num_samples;
-                    const jobIds = responseData.job_ids;
-
-                    // Create job objects for tracking
-                    jobIds.forEach((jobId, sampleIdx) => {
-                        newJobs.push({
-                            id: jobId,
-                            batchId: batchId,
-                            sampleIndex: sampleIdx,
-                            fileName: file.name,
-                            status: 'queued',
-                            result: null,
-                        });
-
-                        // Add prediction for first sample of this batch
-                        if (sampleIdx === 0) {
-                            addPrediction({
-                                jobId: batchId,
-                                caseId: selectedCase,
-                                fileName: file.name,
-                                status: 'queued',
-                                numSamples: numSamples,
-                            });
-                        }
-                    });
-
-                    // Track batch info for display
-                    newBatches.push({
-                        batchId: batchId,
-                        fileName: file.name,
-                        numSamples: numSamples,
-                        jobIds: jobIds,
-                    });
-
-                    uploadCount++;
-                    setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
-
-                    if (uploadCount === uploadedFiles.length) {
-                        if (failedUploads.length > 0) {
-                            setError(`${failedUploads.length} file(s) failed to upload. Proceeding with ${newBatches.length} successful uploads (${newJobs.length} total samples).`);
-                        }
-                        setIsUploading(false);
-                        setProcessingJobs(newJobs);
-                        setUploadedBatches(newBatches);
-                        setTotalSamplesCount(newJobs.length);
-                        if (newJobs.length > 0) {
-                            setStep('processing');
-                        } else {
-                            setError('All files failed to upload. Please try again.');
-                            setIsUploading(false);
-                        }
-                    }
-                })
-                .catch(err => {
-                    uploadCount++;
-                    failedUploads.push(file.name);
-                    setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
-
-                    if (uploadCount === uploadedFiles.length) {
-                        if (failedUploads.length === uploadedFiles.length) {
-                            setError(`All file uploads failed: ${err.message}`);
-                        } else if (failedUploads.length > 0) {
-                            setError(`${failedUploads.length} file(s) failed: ${failedUploads.join(', ')}`);
-                        }
-                        setIsUploading(false);
-                        setProcessingJobs(newJobs);
-                        setUploadedBatches(newBatches);
-                        if (newJobs.length > 0) {
-                            setStep('processing');
-                        }
-                    }
-                });
-            });
-        }
-    };
-
-    // Remove a selected file
     const removeFile = (index) => {
         setUploadedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Validate case form
-    const validateCaseForm = () => {
-        if (!newCaseForm.title.trim()) {
-            setError('Case title is required');
-            return false;
-        }
-        if (!newCaseForm.person_name.trim()) {
-            setError('Person name is required');
-            return false;
-        }
-        return true;
-    };
-
-    // Handle Enter key on case form inputs
-    const handleCaseFormKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleCreateCase(e);
-        }
-    };
-
-    // Reset the entire analysis workflow
     const handleReset = () => {
-        setStep('select-case');
-        setSelectedCase(null);
+        setStep('upload-files');
         setUploadedFiles([]);
         setUploadedBatches([]);
         setProcessingJobs([]);
@@ -208,16 +126,12 @@ const AnalysisPage = () => {
         setUploadProgress(0);
     };
 
-    // Clear error message
     const clearError = () => {
         setError(null);
     };
 
-    // Get selected case data
-    const selectedCaseData = cases.find(c => c.id === selectedCase);
-
     return (
-        <div className="w-full p-8">
+        <div className="w-full max-w-6xl mx-auto p-8">
             <h1 className="text-3xl font-bold mb-8">Analysis</h1>
 
             {error && (
@@ -232,135 +146,7 @@ const AnalysisPage = () => {
                 </div>
             )}
 
-            {/* Step 1: Select Case */}
-            {step === 'select-case' && (
-                <div>
-                    <h2 className="text-2xl font-bold mb-2">Step 1: Select or Create Case</h2>
-                    <p className="text-gray-600 mb-6">Choose an existing case or create a new one</p>
-
-                    {isCreatingCase ? (
-                        <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                            <h3 className="font-semibold text-gray-900 mb-4">Create New Case</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Case title"
-                                        value={newCaseForm.title}
-                                        onChange={(e) =>
-                                            setNewCaseForm((prev) => ({ ...prev, title: e.target.value }))
-                                        }
-                                        onKeyDown={handleCaseFormKeyDown}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Case description"
-                                        value={newCaseForm.description}
-                                        onChange={(e) =>
-                                            setNewCaseForm((prev) => ({ ...prev, description: e.target.value }))
-                                        }
-                                        onKeyDown={handleCaseFormKeyDown}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Person name"
-                                        value={newCaseForm.person_name}
-                                        onChange={(e) =>
-                                            setNewCaseForm((prev) => ({ ...prev, person_name: e.target.value }))
-                                        }
-                                        onKeyDown={handleCaseFormKeyDown}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        onClick={handleCreateCase}
-                                        className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-                                    >
-                                        Create Case
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCreatingCase(false)}
-                                        className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 font-medium rounded-lg hover:bg-gray-400 transition"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ) : canCreateCase ? (
-                        <button
-                            onClick={() => setIsCreatingCase(true)}
-                            className="mb-8 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-                        >
-                            + Create New Case
-                        </button>
-                    ) : (
-                        <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-yellow-800">
-                                You don't have permission to create cases. Please contact your organization admin.
-                            </p>
-                        </div>
-                    )}
-
-                    {cases.length > 0 ? (
-                        <>
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase mb-4">Existing Cases ({cases.length})</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                                {cases.map((caseItem) => (
-                                    <div
-                                        key={caseItem.id}
-                                        onClick={() => setSelectedCase(caseItem.id)}
-                                        className={`p-4 border-2 rounded-lg cursor-pointer transition ${
-                                            selectedCase === caseItem.id
-                                                ? 'bg-blue-50 border-blue-500 shadow-md'
-                                                : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                                        }`}
-                                    >
-                                        <p className="font-semibold text-gray-900">
-                                            {caseItem.title || 'Untitled'}
-                                        </p>
-                                        {caseItem.description && (
-                                            <p className="text-xs text-gray-600 mt-1 truncate">
-                                                {caseItem.description}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            Subject: <span className="font-medium text-gray-700">{caseItem.person_name || 'Unknown'}</span>
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Samples: <span className="font-bold text-blue-600">{caseItem.job_ids?.length || 0}</span>
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                            <p className="text-gray-600">No existing cases. Create a new one to get started.</p>
-                        </div>
-                    )}
-
-                    <button
-                        onClick={handleNextStep}
-                        disabled={!selectedCase}
-                        className="w-full px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                        Next: Upload Files →
-                    </button>
-                </div>
-            )}
-
-            {/* Step 2: Upload Files */}
+            {/* Step 1: Upload Files */}
             {step === 'upload-files' && (
                 <div>
                     {!isUploading ? (
@@ -369,25 +155,15 @@ const AnalysisPage = () => {
                                 uploadedFiles={uploadedFiles}
                                 onFilesChange={setUploadedFiles}
                                 onRemoveFile={removeFile}
-                                caseTitle={selectedCaseData?.title}
                             />
 
                             <div className="flex gap-2 mt-6">
                                 <button
-                                    onClick={handleNextStep}
+                                    onClick={handleUpload}
                                     disabled={uploadedFiles.length === 0}
-                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                                 >
-                                    Next: Process Files
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setStep('select-case');
-                                        setUploadedFiles([]);
-                                    }}
-                                    className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
-                                >
-                                    Back
+                                    Upload & Analyze
                                 </button>
                             </div>
                         </>
@@ -424,13 +200,12 @@ const AnalysisPage = () => {
                 </div>
             )}
 
-            {/* Step 3: Processing */}
+            {/* Step 2: Processing */}
             {step === 'processing' && (
                 <div>
-                    <h2 className="text-2xl font-bold mb-2">Step 3: Processing</h2>
+                    <h2 className="text-2xl font-bold mb-2">Processing</h2>
                     <p className="text-gray-600 mb-6">Your samples are being analyzed</p>
 
-                    {/* Overall Progress Summary */}
                     <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
                         {(() => {
                             const completed = completedJobs.length;
@@ -459,7 +234,6 @@ const AnalysisPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Overall Progress Bar */}
                                     <div className="mt-6">
                                         <div className="flex justify-between items-center mb-2">
                                             <p className="text-sm font-semibold text-gray-700">Overall Progress</p>
@@ -477,7 +251,6 @@ const AnalysisPage = () => {
                         })()}
                     </div>
 
-                    {/* Batches */}
                     <div className="space-y-5">
                         {uploadedBatches.map((batch) => {
                             const batchJobs = processingJobs.filter(j => j.batchId === batch.batchId);
@@ -496,7 +269,6 @@ const AnalysisPage = () => {
                                         </span>
                                     </div>
 
-                                    {/* Batch Progress Bar */}
                                     <div className="mb-4">
                                         <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                             <div
@@ -506,12 +278,10 @@ const AnalysisPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Sample Status Grid */}
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                         {batchJobs.map((job, sampleIdx) => {
                                             const isCompleted = job.status === 'completed';
                                             const isRunning = job.status === 'running';
-                                            const isQueued = job.status === 'queued';
                                             const isError = job.status === 'error';
 
                                             return (
@@ -534,15 +304,9 @@ const AnalysisPage = () => {
                                                             <p className="text-xs opacity-75">{(job.result?.predictions?.[0]?.confidence * 100 || 0).toFixed(0)}%</p>
                                                         </div>
                                                     )}
-                                                    {isRunning && (
-                                                        <p className="text-xs mt-1">Processing...</p>
-                                                    )}
-                                                    {isError && (
-                                                        <p className="text-xs mt-1">✕ Error</p>
-                                                    )}
-                                                    {isQueued && (
-                                                        <p className="text-xs mt-1">Waiting...</p>
-                                                    )}
+                                                    {isRunning && <p className="text-xs mt-1">Processing...</p>}
+                                                    {isError && <p className="text-xs mt-1">Error</p>}
+                                                    {!isCompleted && !isRunning && !isError && <p className="text-xs mt-1">Waiting...</p>}
                                                 </div>
                                             );
                                         })}
@@ -552,7 +316,6 @@ const AnalysisPage = () => {
                         })}
                     </div>
 
-                    {/* Info Message */}
                     <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
                             <strong>Processing in progress...</strong> You'll be automatically taken to results when all samples complete.
@@ -561,7 +324,7 @@ const AnalysisPage = () => {
                 </div>
             )}
 
-            {/* Step 4: Results */}
+            {/* Step 3: Results */}
             {step === 'results' && (
                 <AnalysisResults
                     completedJobs={completedJobs}

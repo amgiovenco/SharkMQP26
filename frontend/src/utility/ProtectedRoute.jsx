@@ -7,13 +7,13 @@ const ProtectedRoute = ({ children }) => {
 
     // Check if user is authenticated and has a valid JWT
     if (!isAuthenticated || !jwt) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/" replace />;
     }
 
     // Validate JWT - check if it's expired
     if (!validateJwt(jwt)) {
         clearAuth();
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/" replace />;
     }
 
     // Allow authenticated users with valid tokens to proceed

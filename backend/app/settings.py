@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # auth
     jwt_secret: str = os.getenv("JWT_SECRET", "secret")
     jwt_expires_seconds: int = int(os.getenv("JWT_EXPIRES_SECONDS", "3600"))
+    access_key: str = os.getenv("ACCESS_KEY", "")
 
     # redis
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

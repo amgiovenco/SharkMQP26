@@ -5,10 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import from_url
 from .db import Base, engine
 from .auth import router as auth_router
-from .cases import router as cases_router
 from .jobs import router as jobs_router
-from .organizations import router as organizations_router
-from .setup import router as setup_router
 from .settings import settings
 from contextlib import asynccontextmanager
 from socketio.asgi import ASGIApp
@@ -23,13 +20,13 @@ redis_listener_task = None
 async def lifespan(app: FastAPI):
     global redis_listener_task
     Base.metadata.create_all(bind=engine)
-    
+
     # Start Redis listener
     redis_listener_task = asyncio.create_task(listen_to_redis_updates())
     logger.info("Started Redis listener task")
-    
+
     yield
-    
+
     # Cleanup
     if redis_listener_task:
         redis_listener_task.cancel()
@@ -52,9 +49,6 @@ app.add_middleware(
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth")
 api_router.include_router(jobs_router, prefix="/jobs")
-api_router.include_router(cases_router, prefix="/cases")
-api_router.include_router(organizations_router)  # Already has /organizations prefix
-api_router.include_router(setup_router)  # Already has /setup prefix
 
 app.include_router(api_router, prefix="/api")
 
@@ -79,35 +73,28 @@ async def listen_to_redis_updates():
     r = None
     pubsub = None
 
-    # Subscribe to Redis channel
     try:
         r = await from_url(settings.redis_url, decode_responses=True)
         pubsub = r.pubsub()
         await pubsub.subscribe('job_status_updates')
         logger.info("Redis job status listener started and subscribed")
-        
-        # Listen for messages indefinitely
+
         async for message in pubsub.listen():
             if message['type'] == 'message':
-
-                # Broadcast to all connected Socket.IO clients
                 try:
                     data = json.loads(message['data'])
                     logger.info(f"Broadcasting job status: {data.get('job_id')} -> {data.get('status')}")
                     await sio.emit('job_status', data)
-                    logger.info(f"Emitted job_status event to all connected clients")
-
                 except Exception as e:
                     logger.error(f"Error broadcasting job status: {e}", exc_info=True)
-    
+
     except asyncio.CancelledError:
         logger.info("Redis listener cancelled")
         raise
-    
+
     except Exception as e:
         logger.error(f"Redis listener error: {e}", exc_info=True)
-    
-    # Cleanup on exit
+
     finally:
         if pubsub:
             await pubsub.unsubscribe('job_status_updates')
