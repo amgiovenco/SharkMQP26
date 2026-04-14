@@ -1,339 +1,202 @@
-import { useState } from 'react';
-import { apiFetch } from '../utility/ApiFetch';
-import { useJobStatusListener } from '../components/analysis/useJobStatusListener';
-import AnalysisResults from '../components/analysis/AnalysisResults';
-import FileUploader from '../components/analysis/FileUploader';
+import { useRef, useState } from 'react'
+import ResultCard from '../components/ResultCard'
 
-const AnalysisPage = () => {
-    // Step state: 'upload-files' | 'processing' | 'results'
-    const [step, setStep] = useState('upload-files');
-    const [uploadedFiles, setUploadedFiles] = useState([]);
-    const [uploadedBatches, setUploadedBatches] = useState([]);
-    const [processingJobs, setProcessingJobs] = useState([]);
-    const [completedJobs, setCompletedJobs] = useState([]);
-    const [totalSamplesCount, setTotalSamplesCount] = useState(0);
-    const [error, setError] = useState(null);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
+const LogoShark = () => (
+  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4,32 C10,18 26,12 40,14 C52,16 60,24 60,32 C54,40 44,44 32,42 C18,40 6,38 4,32 Z" />
+    <path d="M38,6 L46,20 L34,20 Z" />
+    <path d="M56,28 L64,22 L62,40 Z" />
+  </svg>
+)
 
-    useJobStatusListener(
-        processingJobs,
-        setProcessingJobs,
-        setCompletedJobs,
-        () => setStep('results')
-    );
+export default function AnalysisPage({ token, onLogout }) {
+  const [file, setFile]         = useState(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [results, setResults]   = useState(null)
+  const [error, setError]       = useState('')
+  const inputRef = useRef()
 
-    const handleUpload = () => {
-        if (uploadedFiles.length === 0) return;
+  /* ── file handling ── */
+  const acceptFile = (f) => {
+    if (!f) return
+    if (!f.name.match(/\.csv$/i)) {
+      setError('Please upload a .csv file.')
+      return
+    }
+    setFile(f)
+    setResults(null)
+    setError('')
+  }
 
-        setError(null);
-        setIsUploading(true);
-        setUploadProgress(0);
-        setProcessingJobs([]);
-        setCompletedJobs([]);
-        setUploadedBatches([]);
+  const onDrop = (e) => {
+    e.preventDefault(); setDragOver(false)
+    acceptFile(e.dataTransfer.files[0])
+  }
 
-        const newJobs = [];
-        const newBatches = [];
-        let uploadCount = 0;
-        const failedUploads = [];
+  /* ── analyze ── */
+  const analyze = async () => {
+    if (!file) return
+    setLoading(true); setError(''); setResults(null)
 
-        uploadedFiles.forEach((file) => {
-            const formData = new FormData();
-            formData.append('file', file);
+    const form = new FormData()
+    form.append('file', file)
 
-            apiFetch('/jobs/upload', {
-                method: 'POST',
-                body: formData,
-            })
-            .then(responseData => {
-                const batchId = responseData.batch_id;
-                const numSamples = responseData.num_samples;
-                const jobIds = responseData.job_ids;
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      })
 
-                jobIds.forEach((jobId, sampleIdx) => {
-                    newJobs.push({
-                        id: jobId,
-                        batchId: batchId,
-                        sampleIndex: sampleIdx,
-                        fileName: file.name,
-                        status: 'queued',
-                        result: null,
-                    });
-                });
+      if (res.status === 401) { onLogout(); return }
 
-                newBatches.push({
-                    batchId: batchId,
-                    fileName: file.name,
-                    numSamples: numSamples,
-                    jobIds: jobIds,
-                });
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Analysis failed')
+      setResults(data.results)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-                uploadCount++;
-                setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
+  /* ── download CSV ── */
+  const downloadCSV = () => {
+    if (!results) return
+    const header = 'Sample,Rank,Species,Confidence'
+    const rows = results.flatMap(r =>
+      (r.predictions || []).map(p =>
+        `${r.sample_index + 1},${p.rank},"${p.species}",${(p.confidence * 100).toFixed(2)}%`
+      )
+    )
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'wildsense_results.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
-                if (uploadCount === uploadedFiles.length) {
-                    if (failedUploads.length > 0) {
-                        setError(`${failedUploads.length} file(s) failed to upload. Proceeding with ${newBatches.length} successful uploads (${newJobs.length} total samples).`);
-                    }
-                    setIsUploading(false);
-                    setProcessingJobs(newJobs);
-                    setUploadedBatches(newBatches);
-                    setTotalSamplesCount(newJobs.length);
-                    if (newJobs.length > 0) {
-                        setStep('processing');
-                    } else {
-                        setError('All files failed to upload. Please try again.');
-                        setIsUploading(false);
-                    }
-                }
-            })
-            .catch(err => {
-                uploadCount++;
-                failedUploads.push(file.name);
-                setUploadProgress(Math.round((uploadCount / uploadedFiles.length) * 100));
+  /* ── render ── */
+  return (
+    <>
+      <div className="ocean-bg" />
 
-                if (uploadCount === uploadedFiles.length) {
-                    if (failedUploads.length === uploadedFiles.length) {
-                        setError(`All file uploads failed: ${err.message}`);
-                    } else if (failedUploads.length > 0) {
-                        setError(`${failedUploads.length} file(s) failed: ${failedUploads.join(', ')}`);
-                    }
-                    setIsUploading(false);
-                    setProcessingJobs(newJobs);
-                    setUploadedBatches(newBatches);
-                    if (newJobs.length > 0) {
-                        setStep('processing');
-                    }
-                }
-            });
-        });
-    };
+      <div className="analysis-page">
+        {/* navbar */}
+        <nav className="navbar">
+          <div className="nav-brand">
+            <LogoShark />
+            WildSense
+          </div>
+          <button className="btn btn-danger" onClick={onLogout}>
+            Sign out
+          </button>
+        </nav>
 
-    const removeFile = (index) => {
-        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-    };
+        <div className="main">
+          <h1 className="page-heading">Species Analysis</h1>
+          <p className="page-desc">
+            Upload a qPCR melting curve CSV — raw or pre-processed. All samples in the file will be identified.
+          </p>
 
-    const handleReset = () => {
-        setStep('upload-files');
-        setUploadedFiles([]);
-        setUploadedBatches([]);
-        setProcessingJobs([]);
-        setCompletedJobs([]);
-        setTotalSamplesCount(0);
-        setError(null);
-        setIsUploading(false);
-        setUploadProgress(0);
-    };
-
-    const clearError = () => {
-        setError(null);
-    };
-
-    return (
-        <div className="w-full max-w-6xl mx-auto p-8">
-            <h1 className="text-3xl font-bold mb-8">Analysis</h1>
-
-            {error && (
-                <div className="mb-6 p-4 border border-red-300 bg-red-50 flex justify-between items-center">
-                    <p className="text-red-800">{error}</p>
-                    <button
-                        onClick={clearError}
-                        className="text-red-800 hover:text-red-900 font-semibold"
-                    >
-                        ✕
-                    </button>
+          {/* drop zone */}
+          <div
+            className={`upload-zone${dragOver ? ' drag-over' : ''}${file ? ' has-file' : ''}`}
+            onClick={() => inputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={e => acceptFile(e.target.files[0])}
+            />
+            <div className="upload-icon">
+              {file ? '📄' : '🌊'}
+            </div>
+            {file ? (
+              <>
+                <p className="upload-title">File selected</p>
+                <div className="file-pill">
+                  <span>📎</span>
+                  <span>{file.name}</span>
+                  <span style={{ opacity: .6 }}>({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
+              </>
+            ) : (
+              <>
+                <p className="upload-title">Drop your CSV here</p>
+                <p className="upload-hint">or click to browse — .csv only</p>
+              </>
             )}
+          </div>
 
-            {/* Step 1: Upload Files */}
-            {step === 'upload-files' && (
-                <div>
-                    {!isUploading ? (
-                        <>
-                            <FileUploader
-                                uploadedFiles={uploadedFiles}
-                                onFilesChange={setUploadedFiles}
-                                onRemoveFile={removeFile}
-                            />
+          {/* action row */}
+          <div className="analyze-row">
+            <button
+              className="btn btn-primary"
+              onClick={analyze}
+              disabled={!file || loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, margin: 0 }} />
+                  Analyzing…
+                </>
+              ) : '🔬 Run Analysis'}
+            </button>
 
-                            <div className="flex gap-2 mt-6">
-                                <button
-                                    onClick={handleUpload}
-                                    disabled={uploadedFiles.length === 0}
-                                    className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                >
-                                    Upload & Analyze
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="p-4 border rounded bg-blue-50">
-                                <p className="text-sm font-semibold text-blue-800 mb-3">
-                                    Uploading {uploadedFiles.length} file(s)...
-                                </p>
-                                <div className="space-y-2">
-                                    {uploadedFiles.map((file, idx) => (
-                                        <div key={idx}>
-                                            <p className="text-sm text-gray-700 mb-1">{file.name}</p>
-                                            <div className="w-full bg-gray-300 rounded h-2">
-                                                <div className="bg-blue-600 h-2 rounded w-full animate-pulse" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="p-4 border-2 border-blue-400 rounded bg-blue-50">
-                                <p className="text-center text-blue-700 font-medium">
-                                    Overall Progress: {uploadProgress}%
-                                </p>
-                                <div className="w-full bg-gray-300 rounded h-3 mt-2">
-                                    <div
-                                        className="bg-green-600 h-3 rounded transition-all"
-                                        style={{ width: `${uploadProgress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+            {file && !loading && (
+              <button
+                className="btn btn-outline"
+                onClick={() => { setFile(null); setResults(null); setError('') }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* error */}
+          {error && <div className="error-banner">⚠ {error}</div>}
+
+          {/* loading */}
+          {loading && (
+            <div className="loading">
+              <div className="spinner" />
+              <p className="loading-text">Running ResNet-18 inference on all samples…</p>
+            </div>
+          )}
+
+          {/* results */}
+          {results && !loading && (
+            <>
+              <div className="results-bar">
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Results</h2>
+                <span className="results-label">{results.length} sample{results.length !== 1 ? 's' : ''} processed</span>
+                <button className="btn btn-outline" onClick={downloadCSV}>
+                  Download CSV
+                </button>
+              </div>
+
+              {results.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted)' }}>
+                  No samples found in this file.
                 </div>
-            )}
+              )}
 
-            {/* Step 2: Processing */}
-            {step === 'processing' && (
-                <div>
-                    <h2 className="text-2xl font-bold mb-2">Processing</h2>
-                    <p className="text-gray-600 mb-6">Your samples are being analyzed</p>
-
-                    <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                        {(() => {
-                            const completed = completedJobs.length;
-                            const running = processingJobs.filter(j => j.status === 'running').length;
-                            const queued = processingJobs.filter(j => j.status === 'queued').length;
-                            const progress = totalSamplesCount > 0 ? (completed / totalSamplesCount) * 100 : 0;
-
-                            return (
-                                <>
-                                    <div className="grid grid-cols-4 gap-4">
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Total</p>
-                                            <p className="text-3xl font-bold text-gray-900">{totalSamplesCount}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Completed</p>
-                                            <p className="text-3xl font-bold text-green-600">{completed}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Processing</p>
-                                            <p className="text-3xl font-bold text-blue-600">{running}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Queued</p>
-                                            <p className="text-3xl font-bold text-yellow-600">{queued}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <p className="text-sm font-semibold text-gray-700">Overall Progress</p>
-                                            <p className="text-sm font-bold text-gray-900">{Math.round(progress)}%</p>
-                                        </div>
-                                        <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className="h-3 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-300"
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </>
-                            );
-                        })()}
-                    </div>
-
-                    <div className="space-y-5">
-                        {uploadedBatches.map((batch) => {
-                            const batchJobs = processingJobs.filter(j => j.batchId === batch.batchId);
-                            const batchCompleted = batchJobs.filter(j => j.status === 'completed').length;
-                            const batchProgress = (batchCompleted / batch.numSamples) * 100;
-
-                            return (
-                                <div key={batch.batchId} className="border border-gray-200 rounded-lg p-5 bg-white hover:shadow-sm transition">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900">{batch.fileName}</h3>
-                                            <p className="text-sm text-gray-600 mt-1">{batchCompleted} of {batch.numSamples} samples completed</p>
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded">
-                                            {Math.round(batchProgress)}%
-                                        </span>
-                                    </div>
-
-                                    <div className="mb-4">
-                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                            <div
-                                                className="h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300"
-                                                style={{ width: `${batchProgress}%` }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                        {batchJobs.map((job, sampleIdx) => {
-                                            const isCompleted = job.status === 'completed';
-                                            const isRunning = job.status === 'running';
-                                            const isError = job.status === 'error';
-
-                                            return (
-                                                <div
-                                                    key={job.id}
-                                                    className={`p-3 rounded-lg border-2 text-center text-xs font-medium transition ${
-                                                        isCompleted
-                                                            ? 'bg-green-50 border-green-300 text-green-700'
-                                                            : isRunning
-                                                            ? 'bg-blue-50 border-blue-300 text-blue-700 animate-pulse'
-                                                            : isError
-                                                            ? 'bg-red-50 border-red-300 text-red-700'
-                                                            : 'bg-gray-50 border-gray-300 text-gray-700'
-                                                    }`}
-                                                >
-                                                    <p>Sample {sampleIdx + 1}</p>
-                                                    {isCompleted && (
-                                                        <div className="mt-1">
-                                                            <p className="text-xs font-semibold truncate">{job.result?.predictions?.[0]?.species || 'Unknown'}</p>
-                                                            <p className="text-xs opacity-75">{(job.result?.predictions?.[0]?.confidence * 100 || 0).toFixed(0)}%</p>
-                                                        </div>
-                                                    )}
-                                                    {isRunning && <p className="text-xs mt-1">Processing...</p>}
-                                                    {isError && <p className="text-xs mt-1">Error</p>}
-                                                    {!isCompleted && !isRunning && !isError && <p className="text-xs mt-1">Waiting...</p>}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                            <strong>Processing in progress...</strong> You'll be automatically taken to results when all samples complete.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Step 3: Results */}
-            {step === 'results' && (
-                <AnalysisResults
-                    completedJobs={completedJobs}
-                    uploadedBatches={uploadedBatches}
-                    onReset={handleReset}
-                />
-            )}
+              {results.map(r => (
+                <ResultCard key={r.sample_index} result={r} />
+              ))}
+            </>
+          )}
         </div>
-    );
-};
-
-export default AnalysisPage;
+      </div>
+    </>
+  )
+}
